@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   CLAIMS,
   getAllClaims,
+  getApprovalStateLabel,
   getOwnerPreviewClaims,
   getPublicClaim,
   getPublicClaimOrFallback,
+  getPublicClaims,
   isPublicClaim,
+  isStewardApprovedForPrototype,
 } from "@/content/claims";
 
 describe("isPublicClaim", () => {
@@ -105,5 +108,97 @@ describe("claim registry invariants", () => {
       (claim) => gatedCategories.has(claim.category) && isPublicClaim(claim)
     );
     expect(violations).toEqual([]);
+  });
+});
+
+describe("STEWARD_APPROVED_FOR_PROTOTYPE (Project Steward reconciliation)", () => {
+  const allClaims = getAllClaims();
+  const stewardApprovedClaims = allClaims.filter(
+    (claim) => claim.status === "STEWARD_APPROVED_FOR_PROTOTYPE"
+  );
+
+  it("reconciles the 11 decision groups (34 claim records) onto the new status", () => {
+    expect(stewardApprovedClaims.length).toBe(34);
+  });
+
+  it("is never treated as a public status by isPublicClaim, even for a claim flagged public", () => {
+    const stewardApprovedButFlaggedPublic = {
+      ...CLAIMS.rateWeekday,
+      allowedSurfaces: ["public" as const],
+    };
+    expect(isPublicClaim(stewardApprovedButFlaggedPublic)).toBe(false);
+  });
+
+  it("getPublicClaim rejects STEWARD_APPROVED_FOR_PROTOTYPE claims", () => {
+    expect(CLAIMS.rateWeekday.status).toBe("STEWARD_APPROVED_FOR_PROTOTYPE");
+    expect(getPublicClaim(CLAIMS.rateWeekday)).toBeUndefined();
+  });
+
+  it("getPublicClaims never includes a STEWARD_APPROVED_FOR_PROTOTYPE claim", () => {
+    const publicIds = new Set(getPublicClaims().map((c) => c.id));
+    for (const claim of stewardApprovedClaims) {
+      expect(publicIds.has(claim.id)).toBe(false);
+    }
+  });
+
+  it("getOwnerPreviewClaims includes every STEWARD_APPROVED_FOR_PROTOTYPE claim", () => {
+    const previewIds = new Set(getOwnerPreviewClaims().map((c) => c.id));
+    for (const claim of stewardApprovedClaims) {
+      expect(previewIds.has(claim.id)).toBe(true);
+    }
+  });
+
+  it("isStewardApprovedForPrototype identifies the status correctly", () => {
+    expect(isStewardApprovedForPrototype(CLAIMS.rateWeekday)).toBe(true);
+    expect(isStewardApprovedForPrototype(CLAIMS.brandName)).toBe(false);
+  });
+
+  it("marks every steward-approved claim as still requiring actual owner confirmation", () => {
+    const missingOwnerFlag = stewardApprovedClaims.filter(
+      (claim) => claim.ownerVerificationRequired !== true
+    );
+    expect(missingOwnerFlag).toEqual([]);
+  });
+
+  it("getApprovalStateLabel clearly distinguishes it from other statuses (never the raw enum string)", () => {
+    const label = getApprovalStateLabel(CLAIMS.rateWeekday);
+    expect(label).not.toBe("STEWARD_APPROVED_FOR_PROTOTYPE");
+    expect(label.toLowerCase()).toContain("steward approved");
+    expect(label.toLowerCase()).toContain("owner confirmation");
+  });
+
+  it("steward-approved rates and capacity do not appear in unauthenticated public output", () => {
+    const publicIds = new Set(getPublicClaims().map((c) => c.id));
+    for (const id of [
+      "CLM-RATE-001",
+      "CLM-RATE-002",
+      "CLM-RATE-003",
+      "CLM-RATE-004",
+      "CLM-RATE-005",
+      "CLM-CAP-001",
+      "CLM-CAP-002",
+      "CLM-CAP-003",
+    ]) {
+      expect(publicIds.has(id)).toBe(false);
+    }
+  });
+
+  it("does not move any claim all the way to APPROVED_FOR_PUBLICATION during this reconciliation", () => {
+    const prematurelyApproved = getAllClaims().filter(
+      (claim) => claim.status === "APPROVED_FOR_PUBLICATION"
+    );
+    expect(prematurelyApproved).toEqual([]);
+  });
+});
+
+describe("mandatory blank property facts", () => {
+  it("remain UNVERIFIED with no value invented during reconciliation", () => {
+    const factClaims = getAllClaims().filter((claim) => claim.category === "fact");
+    expect(factClaims.length).toBeGreaterThan(0);
+    for (const claim of factClaims) {
+      expect(claim.status).toBe("UNVERIFIED");
+      expect(claim.value).toBeNull();
+      expect(isPublicClaim(claim)).toBe(false);
+    }
   });
 });

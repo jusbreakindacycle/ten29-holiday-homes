@@ -40,4 +40,8 @@ Reusable components render polished public language instead of internal terminol
 | No approved policies | "Final stay policies are being reviewed. TEN29 will provide the applicable rules before payment." |
 | Gallery assets pending | "Property photos are being finalized. Contact TEN29 for the latest available images." |
 
-Guests never see the words "PROPOSED_PENDING_APPROVAL," "UNVERIFIED," or claim IDs. Those are internal/admin vocabulary only, visible at `/admin/claims` and `/admin/owner-preview`.
+Guests never see the words "PROPOSED_PENDING_APPROVAL," "STEWARD_APPROVED_FOR_PROTOTYPE," "UNVERIFIED," or claim IDs. Those are internal/admin vocabulary only, visible at `/admin/claims` and `/admin/owner-preview`.
+
+## Steward-approved prototype values
+
+Per [[26_PROJECT_STEWARD_DECISION_AND_OWNER_VERIFICATION]], the Project Steward has approved a set of positioning, capacity, rate, promotion, hours, payment, cancellation, and house-rule values for implementation and authenticated owner preview (`STEWARD_APPROVED_FOR_PROTOTYPE` in [[05_OWNER_APPROVAL_MATRIX]] / `src/content/claims.ts`). These values are decision-ready defaults for the actual TEN29 owner to confirm, revise, or reject — they are not public claims. Until the owner confirms them for publication, the public site continues to render the fallback copy above, unchanged.
