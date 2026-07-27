@@ -78,3 +78,56 @@ npm run test:e2e       → 8 tests passed (Playwright, chromium, serial)
 - Manual acceptance checklist (mobile viewport, screen reader, slow network, etc. from [[16_TEST_STRATEGY]]) has not been run — flagged as an owner-facing next step, not silently skipped.
 
 Definition of done ([[22_DEFINITION_OF_DONE]]) re-checked against this state: items 1–13 and 15 satisfied; item 14 (final owner asset/approval gaps) is documented in [[24_ASSET_REQUIREMENTS]] and [[05_OWNER_APPROVAL_MATRIX]] and remains open pending owner action, as expected at this stage.
+
+## 2026-07-28 — Phase 9: Local-environment, E2E, and dependency-security remediation
+
+Baseline confirmed before any change: `git status` showed only a generated `test-results/.last-run.json` artifact modified (not source); `git rev-parse HEAD` and `git rev-parse origin/main` both resolved to `18c7d3817d39f4c1f145def4747688f9046d5596` — local tree matched the latest pushed baseline exactly.
+
+**Slow-filesystem / drive confirmation.** `D:` is Disk 1, physical device **TOSHIBA MQ04ABF100** (`Get-PhysicalDisk`), a spinning 5400 RPM 2.5" hard disk drive — not an SSD. This confirms Next.js's own slow-filesystem benchmark warning; it is the physical root cause of everything below. The project stays on `D:` — no relocation was made or suggested.
+
+**Original Playwright timeout — root cause.** `playwright.config.ts` pointed its `webServer` at `npm run dev -- --port 3100` (Turbopack **dev** server) with a 120 000 ms startup timeout. Under `next dev` the first request to each route pays a real, on-demand compile cost; on the Toshiba HDD, that per-route compile latency (compounded by general filesystem I/O being the slowest link, as also seen in the 258 s Vitest "environment" phase in this same run) pushed dev-server readiness past 120 s, so Playwright timed out waiting for a server that was still compiling rather than one that had failed to start.
+
+**Durable fix applied** (`playwright.config.ts`, `playwright.dev.config.ts`, `package.json`):
+- `test:e2e` is now `next build && playwright test` — the build's one-time compile cost is paid up front, before Playwright ever starts a server.
+- `playwright.config.ts`'s `webServer.command` is now `npm run start` (`next start`, a production server) instead of `next dev`.
+- `webServer.url` / `use.baseURL` now default to the explicit `http://127.0.0.1:3000` (overridable via `PLAYWRIGHT_BASE_URL`).
+- `webServer.timeout` raised to `300000` ms (still generous headroom, though the production server now boots in ~2 s).
+- `webServer.reuseExistingServer` kept as `!process.env.CI` (unchanged behavior outside CI).
+- `webServer.stdout` / `webServer.stderr` set to `"pipe"` so startup problems remain visible instead of being swallowed.
+- Verified: on this run, `next start` reported `✓ Ready in 1990ms`, and all 8 Playwright tests passed in ~1.1 minutes total — no timeout, no flakiness.
+- A separate dev-server E2E path was preserved as `npm run test:e2e:dev`, loading the new `playwright.dev.config.ts` (targets `next dev` on port 3100, single-worker/serial, 120 s startup timeout) — kept because it has real value for iterating on a page without paying for a full rebuild each time; it is not the default gate and is not suitable as one on this disk.
+- CI is unaffected: no `.github/workflows` (or other CI config) exists in this repository yet, so nothing was duplicated or broken there; `process.env.CI` branches (`forbidOnly`, `retries`, `reuseExistingServer`) were left exactly as before.
+
+**Dependency-security findings (`npm audit`, 12 high, 0 critical/moderate/low, before any change):**
+
+| Finding | Direct/Transitive | Prod/Dev | Classification |
+|---|---|---|---|
+| `postcss` (nested copy bundled inside `next@16.2.12`, resolved 8.4.31) — GHSA-qx2v-qp2m-jg93, GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 | Transitive (of `next`) | Present in both prod and dev audits | **Safely fixable without a breaking update** — same-major (8.x) patch |
+| `sharp` (0.34.5, `next`'s optional dep for `next/image` optimization; used in production via `src/components/ui/GalleryCard.tsx`) — GHSA-f88m-g3jw-g9cj (libvips CVE-2026-33327/33328/35590/35591) | Transitive (of `next`) | **Production** | **No fix currently available without a breaking update.** Patched only from `sharp@0.35.0`; `sharp` has no `0.34.x` patch release that fixes it. `next@16.2.12` pins `optionalDependencies.sharp` to `^0.34.5`, i.e. it explicitly excludes `0.35.x`. Forcing `0.35.x` via override would mean running a sharp version Next has not tested against this Next release, and under 0.x semver a `0.34→0.35` bump is a breaking-equivalent change — this is exactly the kind of silent major-equivalent jump the remediation instructions said not to make. Left unfixed and documented; the real fix is an upstream Next.js release that bumps its own `sharp` pin. |
+| `next` (flagged only because it depends on the above `postcss`/`sharp`) | Direct | Both | Resolves itself once `postcss`/`sharp` are addressed; no separate action needed |
+| `eslint`, `eslint-config-next` | Direct | **Dev only** | Requires a breaking update (`eslint` 9→10) with no `eslint-config-next` release yet compatible with `next@16.2.12` that drops the vulnerable chain (npm's suggested "fix," `eslint-config-next@0.2.4`, is a pre-1.0 release from years before Next 16 and is not a real fix path) |
+| `@eslint/config-array`, `@eslint/eslintrc`, `minimatch`, `brace-expansion`, `eslint-plugin-import`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react` | Transitive (of `eslint`/`eslint-config-next`) | **Dev only** | Same as above — all resolve once `eslint`/`eslint-config-next` get a compatible major update |
+
+Not reachable in TEN29's actual runtime, with justification: the entire `eslint`/`minimatch`/`brace-expansion` chain (9 of the 12 findings) is lint tooling only — it never ships in `next build` output, is not loaded by any served route, and its DoS vector (`brace-expansion` unbounded-expansion) is only reachable by feeding attacker-controlled glob patterns to the linter's own file-matching, which nothing in this app's request path does.
+
+**Dependency changed:** added a targeted `"overrides": { "postcss": "8.5.23" }` to `package.json`, deduping the vulnerable nested `next/node_modules/postcss@8.4.31` onto the same patched `8.5.23` already used at the top level (by `@tailwindcss/postcss` / Vite) — same major version, no application code affected, confirmed via `npm ls postcss` (all three consumers now resolve to `8.5.23`, one `overridden`, two `deduped`). `package-lock.json` regenerated to match (required deleting and reinstalling — incremental `npm install`, even with `--force`, did not pick up the new override against already-installed `node_modules`). No other dependency versions were changed; `npm audit fix` / `npm audit fix --force` were not run.
+
+**`npm outdated`** additionally showed non-security patch versions available for `@supabase/supabase-js` (2.110.8→2.110.9), `react`/`react-dom` (19.2.4→19.2.8), `eslint` (9.39.5→10.8.0, major), `typescript` (5.9.3→7.0.2, major), and `@types/node` (20.19.43→26.1.1, major). None of these are tied to a security finding; left unchanged to keep this change set targeted to the audit remediation and the E2E fix, per instructions not to make changes beyond what's needed.
+
+**Final vulnerability counts:**
+- `npm audit` (all): **11 high** (down from 12) — 9 dev-only (eslint/minimatch chain, documented above) + `next`/`sharp` (production, documented above).
+- `npm audit --omit=dev`: **2 high** (down from 3) — `next` and `sharp` only; `postcss` no longer appears in either audit.
+- **A production-relevant vulnerability (`sharp`/libvips) remains open**, with no safe fix available today — see table above.
+
+**Final quality-gate results (this run, in order):**
+```
+npm run lint         → 0 problems
+npm run typecheck    → 0 errors
+npm run test         → 7 files, 70 tests passed (65.68s; setup/environment phases dominated by disk I/O)
+npm run test:e2e     → next build succeeded, next start ready in 1990ms, 8/8 Playwright tests passed (~1.1 min total)
+npm run build        → succeeds (standalone re-run, same as before)
+npm audit            → 11 high (see above)
+npm audit --omit=dev → 2 high (see above)
+```
+
+No business content, public claims, architecture scope, owner-approval values, routes, or Option 1 functionality were touched. Changes were not committed or pushed, per instructions.
