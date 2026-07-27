@@ -1,0 +1,490 @@
+import type { Claim } from "./claim-types";
+import { isPublicClaim } from "./claim-types";
+
+export { isPublicClaim, getPublicClaim, getPublicClaimOrFallback } from "./claim-types";
+
+/**
+ * The claim registry — the machine-enforced mirror of docs/05_OWNER_APPROVAL_MATRIX.md.
+ * If this file and that document ever disagree, update both together.
+ *
+ * Do NOT add a claim with status APPROVED_FOR_PUBLICATION or VERIFIED without
+ * approvedBy + approvedAt recorded and the owner-approval matrix updated to match.
+ */
+export const CLAIMS = {
+  // ---- Business (verified) ----------------------------------------------
+  brandName: {
+    id: "CLM-BIZ-001",
+    category: "business",
+    label: "Public brand name",
+    value: "TEN29 Holiday Homes",
+    status: "VERIFIED",
+    source: "Owner-supplied brand name, matches Facebook Page",
+    approvedAt: "2026-07-27",
+    allowedSurfaces: ["public", "owner-preview"],
+  },
+  phoneDisplay: {
+    id: "CLM-BIZ-002",
+    category: "business",
+    label: "Public phone display",
+    value: "0961 586 8106",
+    status: "VERIFIED",
+    source: "Owner-supplied contact number",
+    approvedAt: "2026-07-27",
+    allowedSurfaces: ["public", "owner-preview"],
+  },
+  phoneE164: {
+    id: "CLM-BIZ-002B",
+    category: "business",
+    label: "Phone link format",
+    value: "+639615868106",
+    status: "VERIFIED",
+    source: "Derived from CLM-BIZ-002",
+    approvedAt: "2026-07-27",
+    allowedSurfaces: ["public", "owner-preview"],
+  },
+  generalLocation: {
+    id: "CLM-BIZ-003",
+    category: "business",
+    label: "Map location (general)",
+    value: "Holiday Homes subdivision, Barangay Biclatan, General Trias, Cavite 4107",
+    status: "VERIFIED",
+    source: "Owner-supplied, matches Google Maps listing area",
+    approvedAt: "2026-07-27",
+    allowedSurfaces: ["public", "owner-preview"],
+  },
+  preciseMapRecord: {
+    id: "CLM-BIZ-004",
+    category: "business",
+    label: "Precise map record (block/lot)",
+    value: "Block 10, Lot 29",
+    status: "VERIFIED",
+    source: "Owner-supplied",
+    approvedAt: "2026-07-27",
+    allowedSurfaces: ["restricted", "owner-preview"],
+    notes: "Not rendered on public routes by default — disclosed manually by the owner as needed.",
+  },
+  proposedDomain: {
+    id: "CLM-BIZ-005",
+    category: "business",
+    label: "Proposed domain",
+    value: "ten29holidayhomes.com",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+    notes: "Availability unconfirmed until registrar checkout.",
+  },
+  proposedEmail: {
+    id: "CLM-BIZ-006",
+    category: "business",
+    label: "Proposed business email",
+    value: "bookings@ten29holidayhomes.com",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+    notes: "Not active until the owner creates the mailbox.",
+  },
+
+  // ---- Positioning ---------------------------------------------------------
+  positioningStatement: {
+    id: "CLM-POS-001",
+    category: "positioning",
+    label: "Positioning statement",
+    value:
+      "TEN29 Holiday Homes is a modern private whole-home stay in Biclatan, General Trias, designed primarily for small families and groups seeking a comfortable place to rest, reconnect, and spend time together.",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  tagline: {
+    id: "CLM-POS-002",
+    category: "positioning",
+    label: "Tagline",
+    value: "Comfortable stays. Memorable moments. A place that feels like home.",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  locationCopy: {
+    id: "CLM-POS-003",
+    category: "positioning",
+    label: "Approved location language",
+    value: "Located in Biclatan, General Trias, with road access toward Amadeo and Tagaytay.",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  heroHeadline: {
+    id: "CLM-POS-004",
+    category: "positioning",
+    label: "Hero headline",
+    value: "Your private place to rest, reconnect, and feel at home.",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  heroSubcopy: {
+    id: "CLM-POS-005",
+    category: "positioning",
+    label: "Hero supporting copy",
+    value: "A modern holiday-home stay in Biclatan, General Trias for small families and groups.",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Capacity --------------------------------------------------------
+  baseCapacity: {
+    id: "CLM-CAP-001",
+    category: "capacity",
+    label: "Base overnight capacity",
+    value: "6 guests",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  maxOvernightCapacity: {
+    id: "CLM-CAP-002",
+    category: "capacity",
+    label: "Maximum overnight capacity",
+    value: "8 guests",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  maxTotalPersons: {
+    id: "CLM-CAP-003",
+    category: "capacity",
+    label: "Maximum total persons on property",
+    value: "10 (day visitors included)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  parkingCapacity: {
+    id: "CLM-CAP-004",
+    category: "capacity",
+    label: "Indoor parking capacity",
+    value: "1 vehicle (additional vehicles subject to subdivision rules)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  minLeadGuestAge: {
+    id: "CLM-CAP-005",
+    category: "capacity",
+    label: "Minimum lead-guest age",
+    value: "21",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  minimumStay: {
+    id: "CLM-CAP-006",
+    category: "capacity",
+    label: "Minimum stay",
+    value: "1 night",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Rates -------------------------------------------------------------
+  rateWeekday: {
+    id: "CLM-RATE-001",
+    category: "rate",
+    label: "Sunday–Thursday rate",
+    value: "PHP 4,499 (up to 6 guests)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  rateFriday: {
+    id: "CLM-RATE-002",
+    category: "rate",
+    label: "Friday rate",
+    value: "PHP 4,999 (up to 6 guests)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  rateSaturday: {
+    id: "CLM-RATE-003",
+    category: "rate",
+    label: "Saturday rate",
+    value: "PHP 5,999 (up to 6 guests)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  ratePublicHoliday: {
+    id: "CLM-RATE-004",
+    category: "rate",
+    label: "Declared public holiday rate",
+    value: "PHP 6,499 (up to 6 guests)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  ratePeakHoliday: {
+    id: "CLM-RATE-005",
+    category: "rate",
+    label: "Peak holiday period rate",
+    value: "From PHP 6,999 (up to 6 guests)",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  rateAdditionalGuest: {
+    id: "CLM-RATE-006",
+    category: "rate",
+    label: "Additional overnight guest fee",
+    value: "PHP 500 each, maximum 2 additional guests",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  securityDeposit: {
+    id: "CLM-RATE-007",
+    category: "rate",
+    label: "Refundable security deposit",
+    value: "PHP 2,000",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  earlyLateFee: {
+    id: "CLM-RATE-008",
+    category: "rate",
+    label: "Early check-in / late check-out",
+    value: "PHP 500 per approved hour",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Promotions ----------------------------------------------------
+  promoTwoNights: {
+    id: "CLM-PROMO-001",
+    category: "promotion",
+    label: "Two consecutive nights",
+    value: "PHP 500 off total accommodation",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  promoThreeNights: {
+    id: "CLM-PROMO-002",
+    category: "promotion",
+    label: "Three or more nights",
+    value: "10% off accommodation",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  promoLaunchRate: {
+    id: "CLM-PROMO-003",
+    category: "promotion",
+    label: "Launch rate (optional)",
+    value: "PHP 3,999 weekday rate for the first ten completed bookings",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  promoReturningGuest: {
+    id: "CLM-PROMO-004",
+    category: "promotion",
+    label: "Returning verified guest",
+    value: "5% accommodation discount",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Hours -----------------------------------------------------------
+  enquiryHours: {
+    id: "CLM-HOURS-001",
+    category: "hours",
+    label: "Booking-enquiry support hours",
+    value: "8:00 AM to 9:00 PM daily",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+    notes: "Replaces legacy \"Always open\" listing on Facebook.",
+  },
+  checkInTime: {
+    id: "CLM-HOURS-002",
+    category: "hours",
+    label: "Check-in time",
+    value: "2:00 PM",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  checkOutTime: {
+    id: "CLM-HOURS-003",
+    category: "hours",
+    label: "Check-out time",
+    value: "11:00 AM",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  quietHours: {
+    id: "CLM-HOURS-004",
+    category: "hours",
+    label: "Quiet hours",
+    value: "10:00 PM to 7:00 AM",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Payment -----------------------------------------------------------
+  paymentScheduleEarly: {
+    id: "CLM-PAY-001",
+    category: "payment",
+    label: "Payment schedule (more than 3 days before arrival)",
+    value: "50% reservation deposit; remaining balance due 3 days before check-in",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  paymentScheduleLate: {
+    id: "CLM-PAY-002",
+    category: "payment",
+    label: "Payment schedule (within 3 days / same-day)",
+    value: "Full accommodation payment required before confirmation",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  paymentChannels: {
+    id: "CLM-PAY-003",
+    category: "payment",
+    label: "Proposed payment channels",
+    value: "GCash and bank transfer",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+    notes: "Account name/number never enter source control.",
+  },
+
+  // ---- Cancellation ------------------------------------------------------
+  cancel14Days: {
+    id: "CLM-CXL-001",
+    category: "cancellation",
+    label: "Cancellation 14+ days before check-in",
+    value: "90% accommodation refund or one free reschedule",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  cancel7to13Days: {
+    id: "CLM-CXL-002",
+    category: "cancellation",
+    label: "Cancellation 7–13 days before check-in",
+    value: "50% accommodation refund or one free reschedule",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+  cancelUnder7Days: {
+    id: "CLM-CXL-003",
+    category: "cancellation",
+    label: "Cancellation under 7 days / no-show",
+    value: "Non-refundable",
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- House rules ---------------------------------------------------
+  houseRules: {
+    id: "CLM-RULE-001",
+    category: "houseRule",
+    label: "House rules",
+    value: [
+      "Registered guests and approved visitors only",
+      "Lead guest is responsible for the group",
+      "Minors must be supervised by adults",
+      "Quiet hours observed",
+      "Loud outdoor speakers and disruptive behavior prohibited",
+      "Videoke not initially included",
+      "Parties, commercial shoots, ticketed events, and large celebrations require a separate written agreement",
+      "Indoor smoking and vaping prohibited",
+      "Illegal substances and unlawful activity prohibited",
+      "No pets during initial operations",
+      "Exterior CCTV may cover entrances and parking only",
+      "No cameras in bedrooms, bathrooms, or private indoor areas",
+      "Lead guest may be required to provide one valid government-issued ID at the appropriate booking stage",
+      "Damage and excessive cleaning deductions require evidence and explanation",
+    ],
+    status: "PROPOSED_PENDING_APPROVAL",
+    source: "Project proposal",
+    allowedSurfaces: ["owner-preview"],
+  },
+
+  // ---- Mandatory blank facts (UNVERIFIED until supplied) -----------------
+  factBedrooms: factClaim("CLM-FACT-001", "Number of bedrooms"),
+  factBeds: factClaim("CLM-FACT-002", "Bed types and quantities"),
+  factBathrooms: factClaim("CLM-FACT-003", "Number of bathrooms"),
+  factMaxSafeOccupancy: factClaim("CLM-FACT-004", "Maximum safe occupancy"),
+  factParking: factClaim("CLM-FACT-005", "Parking capacity"),
+  factWifi: factClaim("CLM-FACT-006", "Wi-Fi details"),
+  factAircon: factClaim("CLM-FACT-007", "Air-conditioning details"),
+  factKitchen: factClaim("CLM-FACT-008", "Kitchen appliances"),
+  factTv: factClaim("CLM-FACT-009", "Television / entertainment"),
+  factPoolAccess: factClaim("CLM-FACT-010", "Pool or subdivision amenity access"),
+  factPets: factClaim("CLM-FACT-011", "Pet approval"),
+  factEvents: factClaim("CLM-FACT-012", "Event approval"),
+  factToiletries: factClaim("CLM-FACT-013", "Towels and toiletries"),
+  factAccessibility: factClaim("CLM-FACT-014", "Accessibility limitations"),
+  factCctv: factClaim("CLM-FACT-015", "CCTV locations"),
+  factFireExtinguisher: factClaim("CLM-FACT-016", "Fire extinguisher"),
+  factSmokeDetectors: factClaim("CLM-FACT-017", "Smoke detectors"),
+  factFirstAid: factClaim("CLM-FACT-018", "First-aid kit"),
+  factEmergencyExits: factClaim("CLM-FACT-019", "Emergency exits"),
+  factBackupUtilities: factClaim("CLM-FACT-020", "Backup water/electricity arrangements"),
+  factBusinessPermit: factClaim("CLM-FACT-021", "Business permit"),
+  factBarangayClearance: factClaim("CLM-FACT-022", "Barangay clearance"),
+  factBirRegistration: factClaim("CLM-FACT-023", "BIR registration"),
+  factDtiSec: factClaim("CLM-FACT-024", "DTI/SEC record where applicable"),
+  factHoaPermission: factClaim("CLM-FACT-025", "HOA/subdivision short-stay permission"),
+  factTourismAccreditation: factClaim("CLM-FACT-026", "Tourism registration/accreditation"),
+  factOperatorAuthorization: factClaim("CLM-FACT-027", "Owner/operator authorization"),
+  factPaymentAccountHolder: factClaim("CLM-FACT-028", "Official payment-account holder"),
+  factPhotoRights: factClaim("CLM-FACT-029", "Original photo rights"),
+} satisfies Record<string, Claim>;
+
+function factClaim(id: string, label: string): Claim<null> {
+  return {
+    id,
+    category: "fact",
+    label,
+    value: null,
+    status: "UNVERIFIED",
+    source: "Not yet supplied by owner",
+    allowedSurfaces: ["owner-preview"],
+    notes: "Blocking item for full factual launch — see docs/24_ASSET_REQUIREMENTS.md.",
+  };
+}
+
+export type ClaimKey = keyof typeof CLAIMS;
+
+/** Every claim, for the authenticated /admin/claims registry view. */
+export function getAllClaims(): Claim[] {
+  return Object.values(CLAIMS);
+}
+
+/**
+ * Claims relevant to the owner-approval workflow: everything not yet public,
+ * so the owner can review exactly what is waiting on a decision.
+ */
+export function getOwnerPreviewClaims(): Claim[] {
+  return getAllClaims().filter((claim) => !isPublicClaim(claim));
+}
+
+/** Convenience: every claim currently eligible to render on public routes. */
+export function getPublicClaims(): Claim[] {
+  return getAllClaims().filter(isPublicClaim);
+}

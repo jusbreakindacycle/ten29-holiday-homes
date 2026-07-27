@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --ten29-forest: #0e3a2f;
+  --ten29-forest-deep: #08281f;
+  --ten29-gold: #b88a2f;
+  --ten29-gold-soft: #d8bf82;
+  --ten29-ivory: #f8f5ec;
+  --ten29-sand: #ece4d4;
+  --ten29-ink: #17241f;
+  --ten29-muted: #66736d;
+  --ten29-white: #ffffff;
+  --ten29-success: #2f6b4f;
+  --ten29-warning: #a6631b;
+  --ten29-danger: #9b3b33;
+  --ten29-border: #d9d2be;
+
+  --background: var(--ten29-ivory);
+  --foreground: var(--ten29-ink);
+}
+
+@theme inline {
+  --color-forest: var(--ten29-forest);
+  --color-forest-deep: var(--ten29-forest-deep);
+  --color-gold: var(--ten29-gold);
+  --color-gold-soft: var(--ten29-gold-soft);
+  --color-ivory: var(--ten29-ivory);
+  --color-sand: var(--ten29-sand);
+  --color-ink: var(--ten29-ink);
+  --color-muted: var(--ten29-muted);
+  --color-success: var(--ten29-success);
+  --color-warning: var(--ten29-warning);
+  --color-danger: var(--ten29-danger);
+  --color-border: var(--ten29-border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-heading: var(--font-cormorant);
+  --font-sans: var(--font-manrope);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-heading {
+  font-family: var(--font-heading), ui-serif, Georgia, serif;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ten29-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
