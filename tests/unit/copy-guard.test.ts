@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENQUIRY_SUCCESS_COPY, FALLBACK_COPY, NON_RESERVATION_NOTICE } from "@/content/fallback-copy";
 import { getFaqItems } from "@/content/faq";
-import { getAllClaims } from "@/content/claims";
+import { getAllClaims, getPublicClaims } from "@/content/claims";
 
 const BANNED_PHRASES = [
   "booking confirmed",
@@ -18,6 +18,12 @@ const BANNED_PHRASES = [
   "near all tagaytay attractions",
   "minutes away",
   "tagaytay accommodation",
+  "guest favorite",
+  "safe and secure",
+  "rare quiet environment",
+  "book now",
+  "netflix subscription included",
+  "netflix account included",
 ];
 
 // Checked separately with a negative lookbehind: truthful copy is allowed to say
@@ -35,6 +41,12 @@ function collectAllPublicCopy(): string[] {
 
   for (const item of getFaqItems()) {
     strings.push(item.question, item.answer);
+  }
+
+  for (const claim of getPublicClaims()) {
+    if (typeof claim.value === "string") strings.push(claim.value);
+    if (Array.isArray(claim.value)) strings.push(...claim.value);
+    if (claim.notes) strings.push(claim.notes);
   }
 
   return strings;

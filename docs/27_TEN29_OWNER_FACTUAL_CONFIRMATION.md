@@ -3,6 +3,63 @@
 **For:** The actual TEN29 Holiday Homes owner or authorized booking manager.
 **Not for:** Developers or the Project Steward — this is a confirmation sheet, not a design document.
 
+## 0. Confirmation received — 2026-07-28
+
+**Source:** Owner-supplied TEN29 property and promotional description received through the Project Steward on 2026-07-28.
+
+The actual owner supplied a property and promotional description covering the items marked
+**Owner approved for publication** or **Owner approved with restricted public wording** in the
+tables below. This reconciliation does **not** re-ask any question already answered here — it
+records the answer received and its publication classification. No new questionnaire was sent to
+the owner. Rates, capacity numbers, payment terms, cancellation/refund rules, house-rule
+enforcement, permits, HOA/subdivision authority, official payment account, Instagram URL, and
+active business/privacy email remain **Unresolved**; final Facebook and Google Maps URLs remain
+**Unresolved** even though both accounts are now confirmed to exist. See
+[[05_OWNER_APPROVAL_MATRIX]] for the corresponding claim IDs and
+[[26_PROJECT_STEWARD_DECISION_AND_OWNER_VERIFICATION]] for what still requires the owner's final
+sign-off. Production launch is **not** authorized by this reconciliation.
+
+### Classification key
+
+| Classification | Meaning |
+|---|---|
+| Owner approved for publication | Confirmed by the owner and rendered on public routes as-is (`APPROVED_FOR_PUBLICATION` in `src/content/claims.ts`). |
+| Owner approved with restricted public wording | Confirmed by the owner, but only a specific safe phrasing is published — quantities, locations, or guarantees are withheld. |
+| Steward-approved proposal still awaiting owner acceptance | Unchanged by this reconciliation — still `STEWARD_APPROVED_FOR_PROTOTYPE`, owner-preview only. |
+| Unresolved | Not answered in the owner's description; still blank. |
+| Must remain unpublished | Answered or partially answered, but the specific value (e.g. an account number) must never enter source control or public copy regardless of approval status. |
+
+### What the owner confirmed (summary)
+
+| Item | Classification | Claim ID(s) |
+|---|---|---|
+| Accommodation model (entire private house, one guest group, 1–3 bedroom access) | Owner approved for publication | CLM-FACT-030 |
+| Stay duration options (daily/weekly/monthly enquiries; long-stay discount via verified quotation) | Owner approved for publication | CLM-FACT-031 |
+| Number of bedrooms (three) | Owner approved for publication | CLM-FACT-001 |
+| Bed type per bedroom (queen / twins / double-deck) | Owner approved with restricted public wording (no dimensions or bed capacity stated) | CLM-FACT-002 |
+| Number of bathrooms (two, one with hot-and-cold shower and LED vanity mirror) | Owner approved for publication | CLM-FACT-003 |
+| Safe overnight/total occupancy | Unresolved | CLM-FACT-004 |
+| Parking availability (private gated parking exists) | Owner approved with restricted public wording (no vehicle count) | CLM-FACT-032 |
+| Parking capacity (number of vehicles) | Unresolved | CLM-FACT-005 |
+| Wi-Fi | Owner approved with restricted public wording (availability only, no speed claim) | CLM-FACT-006 |
+| Air-conditioning (all bedrooms + ground-floor living/dining/kitchen) | Owner approved for publication | CLM-FACT-007 |
+| Kitchen appliances and dining items | Owner approved for publication | CLM-FACT-008 |
+| Television/entertainment (Smart TV, YouTube/Netflix apps, indoor games) | Owner approved with restricted public wording (no subscription/account included) | CLM-FACT-009 |
+| Guest amenities and toiletries | Owner approved for publication | CLM-FACT-013 |
+| Property areas/features (lanai, modern interior, glass stair railings, 3-mode lighting) | Owner approved for publication | CLM-FACT-034 |
+| CCTV presence | Owner approved with restricted public wording (existence only, no locations/coverage) | CLM-FACT-033 |
+| CCTV locations/coverage | Unresolved | CLM-FACT-015 |
+| Fire extinguisher | Owner approved for publication | CLM-FACT-016 |
+| Smoke alarm | Owner approved for publication | CLM-FACT-017 |
+| Surroundings (Holiday Homes subdivision, open surroundings; optional walking/cycling note) | Owner approved with restricted public wording (no silence/safety/security guarantee) | CLM-LOC-001, CLM-LOC-002 |
+| Approximate travel time toward Tagaytay / from Governor's Drive CALAX access | Owner approved with restricted public wording (qualified estimate only, never guaranteed) | CLM-LOC-003, CLM-LOC-004 |
+| Business name, public phone, general location | Already `VERIFIED`, reconfirmed by this description — no change | CLM-BIZ-001, CLM-BIZ-002, CLM-BIZ-003 |
+| Facebook Page existence | Owner approved for publication (existence only) — final URL still Unresolved | — (see §11) |
+| Google Maps listing existence | Owner approved for publication (existence only) — final URL still Unresolved | — (see §11) |
+| Rates, capacity numbers, payment terms, cancellation rules, house-rule enforcement | Steward-approved proposal still awaiting owner acceptance (unchanged) | See [[05_OWNER_APPROVAL_MATRIX]] |
+| Permits, HOA authority, payment-account holder, photo rights, first-aid kit, emergency exits, backup utilities, accessibility, pool access, pets, events | Unresolved | See [[05_OWNER_APPROVAL_MATRIX]] |
+| Instagram URL, active business email, active privacy-contact email, exact block/lot public disclosure, actual original photos | Unresolved / Must remain unpublished where applicable | — |
+
 ## Why you're reading this
 
 The Project Steward has already done the work of designing the website: the page structure, the proposed rates, the proposed rules, the payment process, and the booking-enquiry workflow (see [[26_PROJECT_STEWARD_DECISION_AND_OWNER_VERIFICATION]]). You are **not** being asked to design anything.
@@ -23,10 +80,12 @@ Nothing you approve here goes public by itself. A developer must still move each
 
 | Field | Currently shown as | Correct | Needs revision | Final correct value | Owner initials | Date |
 |---|---|---|---|---|---|---|
-| Business name | TEN29 Holiday Homes | ☐ | ☐ | | | |
-| Public telephone | 0961 586 8106 | ☐ | ☐ | | | |
-| General location (public) | Holiday Homes, Biclatan, General Trias, Cavite | ☐ | ☐ | | | |
-| Proposed domain | ten29holidayhomes.com | ☐ | ☐ | | | |
+| Business name | TEN29 Holiday Homes | ☑ | ☐ | TEN29 Holiday Homes | — | 2026-07-28 |
+| Public telephone | 0961 586 8106 | ☑ | ☐ | 0961 586 8106 | — | 2026-07-28 |
+| General location (public) | Holiday Homes, Biclatan, General Trias, Cavite | ☑ | ☐ | Holiday Homes, Biclatan, General Trias, Cavite | — | 2026-07-28 |
+| Proposed domain | ten29holidayhomes.com | ☐ | ☐ | Unresolved — no domain decision in the supplied description | | |
+
+Business name, phone, and general location were reconfirmed (not newly changed) by the owner-supplied description of 2026-07-28 — no code or claim change was needed for these three since they were already `VERIFIED`. "Owner initials" is recorded as "—" because this reconciliation was received as a written description through the Project Steward, not a signed copy of this sheet; the owner's name/role/date belong in section 12 once the owner reviews the finished preview directly.
 
 The full block-and-lot address is **not** shown here as the recommended public address and will not be published without your separate, explicit instruction.
 
@@ -34,32 +93,41 @@ The full block-and-lot address is **not** shown here as the recommended public a
 
 ## 2. Actual property facts
 
-None of the "owner-confirmed value" cells below are pre-filled. Please write in the real answer for each row. The "current recommendation" column, where present, is only the Project Steward's planning assumption — not a fact, and not yet published.
+Rows the owner has now answered (2026-07-28) are filled in below, with the resulting claim ID and
+publication classification. Rows still blank were not part of the supplied description and remain
+open — see [[24_ASSET_REQUIREMENTS]].
 
 | Item | Current state | Current recommendation | Owner-confirmed value | Evidence/photo supplied? | May be published? | Owner initials |
 |---|---|---|---|---|---|---|
-| Number of bedrooms | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Bed type and quantity per bedroom | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Number of bathrooms | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Safe overnight capacity | Not yet supplied | 6 base / 8 max (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Maximum total persons (incl. visitors) | Not yet supplied | 10 (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Indoor parking capacity | Not yet supplied | 1 vehicle (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Additional vehicle arrangements | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Kitchen appliances and cooking facilities | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Wi-Fi | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Air-conditioning | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Television or entertainment | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Towels | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Toiletries | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Dining capacity | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Subdivision or shared amenities | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Pet suitability | Not yet supplied | No pets during initial operations (proposed policy, not a fact) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Accessibility limitations | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| CCTV locations | Not yet supplied | Proposed wording: entrances and parking only, no indoor cameras | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Fire extinguishers | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Smoke detectors | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| First-aid kit | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
-| Emergency exits | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Number of bedrooms | Owner approved for publication (CLM-FACT-001) | — | Three bedrooms | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Bed type and quantity per bedroom | Owner approved with restricted wording (CLM-FACT-002) | — | Bedroom 1: queen-size bed. Bedroom 2: twin beds. Bedroom 3: double-deck (bunk) bed. | ☐ Yes ☑ No | ☑ Yes ☐ No (no mattress dimensions, bed count, or occupancy inferred) | — |
+| Number of bathrooms | Owner approved for publication (CLM-FACT-003) | — | Two bathrooms; one with hot-and-cold shower and LED vanity mirror | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Safe overnight capacity | Unresolved (CLM-FACT-004) | 6 base / 8 max (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Maximum total persons (incl. visitors) | Unresolved (CLM-FACT-004) | 10 (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Indoor parking capacity | Unresolved (CLM-FACT-005) | 1 vehicle (planning target only) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Private gated parking — availability (not capacity) | Owner approved with restricted wording (CLM-FACT-032) | — | Private gated parking is available inside the property | ☐ Yes ☑ No | ☑ Yes ☐ No (no vehicle count/coverage) | — |
+| Additional vehicle arrangements | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Kitchen appliances and cooking facilities | Owner approved for publication (CLM-FACT-008) | — | Induction cooker, rice cooker, electric kettle, cookware, cooking/dining utensils, dinner plates, drinking glasses, two-door refrigerator, kitchen and dining area | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Wi-Fi | Owner approved with restricted wording (CLM-FACT-006) | — | Wi-Fi is available | ☐ Yes ☑ No | ☑ Yes ☐ No (no "fast Wi-Fi" or speed claim) | — |
+| Air-conditioning | Owner approved for publication (CLM-FACT-007) | — | All three bedrooms air-conditioned; ground-floor living, dining, and kitchen areas air-conditioned | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Television or entertainment | Owner approved with restricted wording (CLM-FACT-009) | — | Smart TV with YouTube and Netflix apps available; indoor games (cards, chess, darts, Uno, mini tennis) | ☐ Yes ☑ No | ☑ Yes ☐ No (no subscription/account included) | — |
+| Towels | Owner approved for publication (CLM-FACT-013) | — | Bath towels included | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Toiletries | Owner approved for publication (CLM-FACT-013) | — | Shower bath gel, shampoo, dental kit (toothbrush and toothpaste), dishwashing liquid, complimentary coffee and biscuits | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Dining capacity | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Subdivision or shared amenities | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Pet suitability | Unresolved (property fact) | No pets during initial operations (proposed policy, not a fact) | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Accessibility limitations | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| CCTV — presence | Owner approved with restricted wording (CLM-FACT-033) | — | CCTV is present on the property | ☐ Yes ☑ No | ☑ Yes ☐ No (existence only) | — |
+| CCTV — exact locations/coverage | Unresolved (CLM-FACT-015) | Proposed wording: entrances and parking only, no indoor cameras | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Fire extinguishers | Owner approved for publication (CLM-FACT-016) | — | A fire extinguisher is present on the property | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Smoke detectors | Owner approved for publication (CLM-FACT-017) | — | A smoke alarm is present on the property | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| First-aid kit | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Emergency exits | Unresolved | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
+| Accommodation model (whole house / one guest group / 1–3 bedroom access) | Owner approved for publication (CLM-FACT-030) | — | Entire private house; one related guest group at a time; guests request access to one, two, or three bedrooms; bedrooms outside the selection may remain unavailable or locked | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Stay duration options | Owner approved for publication (CLM-FACT-031) | — | Daily, weekly, and monthly enquiries accepted; long-stay discount available via verified quotation (no amount stated) | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Property areas and features | Owner approved for publication (CLM-FACT-034) | — | Private lanai (outdoor patio), modern interior, glass stair railings, adjustable lighting with three light modes | ☐ Yes ☑ No | ☑ Yes ☐ No | — |
+| Surroundings | Owner approved with restricted wording (CLM-LOC-001, CLM-LOC-002) | — | TEN29 is located inside Holiday Homes subdivision, with open surroundings; guests may enjoy walking or light cycling, subject to subdivision rules | ☐ Yes ☑ No | ☑ Yes ☐ No (no silence/safety/security guarantee) | — |
+| Approximate travel times | Owner approved with restricted wording (CLM-LOC-003, CLM-LOC-004) | — | ~30 min toward Tagaytay; ~10 min from Governor's Drive CALAX access (both "depending on route and traffic") | ☐ Yes ☑ No | ☑ Yes ☐ No (qualified estimate, never a guarantee) | — |
 | Backup water | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
 | Backup electricity | Not yet supplied | — | | ☐ Yes ☐ No | ☐ Yes ☐ No | |
 
@@ -266,18 +334,23 @@ This document does not draw any legal conclusion from these answers.
 
 | Account/link | Owner-confirmed value |
 |---|---|
-| Facebook Page URL | |
-| Instagram URL | |
-| Google Maps share URL | |
-| Official business email | |
-| Privacy contact email | |
-| Cloudflare account owner | |
-| Proposed domain owner | |
-| Vercel account owner | |
-| Supabase account owner | |
-| Resend account owner | |
+| Facebook Page — existence | Owner approved for publication: an official Facebook Page exists |
+| Facebook Page — final URL | Unresolved — exact URL not supplied; preserve the exact existing URL already configured in the repository (`NEXT_PUBLIC_FACEBOOK_URL`) if any, do not invent one |
+| Instagram URL | Unresolved |
+| Google Maps listing — existence | Owner approved for publication: an official Google Maps listing exists |
+| Google Maps listing — final share URL | Unresolved — exact URL not supplied; preserve the exact existing URL already configured in the repository (`NEXT_PUBLIC_GOOGLE_MAPS_URL`) if any, do not invent one |
+| Official business email | Unresolved (`bookings@ten29holidayhomes.com` remains a proposal only, not active) |
+| Privacy contact email | Unresolved |
+| Cloudflare account owner | Unresolved |
+| Proposed domain owner | Unresolved |
+| Vercel account owner | Unresolved |
+| Supabase account owner | Unresolved |
+| Resend account owner | Unresolved |
 
 All production accounts above must belong to TEN29 or the actual owner — not solely to the developer.
+Existing Facebook and Google profile inconsistencies (category, "Always Open", food-business
+metadata, etc.) are tracked in [[26_PROJECT_STEWARD_DECISION_AND_OWNER_VERIFICATION]] §6 and were
+not changed by this reconciliation — no external account was accessed or modified.
 
 ---
 

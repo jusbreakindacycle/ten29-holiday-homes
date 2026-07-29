@@ -26,27 +26,30 @@ export const metadata: Metadata = {
   alternates: { canonical: `${getSiteUrl()}/` },
 };
 
-const HIGHLIGHTS = [
-  {
-    title: "Private whole-property use",
-    body: "Enquiry-gated details on capacity and layout are shared once your dates are reviewed.",
-  },
-  {
-    title: "General Trias, Cavite",
-    body: "Road access toward Amadeo and Tagaytay, without the Tagaytay price premium.",
-  },
-  {
-    title: "Direct owner communication",
-    body: "Every enquiry is reviewed personally — no automated instant booking, no fine print surprises.",
-  },
-];
-
 export default function HomePage() {
   const headline = getPublicClaimOrFallback(CLAIMS.heroHeadline, FALLBACK_COPY.positioning);
   const subcopy = getPublicClaimOrFallback(
     CLAIMS.heroSubcopy,
     "A holiday-home stay in Biclatan, General Trias, Cavite."
   );
+  const accommodationModel = getPublicClaimOrFallback(
+    CLAIMS.accommodationModel,
+    "The whole house remains private for one guest group. Bedroom access is arranged according to the selected one-, two-, or three-bedroom stay option."
+  );
+  const highlights = [
+    {
+      title: "Private whole-house stay",
+      body: accommodationModel,
+    },
+    {
+      title: "General Trias, Cavite",
+      body: "Road access toward Amadeo and Tagaytay, without the Tagaytay price premium.",
+    },
+    {
+      title: "Direct owner communication",
+      body: "Every enquiry is reviewed personally — no automated instant booking, no fine print surprises.",
+    },
+  ];
   const phoneDisplay = getPhoneDisplay();
   const phoneE164 = getPhoneE164();
   const messenger = getMessengerUrl();
@@ -65,7 +68,7 @@ export default function HomePage() {
           description="TEN29 Holiday Homes is a straightforward, honestly-described stay. Where a detail is still being finalized with the owner, this website says so plainly instead of guessing."
         />
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
-          {HIGHLIGHTS.map((item) => (
+          {highlights.map((item) => (
             <div key={item.title} className="rounded-sm border border-border bg-white p-6">
               <h3 className="font-heading text-xl text-forest">{item.title}</h3>
               <p className="mt-2 text-sm text-muted leading-relaxed">{item.body}</p>

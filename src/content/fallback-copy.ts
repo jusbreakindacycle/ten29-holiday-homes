@@ -4,7 +4,7 @@
  */
 export const FALLBACK_COPY = {
   rates:
-    "Rates are currently being finalized. Send your preferred dates and group details to receive a verified quotation.",
+    "TEN29 offers private-house stays with access to one, two, or three bedrooms. Daily, weekly, and monthly stays may be requested. Send your dates, guest details, and preferred bedroom access to receive the current verified quotation.",
   availability: "Availability is confirmed manually. Your enquiry does not reserve a date.",
   amenities: "The complete amenity list will be published after final property verification.",
   policies:

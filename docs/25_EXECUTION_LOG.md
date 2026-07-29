@@ -142,3 +142,60 @@ Reconciled the 11 Project Steward decision groups from `docs/26_PROJECT_STEWARD_
 - `src/app/admin/(protected)/owner-preview/page.tsx`: rebuilt to group claims by `previewSection` (Brand and positioning, Audience and location, Capacity, Rates and promotions, Operating hours, Payment process, Cancellation and rescheduling, House rules, Facts still requiring verification, Assets still required), showing proposed value, human-readable approval state, whether owner confirmation is still required, and affected routes per item. Still gated by `isOwnerPreviewEnabled()` and the existing authenticated `(protected)` layout; not linked from any public route, sitemap, or robots file (already excluded there).
 - `docs/05_OWNER_APPROVAL_MATRIX.md`, `docs/13_CONTENT_AND_CLAIM_STANDARD.md`, `docs/21_DECISION_LOG.md`: updated to define and cross-reference the new status and mirror the 34 claim status changes, per the code-is-authoritative rule in docs/05.
 - Tests: `tests/unit/claims.test.ts` extended with `STEWARD_APPROVED_FOR_PROTOTYPE`-specific gate assertions; `tests/unit/copy-guard.test.ts` and `tests/unit/site-config.test.ts` unaffected (re-run, still passing). No Playwright changes — no existing or newly written E2E test targets the authenticated owner-preview route specifically, so `test:e2e` was not run for this phase (per instructions, run only when it directly covers the change).
+
+## 2026-07-28 — Phase 11: Owner-supplied property description reconciliation
+
+Reconciled the actual owner-supplied TEN29 property and promotional description (received through
+the Project Steward on 2026-07-28) into the claim registry, protected owner preview, public
+routes, and controlling documentation. No new owner questionnaire was created; no Facebook,
+Google Maps, phone, or location information was re-requested; the Option 1 enquiry-not-booking
+scope was preserved unchanged.
+
+- `src/content/claim-types.ts`: added a `location` claim category.
+- `src/content/claims.ts`: added `OWNER_FACT_SOURCE` evidence-label constant. Added new
+  `APPROVED_FOR_PUBLICATION` claims CLM-FACT-030 (accommodation model), CLM-FACT-031 (stay
+  duration options), CLM-FACT-032 (parking availability, no capacity), CLM-FACT-033 (CCTV
+  presence, no locations), CLM-FACT-034 (property areas/features), and CLM-LOC-001..004
+  (surroundings and qualified travel-time wording). Moved CLM-FACT-001/002/003 (bedrooms/beds/
+  bathrooms), CLM-FACT-006/007/008/009 (Wi-Fi, aircon, kitchen, TV/entertainment), CLM-FACT-013
+  (relabeled "Guest amenities and toiletries"), and CLM-FACT-016/017 (fire extinguisher, smoke
+  alarm) from `UNVERIFIED`/blank to `APPROVED_FOR_PUBLICATION`. CLM-FACT-004/005/010/011/012/014/
+  015/018/019/020/021..029 remain `UNVERIFIED` — genuinely not covered by the supplied description.
+  No claim was moved to `APPROVED_FOR_PUBLICATION` without `approvedAt` recorded, and no rate,
+  capacity, payment, cancellation, or house-rule claim was touched.
+- `src/app/(public)/property/page.tsx`: rebuilt to render the newly approved amenity facts and the
+  accommodation-model explanation via the claim gate, keeping an explicit pending-facts table for
+  maximum occupancy and parking capacity.
+- `src/app/(public)/page.tsx`: homepage's "Private whole-property use" highlight now renders the
+  claim-gated accommodation-model sentence (with the exact fallback sentence from the task brief
+  as a non-public fallback).
+- `src/app/(public)/rates/page.tsx`, `src/content/fallback-copy.ts`: rates fallback copy replaced
+  with the task-specified sentence describing bedroom-access stays and verified quotations; rates
+  page also surfaces the stay-duration-options claim and its CTA now reads "Get a Verified
+  Quotation".
+- `src/app/(public)/location/page.tsx`: renders the owner-approved surroundings statement and the
+  two qualified travel-time claims (Tagaytay, Governor's Drive CALAX access) when public.
+- `src/app/(public)/policies/page.tsx`: adds a "Safety on the property" block for the now-public
+  CCTV-presence, fire-extinguisher, and smoke-alarm facts; house rules/cancellation remain pending
+  (unchanged, still steward-approved-only).
+- `src/app/(public)/gallery/page.tsx`: placeholder captions made specific (per-bedroom, private
+  lanai) to describe the exact original assets still required — no images fabricated or generated.
+- `src/content/faq.ts`: added a FAQ item stating TEN29 is a whole-house stay with bedroom-access
+  options, explicitly not individually rented rooms.
+- `src/app/admin/(protected)/owner-preview/page.tsx`: added an "Owner-confirmed facts already live
+  on the public site" section (split into "published as supplied" and "published with restricted
+  wording"), referencing docs/27, ahead of the existing steward-approved-proposal sections.
+- `docs/27_TEN29_OWNER_FACTUAL_CONFIRMATION.md`: added a §0 confirmation-received summary and
+  filled in the property-identity and property-facts tables for every item the owner answered,
+  using the required classification vocabulary; genuinely unanswered rows (occupancy, parking
+  capacity, permits, Instagram, active emails) were left open. Facebook Page and Google Maps
+  listing existence recorded as confirmed; their final URLs remain unresolved and no existing URL
+  was invented.
+- `docs/05_OWNER_APPROVAL_MATRIX.md`, `docs/13_CONTENT_AND_CLAIM_STANDARD.md`,
+  `docs/21_DECISION_LOG.md`, `docs/24_ASSET_REQUIREMENTS.md`: updated to mirror the claim changes,
+  the new fallback/prohibited-copy wording, the dated decision, and the resolved-vs-open asset
+  list.
+- Tests: see `tests/unit/claims.test.ts`, `tests/unit/copy-guard.test.ts`, and
+  `tests/unit/property-facts.test.ts` (new) for the specific assertions added — public rendering
+  of the approved facts, the whole-house/bedroom-access model, absence of prices/capacity/banned
+  phrases, and continued owner-preview protection.

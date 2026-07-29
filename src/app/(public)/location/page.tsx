@@ -16,6 +16,10 @@ export default function LocationPage() {
   const address = getPublicAddress();
   const locationCopy = getPublicClaimOrFallback(CLAIMS.locationCopy, FALLBACK_COPY.locationDetail);
   const maps = getGoogleMapsUrl();
+  const surroundings = getPublicClaimOrFallback(CLAIMS.surroundingsStatement, "");
+  const surroundingsActivity = getPublicClaimOrFallback(CLAIMS.surroundingsActivity, "");
+  const travelTimeTagaytay = getPublicClaimOrFallback(CLAIMS.travelTimeTagaytay, "");
+  const travelTimeCalax = getPublicClaimOrFallback(CLAIMS.travelTimeCalax, "");
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -43,6 +47,24 @@ export default function LocationPage() {
           <p className="mt-4 text-sm text-muted">Google Maps link pending confirmation.</p>
         )}
       </div>
+
+      {(travelTimeTagaytay || travelTimeCalax) && (
+        <div className="mt-6 rounded-sm border border-border bg-white p-6">
+          <h2 className="font-heading text-xl text-forest">Travel times</h2>
+          <ul className="mt-2 space-y-1 text-ink">
+            {travelTimeTagaytay ? <li>{travelTimeTagaytay}</li> : null}
+            {travelTimeCalax ? <li>{travelTimeCalax}</li> : null}
+          </ul>
+        </div>
+      )}
+
+      {(surroundings || surroundingsActivity) && (
+        <div className="mt-6 rounded-sm border border-border bg-white p-6">
+          <h2 className="font-heading text-xl text-forest">Surroundings</h2>
+          {surroundings ? <p className="mt-2 text-ink">{surroundings}</p> : null}
+          {surroundingsActivity ? <p className="mt-2 text-sm text-muted">{surroundingsActivity}</p> : null}
+        </div>
+      )}
     </div>
   );
 }

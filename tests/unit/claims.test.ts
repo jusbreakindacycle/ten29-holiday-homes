@@ -33,7 +33,7 @@ describe("isPublicClaim", () => {
   });
 
   it("rejects UNVERIFIED claims", () => {
-    expect(isPublicClaim(CLAIMS.factBedrooms)).toBe(false);
+    expect(isPublicClaim(CLAIMS.factMaxSafeOccupancy)).toBe(false);
   });
 
   it("rejects a VERIFIED claim that is not marked for public surfaces (e.g. block/lot)", () => {
@@ -183,22 +183,137 @@ describe("STEWARD_APPROVED_FOR_PROTOTYPE (Project Steward reconciliation)", () =
     }
   });
 
-  it("does not move any claim all the way to APPROVED_FOR_PUBLICATION during this reconciliation", () => {
+  it("does not move any steward-proposed commercial claim to APPROVED_FOR_PUBLICATION during this reconciliation", () => {
+    // The 34 steward-approved decision groups (positioning, capacity, rates,
+    // promotions, hours, payment, cancellation, house rules) still require actual
+    // owner sign-off and must stay STEWARD_APPROVED_FOR_PROTOTYPE. Separately,
+    // docs/27's owner-supplied property-fact reconciliation (2026-07-28)
+    // legitimately moved specific fact/location claims to APPROVED_FOR_PUBLICATION
+    // — see the "owner-supplied property facts" describe block below and
+    // docs/21_DECISION_LOG.md.
+    const commercialCategories = new Set([
+      "positioning",
+      "capacity",
+      "rate",
+      "promotion",
+      "hours",
+      "payment",
+      "cancellation",
+      "houseRule",
+    ]);
     const prematurelyApproved = getAllClaims().filter(
-      (claim) => claim.status === "APPROVED_FOR_PUBLICATION"
+      (claim) => commercialCategories.has(claim.category) && claim.status === "APPROVED_FOR_PUBLICATION"
     );
     expect(prematurelyApproved).toEqual([]);
   });
 });
 
-describe("mandatory blank property facts", () => {
-  it("remain UNVERIFIED with no value invented during reconciliation", () => {
-    const factClaims = getAllClaims().filter((claim) => claim.category === "fact");
-    expect(factClaims.length).toBeGreaterThan(0);
-    for (const claim of factClaims) {
-      expect(claim.status).toBe("UNVERIFIED");
+describe("remaining unresolved property facts", () => {
+  it("stay UNVERIFIED with no value invented, and are not public", () => {
+    const unresolvedFacts = getAllClaims().filter(
+      (claim) => claim.category === "fact" && claim.status === "UNVERIFIED"
+    );
+    // Occupancy, parking capacity, pool access, pets, events, accessibility, CCTV
+    // locations, first-aid, emergency exits, backup utilities, permits, operator
+    // authorization, payment-account holder, and photo rights were not part of
+    // the owner-supplied description and remain open — see docs/27.
+    expect(unresolvedFacts.length).toBeGreaterThan(0);
+    for (const claim of unresolvedFacts) {
       expect(claim.value).toBeNull();
       expect(isPublicClaim(claim)).toBe(false);
     }
+  });
+
+  it("never invents a value for maximum safe occupancy or parking vehicle capacity", () => {
+    expect(CLAIMS.factMaxSafeOccupancy.status).toBe("UNVERIFIED");
+    expect(CLAIMS.factMaxSafeOccupancy.value).toBeNull();
+    expect(CLAIMS.factParking.status).toBe("UNVERIFIED");
+    expect(CLAIMS.factParking.value).toBeNull();
+  });
+});
+
+describe("owner-supplied property facts (reconciled 2026-07-28)", () => {
+  const APPROVED_FACT_KEYS = [
+    "accommodationModel",
+    "stayDurationOptions",
+    "factBedrooms",
+    "factBeds",
+    "factBathrooms",
+    "factWifi",
+    "factAircon",
+    "factKitchen",
+    "factTv",
+    "factToiletries",
+    "factFireExtinguisher",
+    "factSmokeDetectors",
+    "factParkingAvailability",
+    "factCctvPresence",
+    "factPropertyFeatures",
+    "surroundingsStatement",
+    "surroundingsActivity",
+    "travelTimeTagaytay",
+    "travelTimeCalax",
+  ] as const;
+
+  it("passes the public claim gate for every reconciled owner-approved fact", () => {
+    for (const key of APPROVED_FACT_KEYS) {
+      const claim = CLAIMS[key];
+      expect(claim.status).toBe("APPROVED_FOR_PUBLICATION");
+      expect(claim.approvedAt).toBeTruthy();
+      expect(isPublicClaim(claim)).toBe(true);
+    }
+  });
+
+  it("renders three bedrooms and two bathrooms publicly", () => {
+    expect(getPublicClaim(CLAIMS.factBedrooms)).toContain("Three bedrooms");
+    expect(getPublicClaim(CLAIMS.factBathrooms)).toContain("Two bathrooms");
+  });
+
+  it("renders the approved amenities publicly", () => {
+    expect(getPublicClaim(CLAIMS.factWifi)).toContain("Wi-Fi is available");
+    expect(getPublicClaim(CLAIMS.factAircon)).toContain("air-conditioned");
+    expect(getPublicClaim(CLAIMS.factKitchen)).toContain("Induction cooker");
+    expect(getPublicClaim(CLAIMS.factToiletries)).toContain("Shower bath gel");
+  });
+
+  it("renders the private-house, one-to-three-bedroom-access model correctly", () => {
+    const model = getPublicClaim(CLAIMS.accommodationModel);
+    expect(model).toContain("one related guest group at a time");
+    expect(model).toContain("one, two, or three bedrooms");
+  });
+
+  it("never describes TEN29 as individually rented rooms", () => {
+    const allPublicText = getAllClaims()
+      .filter(isPublicClaim)
+      .map((claim) => (typeof claim.value === "string" ? claim.value : ""))
+      .join(" ")
+      .toLowerCase();
+    expect(allPublicText).not.toMatch(/individually (rented|booked) rooms?(?! is not)/);
+    expect(allPublicText).not.toContain("rent a room");
+    expect(allPublicText).not.toContain("book a room");
+  });
+
+  it("does not claim a Netflix subscription or account is included", () => {
+    const tv = getPublicClaim(CLAIMS.factTv);
+    expect(tv?.toLowerCase()).not.toContain("netflix subscription included");
+    expect(tv?.toLowerCase()).not.toContain("netflix account included");
+  });
+
+  it("does not describe Wi-Fi as measured 'fast Wi-Fi'", () => {
+    expect(getPublicClaim(CLAIMS.factWifi)?.toLowerCase()).not.toContain("fast wi-fi");
+  });
+
+  it("publishes CCTV and parking existence only — never quantities, locations, or vehicle capacity", () => {
+    expect(getPublicClaim(CLAIMS.factCctvPresence)).toBe("CCTV is present on the property.");
+    expect(getPublicClaim(CLAIMS.factParkingAvailability)).toBe(
+      "Private gated parking is available inside the property."
+    );
+    expect(CLAIMS.factCctv.status).toBe("UNVERIFIED");
+    expect(CLAIMS.factParking.status).toBe("UNVERIFIED");
+  });
+
+  it("never guarantees a travel time — every location claim is qualified", () => {
+    expect(getPublicClaim(CLAIMS.travelTimeTagaytay)).toContain("depending on route and traffic");
+    expect(getPublicClaim(CLAIMS.travelTimeCalax)).toContain("depending on route and traffic");
   });
 });

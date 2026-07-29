@@ -4,12 +4,20 @@ import type { FaqItem } from "@/components/ui/FaqAccordion";
 
 export function getFaqItems(): FaqItem[] {
   const location = getPublicClaimOrFallback(CLAIMS.generalLocation, FALLBACK_COPY.locationDetail);
+  const accommodationModel = getPublicClaimOrFallback(
+    CLAIMS.accommodationModel,
+    "The whole house remains private for one guest group. Bedroom access is arranged according to the selected one-, two-, or three-bedroom stay option."
+  );
 
   return [
     {
       question: "Does submitting the enquiry form reserve my dates?",
       answer:
         "No. Submitting the form sends a booking enquiry only. TEN29 confirms availability, price, and payment instructions manually before anything is reserved.",
+    },
+    {
+      question: "Do we rent the whole house, or just a room?",
+      answer: `${accommodationModel} TEN29 is not rented out as individually booked rooms.`,
     },
     {
       question: "Where exactly is TEN29 Holiday Homes located?",

@@ -14,9 +14,12 @@ export const metadata: Metadata = {
 const GALLERY_PLACEHOLDERS = [
   "Exterior",
   "Living area",
-  "Bedroom",
+  "Bedroom 1 (queen-size bed)",
+  "Bedroom 2 (twin beds)",
+  "Bedroom 3 (double-deck bed)",
   "Bathroom",
   "Kitchen & dining",
+  "Private lanai",
   "Parking & entrance",
 ];
 

@@ -20,6 +20,11 @@ export default function PoliciesPage() {
     getPublicClaim(CLAIMS.cancel7to13Days),
     getPublicClaim(CLAIMS.cancelUnder7Days),
   ].filter((v): v is string => typeof v === "string");
+  const safetyFacts = [
+    getPublicClaim(CLAIMS.factCctvPresence),
+    getPublicClaim(CLAIMS.factFireExtinguisher),
+    getPublicClaim(CLAIMS.factSmokeDetectors),
+  ].filter((v): v is string => typeof v === "string");
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -32,6 +37,17 @@ export default function PoliciesPage() {
       <div className="mt-8">
         <Alert tone="info">{FALLBACK_COPY.policies}</Alert>
       </div>
+
+      {safetyFacts.length > 0 ? (
+        <div className="mt-6 rounded-sm border border-border bg-white p-6">
+          <h2 className="font-heading text-xl text-forest">Safety on the property</h2>
+          <ul className="mt-2 space-y-1 text-ink">
+            {safetyFacts.map((fact) => (
+              <li key={fact}>{fact}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2">
         {houseRules && houseRules.length > 0 ? (

@@ -31,15 +31,23 @@ Exact assets needed from the owner before final launch. Until supplied, the site
 
 ## Factual approvals (see [[05_OWNER_APPROVAL_MATRIX]] for the full register)
 
+Resolved by the owner-supplied property description of 2026-07-28 (see
+[[27_TEN29_OWNER_FACTUAL_CONFIRMATION]]): room/bed/bath counts and types, air-conditioning
+coverage, Wi-Fi availability, kitchen equipment, entertainment, guest amenities, fire
+extinguisher and smoke-alarm presence, gated-parking and CCTV existence (not capacity or
+locations), the accommodation model, and qualified surroundings/travel-time wording.
+
+Still needed from the owner:
+
 - Approved public address detail (how much of the block/lot to disclose, if any)
-- Approved room/bed/bath data
-- Approved capacity
-- Approved amenities
-- Approved rates
-- Approved payment wording
-- Approved house rules
-- Approved cancellation policy
+- Approved maximum safe occupancy and total-persons limit
+- Approved parking capacity (number of vehicles) and CCTV locations/coverage
+- Approved capacity, rates, and promotions (currently steward-approved proposals only)
+- Approved payment wording and official payment-account holder
+- Approved house rules and cancellation policy (currently steward-approved proposals only)
 - Approved logo usage terms
+- Final Instagram URL and active business/privacy-contact emails
+- Final Facebook and Google Maps URLs (both accounts are confirmed to exist; the URLs themselves are not yet supplied)
 
 ## Compliance/permit documentation (for full launch confidence, not blocking Option 1 code delivery)
 

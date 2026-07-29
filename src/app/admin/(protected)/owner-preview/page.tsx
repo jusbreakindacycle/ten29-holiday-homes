@@ -1,8 +1,17 @@
-import { getApprovalStateLabel, getOwnerPreviewClaims, isStewardApprovedForPrototype } from "@/content/claims";
+import {
+  getApprovalStateLabel,
+  getAllClaims,
+  getOwnerPreviewClaims,
+  isPublicClaim,
+  isStewardApprovedForPrototype,
+} from "@/content/claims";
 import type { Claim } from "@/content/claim-types";
 import { OWNER_PREVIEW_REQUIRED_ASSETS } from "@/content/owner-preview-assets";
 import { Alert } from "@/components/ui/Alert";
 import { isOwnerPreviewEnabled } from "@/lib/site-config";
+
+/** Owner-supplied property facts reconciled on 2026-07-28 — see docs/27. */
+const OWNER_FACT_CONFIRMATION_DATE = "2026-07-28";
 
 const SECTION_ORDER = [
   "Brand and positioning",
@@ -58,6 +67,12 @@ export default function OwnerPreviewPage() {
     (section) => !knownSections.includes(section)
   );
 
+  const ownerConfirmedPublicFacts = getAllClaims().filter(
+    (claim) => isPublicClaim(claim) && claim.approvedAt === OWNER_FACT_CONFIRMATION_DATE
+  );
+  const restrictedWordingFacts = ownerConfirmedPublicFacts.filter((claim) => Boolean(claim.notes));
+  const unrestrictedFacts = ownerConfirmedPublicFacts.filter((claim) => !claim.notes);
+
   return (
     <div>
       <h1 className="font-heading text-3xl text-forest">Owner preview</h1>
@@ -69,6 +84,52 @@ export default function OwnerPreviewPage() {
         owner confirms it. Guests never see this page or its contents. See{" "}
         <code>docs/26_PROJECT_STEWARD_DECISION_AND_OWNER_VERIFICATION.md</code>.
       </p>
+
+      {ownerConfirmedPublicFacts.length > 0 ? (
+        <div className="mt-8 rounded-sm border border-border bg-white p-6">
+          <h2 className="font-heading text-xl text-forest mb-1">
+            Owner-confirmed facts already live on the public site
+          </h2>
+          <p className="text-sm text-muted mb-4">
+            Reconciled from the owner-supplied property description received through the Project
+            Steward on {OWNER_FACT_CONFIRMATION_DATE}. See{" "}
+            <code>docs/27_TEN29_OWNER_FACTUAL_CONFIRMATION.md</code>.
+          </p>
+
+          {unrestrictedFacts.length > 0 ? (
+            <>
+              <h3 className="font-semibold text-forest text-sm mt-4">
+                Published as supplied
+              </h3>
+              <ul className="mt-2 space-y-2 text-sm text-ink">
+                {unrestrictedFacts.map((claim) => (
+                  <li key={claim.id}>
+                    <span className="font-mono text-xs text-muted mr-2">{claim.id}</span>
+                    {formatValue(claim.value)}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
+          {restrictedWordingFacts.length > 0 ? (
+            <>
+              <h3 className="font-semibold text-forest text-sm mt-6">
+                Published with restricted wording
+              </h3>
+              <ul className="mt-2 space-y-2 text-sm text-ink">
+                {restrictedWordingFacts.map((claim) => (
+                  <li key={claim.id}>
+                    <span className="font-mono text-xs text-muted mr-2">{claim.id}</span>
+                    {formatValue(claim.value)}
+                    <div className="text-xs text-muted mt-1">{claim.notes}</div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-8 space-y-8">
         {[...orderedSections, ...extraSections].map((section) => {

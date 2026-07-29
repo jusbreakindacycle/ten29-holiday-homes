@@ -25,7 +25,8 @@ export interface Claim<T extends ClaimValue = ClaimValue> {
     | "payment"
     | "cancellation"
     | "houseRule"
-    | "fact";
+    | "fact"
+    | "location";
   /** Short human label. */
   label: string;
   value: T;

@@ -31,6 +31,7 @@ export default function RatesPage() {
     label,
     value: getPublicClaim(CLAIMS[key] as Claim),
   })).filter((entry): entry is { label: string; value: string } => typeof entry.value === "string");
+  const stayDurationOptions = getPublicClaim(CLAIMS.stayDurationOptions);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -52,8 +53,10 @@ export default function RatesPage() {
         )}
       </div>
 
+      {stayDurationOptions ? <p className="mt-6 text-sm text-muted">{stayDurationOptions}</p> : null}
+
       <div className="mt-10">
-        <CtaLink href="/book">Request a Verified Quotation</CtaLink>
+        <CtaLink href="/book">Get a Verified Quotation</CtaLink>
       </div>
     </div>
   );
