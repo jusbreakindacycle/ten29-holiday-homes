@@ -11,7 +11,7 @@ export function GalleryCard({
   caption?: string;
 }) {
   return (
-    <figure className="overflow-hidden rounded-sm border border-border bg-white">
+    <figure className="overflow-hidden rounded-sm border border-border bg-white transition-shadow hover:shadow-sm">
       {src ? (
         <div className="relative aspect-[4/3] w-full bg-sand">
           <Image
@@ -26,7 +26,9 @@ export function GalleryCard({
         <PlaceholderImage label={alt} />
       )}
       {caption ? (
-        <figcaption className="px-4 py-3 text-sm text-muted">{caption}</figcaption>
+        <figcaption className="border-t border-border px-4 py-3 text-sm font-medium text-ink">
+          {caption}
+        </figcaption>
       ) : null}
     </figure>
   );

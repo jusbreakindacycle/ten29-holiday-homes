@@ -53,122 +53,137 @@ export function EnquiryForm({
         </Alert>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <FormField label="Full name" htmlFor="full_name" required error={errors.full_name}>
-          <input
-            id="full_name"
-            name="full_name"
-            type="text"
-            required
-            autoComplete="name"
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.full_name)}
-          />
-        </FormField>
+      <fieldset className="space-y-5">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-gold">
+          Your details
+        </legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Full name" htmlFor="full_name" required error={errors.full_name}>
+            <input
+              id="full_name"
+              name="full_name"
+              type="text"
+              required
+              autoComplete="name"
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.full_name)}
+            />
+          </FormField>
 
-        <FormField label="Mobile number" htmlFor="mobile_number" required error={errors.mobile_number}>
-          <input
-            id="mobile_number"
-            name="mobile_number"
-            type="tel"
-            required
-            autoComplete="tel"
-            placeholder="0917 123 4567"
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.mobile_number)}
-          />
-        </FormField>
+          <FormField label="Mobile number" htmlFor="mobile_number" required error={errors.mobile_number}>
+            <input
+              id="mobile_number"
+              name="mobile_number"
+              type="tel"
+              required
+              autoComplete="tel"
+              placeholder="0917 123 4567"
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.mobile_number)}
+            />
+          </FormField>
 
-        <FormField
-          label="Email"
-          htmlFor="email"
-          error={errors.email}
-          hint="Optional — TEN29 will send an acknowledgement here if supplied."
-        >
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.email)}
-          />
-        </FormField>
+          <FormField
+            label="Email"
+            htmlFor="email"
+            error={errors.email}
+            hint="Optional — TEN29 will send an acknowledgement here if supplied."
+            className="sm:col-span-2"
+          >
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.email)}
+            />
+          </FormField>
+        </div>
+      </fieldset>
 
-        <FormField label="Purpose of stay" htmlFor="purpose_of_stay" error={errors.purpose_of_stay}>
-          <input
-            id="purpose_of_stay"
-            name="purpose_of_stay"
-            type="text"
-            placeholder="e.g. Family reunion"
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.purpose_of_stay)}
-          />
-        </FormField>
+      <fieldset className="space-y-5 border-t border-border pt-6">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-gold">
+          Your stay
+        </legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Check-in date" htmlFor="check_in_date" required error={errors.check_in_date}>
+            <input
+              id="check_in_date"
+              name="check_in_date"
+              type="date"
+              required
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.check_in_date)}
+            />
+          </FormField>
 
-        <FormField label="Check-in date" htmlFor="check_in_date" required error={errors.check_in_date}>
-          <input
-            id="check_in_date"
-            name="check_in_date"
-            type="date"
-            required
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.check_in_date)}
-          />
-        </FormField>
+          <FormField label="Check-out date" htmlFor="check_out_date" required error={errors.check_out_date}>
+            <input
+              id="check_out_date"
+              name="check_out_date"
+              type="date"
+              required
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.check_out_date)}
+            />
+          </FormField>
 
-        <FormField label="Check-out date" htmlFor="check_out_date" required error={errors.check_out_date}>
-          <input
-            id="check_out_date"
-            name="check_out_date"
-            type="date"
-            required
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.check_out_date)}
-          />
-        </FormField>
+          <FormField label="Purpose of stay" htmlFor="purpose_of_stay" error={errors.purpose_of_stay} className="sm:col-span-2">
+            <input
+              id="purpose_of_stay"
+              name="purpose_of_stay"
+              type="text"
+              placeholder="e.g. Family reunion"
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.purpose_of_stay)}
+            />
+          </FormField>
+        </div>
 
-        <FormField label="Adults" htmlFor="adults" required error={errors.adults}>
-          <input
-            id="adults"
-            name="adults"
-            type="number"
-            min={1}
-            max={10}
-            defaultValue={2}
-            required
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.adults)}
-          />
-        </FormField>
+        <div className="grid gap-5 sm:grid-cols-3">
+          <FormField label="Adults" htmlFor="adults" required error={errors.adults}>
+            <input
+              id="adults"
+              name="adults"
+              type="number"
+              min={1}
+              max={10}
+              defaultValue={2}
+              required
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.adults)}
+            />
+          </FormField>
 
-        <FormField label="Children" htmlFor="children" error={errors.children}>
-          <input
-            id="children"
-            name="children"
-            type="number"
-            min={0}
-            max={10}
-            defaultValue={0}
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.children)}
-          />
-        </FormField>
+          <FormField label="Children" htmlFor="children" error={errors.children}>
+            <input
+              id="children"
+              name="children"
+              type="number"
+              min={0}
+              max={10}
+              defaultValue={0}
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.children)}
+            />
+          </FormField>
 
-        <FormField label="Day visitors" htmlFor="day_visitors" error={errors.day_visitors}>
-          <input
-            id="day_visitors"
-            name="day_visitors"
-            type="number"
-            min={0}
-            max={10}
-            defaultValue={0}
-            className={INPUT_CLASSES}
-            aria-invalid={Boolean(errors.day_visitors)}
-          />
-        </FormField>
+          <FormField label="Day visitors" htmlFor="day_visitors" error={errors.day_visitors}>
+            <input
+              id="day_visitors"
+              name="day_visitors"
+              type="number"
+              min={0}
+              max={10}
+              defaultValue={0}
+              className={INPUT_CLASSES}
+              aria-invalid={Boolean(errors.day_visitors)}
+            />
+          </FormField>
+        </div>
 
-        <FormField label="Vehicles" htmlFor="vehicles" error={errors.vehicles}>
+        <FormField label="Vehicles" htmlFor="vehicles" error={errors.vehicles} hint="Gated parking is available on the property.">
           <input
             id="vehicles"
             name="vehicles"
@@ -180,42 +195,46 @@ export function EnquiryForm({
             aria-invalid={Boolean(errors.vehicles)}
           />
         </FormField>
+      </fieldset>
+
+      <div className="border-t border-border pt-6">
+        <FormField label="Message" htmlFor="message" error={errors.message} hint="Anything TEN29 should know about your stay.">
+          <textarea
+            id="message"
+            name="message"
+            rows={4}
+            placeholder="e.g. Which bedrooms you'd like access to, or special requests"
+            className={INPUT_CLASSES}
+            aria-invalid={Boolean(errors.message)}
+          />
+        </FormField>
       </div>
 
-      <FormField label="Message" htmlFor="message" error={errors.message}>
-        <textarea
-          id="message"
-          name="message"
-          rows={4}
-          placeholder="Anything TEN29 should know about your stay"
-          className={INPUT_CLASSES}
-          aria-invalid={Boolean(errors.message)}
-        />
-      </FormField>
-
-      <div className="flex items-start gap-3">
-        <input
-          id="privacy_consent"
-          name="privacy_consent"
-          type="checkbox"
-          value="true"
-          required
-          className="mt-1 h-4 w-4 rounded-sm border-border text-forest focus-visible:outline-gold"
-          aria-invalid={Boolean(errors.privacy_consent)}
-        />
-        <label htmlFor="privacy_consent" className="text-sm text-ink">
-          I agree to the{" "}
-          <a href="/privacy" className="underline text-forest">
-            privacy notice
-          </a>{" "}
-          and understand this is an enquiry, not a confirmed booking.
-        </label>
+      <div className="rounded-sm border border-border bg-sand/50 p-4">
+        <div className="flex items-start gap-3">
+          <input
+            id="privacy_consent"
+            name="privacy_consent"
+            type="checkbox"
+            value="true"
+            required
+            className="mt-1 h-4 w-4 shrink-0 rounded-sm border-border text-forest focus-visible:outline-gold"
+            aria-invalid={Boolean(errors.privacy_consent)}
+          />
+          <label htmlFor="privacy_consent" className="text-sm leading-relaxed text-ink">
+            I agree to the{" "}
+            <a href="/privacy" className="text-forest underline underline-offset-2">
+              privacy notice
+            </a>{" "}
+            and understand this is an enquiry, not a confirmed booking.
+          </label>
+        </div>
+        {errors.privacy_consent ? (
+          <p role="alert" className="mt-2 pl-7 text-xs font-medium text-danger">
+            {errors.privacy_consent}
+          </p>
+        ) : null}
       </div>
-      {errors.privacy_consent ? (
-        <p role="alert" className="text-xs font-medium text-danger -mt-3">
-          {errors.privacy_consent}
-        </p>
-      ) : null}
 
       {/* Honeypot field: real visitors never see or fill this. */}
       <div aria-hidden="true" className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden">
@@ -241,7 +260,10 @@ export function EnquiryForm({
       <input type="hidden" name="utm_medium" value={utmMedium || ""} />
       <input type="hidden" name="utm_campaign" value={utmCampaign || ""} />
 
-      <SubmitButton />
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <SubmitButton />
+        <p className="text-xs text-muted">Every enquiry is reviewed personally by TEN29.</p>
+      </div>
     </form>
   );
 }

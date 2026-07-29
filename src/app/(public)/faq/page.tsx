@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function FaqPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-16">
-      <SectionHeading eyebrow="FAQ" title="Frequently asked questions" />
+      <SectionHeading as="h1" eyebrow="FAQ" title="Frequently asked questions" />
       <div className="mt-10">
         <FaqAccordion items={getFaqItems()} />
       </div>

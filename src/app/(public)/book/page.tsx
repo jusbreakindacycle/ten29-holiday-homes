@@ -25,6 +25,7 @@ export default async function BookPage({
   return (
     <div className="mx-auto max-w-3xl px-6 py-16">
       <SectionHeading
+        as="h1"
         eyebrow="Booking enquiry"
         title="Request your dates"
         description="Tell TEN29 what you're looking for. This sends an enquiry, not a reservation — TEN29 will reply with verified availability, price, and payment instructions."

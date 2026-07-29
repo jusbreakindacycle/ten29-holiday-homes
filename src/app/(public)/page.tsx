@@ -9,7 +9,8 @@ import { ContactCard } from "@/components/ui/ContactCard";
 import { FaqAccordion } from "@/components/ui/FaqAccordion";
 import { LocalBusinessJsonLd } from "@/components/seo/LocalBusinessJsonLd";
 import { getFaqItems } from "@/content/faq";
-import { CLAIMS, getPublicClaimOrFallback } from "@/content/claims";
+import { CLAIMS, getPublicClaim, getPublicClaimOrFallback } from "@/content/claims";
+import type { Claim } from "@/content/claim-types";
 import { FALLBACK_COPY } from "@/content/fallback-copy";
 import {
   getGoogleMapsUrl,
@@ -56,10 +57,23 @@ export default function HomePage() {
   const maps = getGoogleMapsUrl();
   const faqItems = getFaqItems().slice(0, 3);
 
+  const heroHighlights = [
+    { claim: CLAIMS.accommodationModel, label: "Entire private house" },
+    { claim: CLAIMS.factBedrooms, label: "Three bedrooms" },
+    { claim: CLAIMS.factBathrooms, label: "Two bathrooms" },
+    { claim: CLAIMS.factAircon, label: "Air-conditioned living areas & bedrooms" },
+    { claim: CLAIMS.factPropertyFeatures, label: "Private lanai" },
+    { claim: CLAIMS.factParkingAvailability, label: "Gated parking" },
+    { claim: CLAIMS.factWifi, label: "Wi-Fi & smart TV" },
+    { claim: CLAIMS.stayDurationOptions, label: "Daily, weekly & monthly enquiries" },
+  ]
+    .filter((item) => Boolean(getPublicClaim(item.claim as Claim)))
+    .map((item) => item.label);
+
   return (
     <>
       <LocalBusinessJsonLd />
-      <Hero headline={headline} subcopy={subcopy} />
+      <Hero headline={headline} subcopy={subcopy} highlights={heroHighlights} />
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <SectionHeading

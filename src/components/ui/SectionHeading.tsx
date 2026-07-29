@@ -5,14 +5,18 @@ export function SectionHeading({
   title,
   description,
   align = "left",
+  as = "h2",
   className,
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
   align?: "left" | "center";
+  /** Use "h1" when this is the top-of-page heading (page has no other h1, e.g. no Hero). */
+  as?: "h1" | "h2";
   className?: string;
 }) {
+  const Heading = as;
   return (
     <div className={clsx("max-w-2xl", align === "center" && "mx-auto text-center", className)}>
       {eyebrow ? (
@@ -20,7 +24,9 @@ export function SectionHeading({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="text-3xl sm:text-4xl font-heading font-semibold text-forest">{title}</h2>
+      <Heading className="text-3xl sm:text-4xl font-heading font-semibold text-forest leading-tight">
+        {title}
+      </Heading>
       {description ? <p className="mt-3 text-muted leading-relaxed">{description}</p> : null}
     </div>
   );

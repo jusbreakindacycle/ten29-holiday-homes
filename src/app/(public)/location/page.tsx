@@ -23,7 +23,7 @@ export default function LocationPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
-      <SectionHeading eyebrow="Location" title="Getting to TEN29" description={locationCopy} />
+      <SectionHeading as="h1" eyebrow="Location" title="Getting to TEN29" description={locationCopy} />
 
       <div className="mt-8">
         <Alert tone="warning" title="A note on location accuracy">
@@ -33,19 +33,39 @@ export default function LocationPage() {
         </Alert>
       </div>
 
-      <div className="mt-10 rounded-sm border border-border bg-white p-6">
-        <h2 className="font-heading text-xl text-forest">Address</h2>
-        <p className="mt-2 text-ink">{address}</p>
-        <p className="mt-2 text-sm text-muted">
-          The complete block-and-lot address is shared directly with confirmed guests.
-        </p>
-        {maps ? (
-          <CtaLink href={maps} variant="secondary" className="mt-4 inline-flex">
-            Open in Google Maps
-          </CtaLink>
-        ) : (
-          <p className="mt-4 text-sm text-muted">Google Maps link pending confirmation.</p>
-        )}
+      <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div className="rounded-sm border border-border bg-white p-6">
+          <h2 className="font-heading text-xl text-forest">Address</h2>
+          <p className="mt-2 text-ink">{address}</p>
+          <p className="mt-2 text-sm text-muted">
+            The complete block-and-lot address is shared directly with confirmed guests.
+          </p>
+          {maps ? (
+            <CtaLink href={maps} variant="secondary" className="mt-4 inline-flex">
+              Open in Google Maps
+            </CtaLink>
+          ) : (
+            <p className="mt-4 text-sm text-muted">Google Maps link pending confirmation.</p>
+          )}
+        </div>
+
+        <div
+          role="img"
+          aria-label="Embedded map — pending configuration"
+          className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 border border-dashed border-gold-soft bg-sand p-6 text-center lg:aspect-auto lg:h-full lg:min-h-64"
+        >
+          <span aria-hidden="true" className="font-heading text-2xl text-gold">
+            Map
+          </span>
+          <span className="max-w-xs text-xs uppercase tracking-widest text-muted">
+            Interactive map embed pending configuration
+          </span>
+          {maps ? (
+            <CtaLink href={maps} variant="ghost" className="mt-2">
+              Open directions in Google Maps →
+            </CtaLink>
+          ) : null}
+        </div>
       </div>
 
       {(travelTimeTagaytay || travelTimeCalax) && (

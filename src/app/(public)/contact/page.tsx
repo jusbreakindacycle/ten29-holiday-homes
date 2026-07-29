@@ -30,6 +30,7 @@ export default function ContactPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
       <SectionHeading
+        as="h1"
         eyebrow="Contact"
         title="Talk to TEN29"
         description={`Booking-enquiry support hours: ${hours}.`}
