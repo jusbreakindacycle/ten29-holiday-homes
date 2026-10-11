@@ -28,6 +28,7 @@ const INQUIRY_DEFAULTS: Row = {
 
 export function createFakeSupabaseClient() {
   const tables: Record<string, Row[]> = { inquiries: [], inquiry_audit_events: [] };
+  let isTen29Admin = true;
 
   function from(table: string) {
     const rows = tables[table];
@@ -133,5 +134,17 @@ export function createFakeSupabaseClient() {
     return builder;
   }
 
-  return { from, _tables: tables };
+  return {
+    from,
+    async rpc(functionName: string) {
+      if (functionName !== "is_ten29_admin") {
+        return { data: null, error: { code: "42883", message: "Function not found" } };
+      }
+      return { data: isTen29Admin, error: null };
+    },
+    _setAdmin(value: boolean) {
+      isTen29Admin = value;
+    },
+    _tables: tables,
+  };
 }

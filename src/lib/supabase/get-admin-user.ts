@@ -5,8 +5,8 @@ import { MissingEnvError } from "@/lib/env";
 type AuthGetUserResult = { data: { user: User | null }; error: unknown };
 
 /** Pure decision logic, kept separate from the Supabase call so it's unit-testable. */
-export function resolveAdminUser(result: AuthGetUserResult): User | null {
-  if (result.error || !result.data.user) return null;
+export function resolveAdminUser(result: AuthGetUserResult, isAuthorizedAdmin: boolean): User | null {
+  if (result.error || !result.data.user || !isAuthorizedAdmin) return null;
   return result.data.user;
 }
 
@@ -20,7 +20,12 @@ export async function getAdminUser(): Promise<User | null> {
   try {
     const supabase = await createSupabaseServerClient();
     const result = await supabase.auth.getUser();
-    return resolveAdminUser(result);
+    if (result.error || !result.data.user) return null;
+
+    const { data: isAuthorizedAdmin, error } = await supabase.rpc("is_ten29_admin");
+    if (error) return null;
+
+    return resolveAdminUser(result, isAuthorizedAdmin === true);
   } catch (err) {
     // Supabase isn't configured yet (fresh clone, no owner project set up).
     // Treat as "not authenticated" so /admin redirects to /admin/login

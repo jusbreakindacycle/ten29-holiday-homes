@@ -173,6 +173,28 @@ describe("listInquiries / getDashboardCounts / inquiriesToCsv", () => {
     expect(spamOnly[0].id).toBe(inquiry.id);
   });
 
+  it("rejects an authenticated non-admin before returning guest enquiries", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient & { _setAdmin: (value: boolean) => void };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await createInquiry(validInput(), client as any);
+    client._setAdmin(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(listInquiries(client as any)).rejects.toThrow("Unauthorized");
+  });
+
+  it("rejects status changes for an authenticated non-admin", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient & { _setAdmin: (value: boolean) => void };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inquiry = await createInquiry(validInput(), client as any);
+    client._setAdmin(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(updateInquiryStatus(client as any, inquiry.id, "CONTACTED", "attacker@test"))
+      .rejects.toThrow("Unauthorized");
+    expect(client._tables.inquiries[0].status).toBe("NEW");
+  });
+
   it("exports a CSV with a header row and one row per inquiry", async () => {
     const client = createFakeSupabaseClient() as unknown as FakeClient;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

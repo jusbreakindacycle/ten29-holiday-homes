@@ -11,7 +11,12 @@ export interface Database {
   };
   public: {
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      is_ten29_admin: {
+        Args: Record<never, never>;
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
     Tables: {

@@ -9,6 +9,6 @@ describe("owner-preview route protection", () => {
   });
 
   it("would be redirected away with no authenticated session (same gate as every /admin route)", () => {
-    expect(resolveAdminUser({ data: { user: null }, error: null })).toBeNull();
+    expect(resolveAdminUser({ data: { user: null }, error: null }, false)).toBeNull();
   });
 });

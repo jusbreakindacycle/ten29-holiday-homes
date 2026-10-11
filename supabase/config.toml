@@ -1,0 +1,8 @@
+project_id = "ten29-holiday-homes"
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = false

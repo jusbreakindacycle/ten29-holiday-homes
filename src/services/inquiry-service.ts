@@ -17,6 +17,11 @@ export type DbClient = ReturnType<typeof createSupabaseServiceRoleClient>;
 
 export class InquiryServiceError extends Error {}
 
+async function requireTen29Admin(client: DbClient): Promise<void> {
+  const { data, error } = await client.rpc("is_ten29_admin");
+  if (error || data !== true) throw new InquiryServiceError("Unauthorized");
+}
+
 const MAX_REFERENCE_ATTEMPTS = 5;
 const UNIQUE_VIOLATION = "23505";
 
@@ -135,6 +140,7 @@ export interface InquiryFilters {
 }
 
 export async function listInquiries(client: DbClient, filters: InquiryFilters = {}): Promise<Inquiry[]> {
+  await requireTen29Admin(client);
   let query = client.from("inquiries").select("*").order("created_at", { ascending: false });
 
   if (filters.status) query = query.eq("status", filters.status);
@@ -153,6 +159,7 @@ export async function listInquiries(client: DbClient, filters: InquiryFilters = 
 }
 
 export async function getInquiryById(client: DbClient, id: string): Promise<Inquiry | null> {
+  await requireTen29Admin(client);
   const { data, error } = await client.from("inquiries").select("*").eq("id", id).maybeSingle();
   if (error) throw new InquiryServiceError(error.message);
   return (data as Inquiry | null) ?? null;
@@ -169,6 +176,7 @@ export interface AuditEvent {
 }
 
 export async function getAuditEventsForInquiry(client: DbClient, inquiryId: string): Promise<AuditEvent[]> {
+  await requireTen29Admin(client);
   const { data, error } = await client
     .from("inquiry_audit_events")
     .select("*")
@@ -184,6 +192,7 @@ export async function updateInquiryStatus(
   newStatus: InquiryStatus,
   actor: string
 ): Promise<Inquiry> {
+  await requireTen29Admin(client);
   const current = await getInquiryById(client, id);
   if (!current) throw new InquiryServiceError("Inquiry not found");
   if (!isValidStatusTransition(current.status, newStatus)) {
@@ -209,6 +218,7 @@ export async function updateInquiryNotes(
   notes: string,
   actor: string
 ): Promise<Inquiry> {
+  await requireTen29Admin(client);
   const current = await getInquiryById(client, id);
   if (!current) throw new InquiryServiceError("Inquiry not found");
 
@@ -234,6 +244,7 @@ export interface DashboardCounts {
 }
 
 export async function getDashboardCounts(client: DbClient): Promise<DashboardCounts> {
+  await requireTen29Admin(client);
   const { data, error } = await client.from("inquiries").select("status, notification_status");
   if (error) throw new InquiryServiceError(error.message);
 
