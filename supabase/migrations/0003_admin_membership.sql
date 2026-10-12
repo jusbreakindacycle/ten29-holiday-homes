@@ -26,6 +26,12 @@ $$;
 revoke all on function public.is_ten29_admin() from public, anon;
 grant execute on function public.is_ten29_admin() to authenticated;
 
+grant select on table public.inquiries to authenticated;
+grant update (status, owner_notes, contacted_at, closed_at) on table public.inquiries to authenticated;
+grant select on table public.inquiry_audit_events to authenticated;
+grant insert (inquiry_id, event_type, previous_value, new_value, actor)
+  on table public.inquiry_audit_events to authenticated;
+
 drop policy if exists "authenticated can read inquiries" on public.inquiries;
 drop policy if exists "authenticated can update inquiries" on public.inquiries;
 drop policy if exists "authenticated can read audit events" on public.inquiry_audit_events;
