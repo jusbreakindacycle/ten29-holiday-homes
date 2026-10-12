@@ -136,7 +136,7 @@ select throws_ok(
   $$insert into public.booking_deposits (request_id, amount, status, verified_by, verified_at)
     values ('00000000-0000-4000-8000-000000000044', 25, 'VERIFIED',
       '00000000-0000-4000-8000-000000000041', now())$$,
-  '23514', 'Deposits must be recorded as unverified', 'direct payment-verification attempt is blocked'
+  '42501', null, 'authenticated admin cannot set payment verification fields'
 );
 
 select throws_ok(
