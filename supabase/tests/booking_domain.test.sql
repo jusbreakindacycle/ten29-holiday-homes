@@ -33,10 +33,7 @@ select throws_ok(
     values ('MESSENGER', 'WHOLE_HOME_1BR', date '2027-04-01', date '2027-04-03')$$,
   '42501', null, 'authenticated non-member cannot create booking requests'
 );
-select throws_ok(
-  $$select * from public.booking_deposits$$,
-  '42501', null, 'authenticated non-member cannot read deposit records'
-);
+select is((select count(*)::integer from public.booking_deposits), 0, 'authenticated non-member cannot read deposit records');
 reset role;
 
 set local role anon;

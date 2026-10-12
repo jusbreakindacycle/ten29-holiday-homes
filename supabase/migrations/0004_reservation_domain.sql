@@ -470,7 +470,7 @@ revoke all on function public.guard_booking_deposit_insert() from public, anon, 
 revoke all on function public.guard_booking_deposit_update() from public, anon, authenticated;
 
 grant select on public.property_packages to authenticated;
-grant select, insert (idempotency_key, inquiry_id, package_code, source, check_in_date, check_out_date),
+grant select, insert (id, idempotency_key, inquiry_id, package_code, source, check_in_date, check_out_date),
   update (status) on public.booking_requests to authenticated;
 grant select on public.booking_request_events to authenticated;
 grant select, insert (idempotency_key, request_id, revision, currency, amount_total,
