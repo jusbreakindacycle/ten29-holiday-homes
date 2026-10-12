@@ -58,6 +58,14 @@ describe("createInquiry", () => {
     expect(inquiry.status).toBe("NEW");
     expect(client._tables.inquiry_audit_events.some((e) => e.event_type === "CREATED")).toBe(true);
   });
+
+  it("does not let public input spoof a manual-channel enquiry source", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inquiry = await createInquiry(validInput({ source: "MESSENGER" }), client as any);
+
+    expect(inquiry.source).toBe("website");
+  });
 });
 
 describe("persist-before-notify (FR-INQ-011)", () => {

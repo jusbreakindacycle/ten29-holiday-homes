@@ -27,8 +27,19 @@ const INQUIRY_DEFAULTS: Row = {
 };
 
 export function createFakeSupabaseClient() {
-  const tables: Record<string, Row[]> = { inquiries: [], inquiry_audit_events: [] };
+  const tables: Record<string, Row[]> = {
+    inquiries: [],
+    inquiry_audit_events: [],
+    booking_properties: [],
+    property_packages: [],
+    booking_requests: [],
+    booking_quotes: [],
+    booking_deposits: [],
+    booking_request_events: [],
+    booking_reservations: [],
+  };
   let isTen29Admin = true;
+  let isTen29Owner = false;
 
   function from(table: string) {
     const rows = tables[table];
@@ -40,17 +51,42 @@ export function createFakeSupabaseClient() {
 
     function execute(): { data: Row[] | null; error: FakeError | null } {
       if (mode === "insert" && insertPayload) {
-        if (table === "inquiries" && rows.some((r) => r.reference_code === insertPayload!.reference_code)) {
+        const uniqueColumns = table === "inquiries"
+          ? ["reference_code"]
+          : table === "booking_requests"
+            ? ["idempotency_key", "inquiry_id"]
+            : table === "booking_quotes" || table === "booking_deposits"
+              ? ["idempotency_key"]
+              : [];
+        if (uniqueColumns.some((column) => insertPayload![column] != null
+          && rows.some((row) => row[column] === insertPayload![column]))) {
           return {
             data: null,
             error: { code: "23505", message: "duplicate key value violates unique constraint" },
           };
         }
+        if (table === "booking_quotes" && rows.some((row) =>
+          row.request_id === insertPayload!.request_id && row.revision === insertPayload!.revision
+        )) {
+          return { data: null, error: { code: "23505", message: "duplicate quote revision" } };
+        }
+        const tableDefaults: Record<string, Row> = {
+          inquiries: INQUIRY_DEFAULTS,
+          booking_requests: { property_id: 1, status: "NEW", created_by: "admin-user" },
+          booking_quotes: {
+            status: "DRAFT", currency: "PHP", amount_total: null, required_deposit_amount: null,
+            valid_until: null, line_items: [], owner_approved_by: null, owner_approved_at: null,
+            issued_by: null, issued_at: null, created_by: "admin-user",
+          },
+          booking_deposits: {
+            status: "RECORDED_UNVERIFIED", recorded_by: "admin-user", verified_by: null, verified_at: null,
+          },
+        };
         const newRow: Row = {
-          id: `fake-${idCounter++}`,
+          id: `00000000-0000-4000-8000-${String(idCounter++).padStart(12, "0")}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          ...(table === "inquiries" ? INQUIRY_DEFAULTS : {}),
+          ...(tableDefaults[table] ?? {}),
           ...insertPayload,
         };
         rows.push(newRow);
@@ -111,6 +147,9 @@ export function createFakeSupabaseClient() {
         orderBy = { column, ascending: opts?.ascending ?? true };
         return builder;
       },
+      limit() {
+        return builder;
+      },
       async single() {
         const { data, error } = execute();
         if (error) return { data: null, error };
@@ -136,7 +175,28 @@ export function createFakeSupabaseClient() {
 
   return {
     from,
-    async rpc(functionName: string) {
+    auth: {
+      async getUser() {
+        return { data: { user: { id: "admin-user", email: "admin@example.test" } }, error: null };
+      },
+    },
+    async rpc(functionName: string, args?: { p_quote_id?: string }) {
+      if (functionName === "is_ten29_owner") return { data: isTen29Owner, error: null };
+      if (functionName === "issue_booking_quote") {
+        if (!isTen29Owner) return { data: null, error: { code: "42501", message: "TEN29 owner authorization required" } };
+        const quote = tables.booking_quotes.find((row) => row.id === args?.p_quote_id);
+        if (!quote || quote.status !== "DRAFT" || quote.amount_total == null || quote.required_deposit_amount == null) {
+          return { data: null, error: { code: "23514", message: "Quote must be a draft with owner-approved total and deposit" } };
+        }
+        quote.status = "ISSUED";
+        quote.owner_approved_by = "admin-user";
+        quote.owner_approved_at = new Date().toISOString();
+        quote.issued_by = "admin-user";
+        quote.issued_at = new Date().toISOString();
+        const request = tables.booking_requests.find((row) => row.id === quote.request_id);
+        if (request?.status === "REVIEWING") request.status = "QUOTED";
+        return { data: null, error: null };
+      }
       if (functionName !== "is_ten29_admin") {
         return { data: null, error: { code: "42883", message: "Function not found" } };
       }
@@ -144,6 +204,9 @@ export function createFakeSupabaseClient() {
     },
     _setAdmin(value: boolean) {
       isTen29Admin = value;
+    },
+    _setOwner(value: boolean) {
+      isTen29Owner = value;
     },
     _tables: tables,
   };

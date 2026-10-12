@@ -1,12 +1,10 @@
-name: Slice 1 database security
+name: TEN29 database verification
 
 on:
   push:
     branches:
       - feature/slice-1-admin-authorization
-    paths:
-      - .github/workflows/slice-1-database-security.yml
-      - supabase/**
+      - feature/slice-2-reservation-domain
   workflow_dispatch:
 
 permissions:
@@ -18,7 +16,7 @@ concurrency:
 
 jobs:
   rls:
-    name: Migrations and pgTAP RLS checks
+    name: Migrations and pgTAP database checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -36,5 +34,5 @@ jobs:
       - name: Replay repository migrations on local database
         run: supabase db reset --local --no-seed
 
-      - name: Run database security assertions
+      - name: Run database security and booking-domain assertions
         run: supabase test db --local supabase/tests

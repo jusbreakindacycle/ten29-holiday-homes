@@ -52,7 +52,7 @@ export async function createInquiry(input: InquiryFormValues, client: DbClient):
       .from("inquiries")
       .insert({
         reference_code: referenceCode,
-        source: input.source || "website",
+        source: "website",
         utm_source: input.utm_source || null,
         utm_medium: input.utm_medium || null,
         utm_campaign: input.utm_campaign || null,

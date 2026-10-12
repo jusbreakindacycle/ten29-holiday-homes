@@ -1,4 +1,15 @@
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
+import type {
+  BookingDepositStatus,
+  BookingPackageCode,
+  BookingQuote,
+  BookingRequest,
+  BookingRequestEvent,
+  BookingRequestSource,
+  BookingRequestStatus,
+  BookingReservation,
+  ReservationStatus,
+} from "@/types/booking";
 
 /**
  * Hand-maintained typed mirror of supabase/migrations/*.sql.
@@ -16,8 +27,23 @@ export interface Database {
         Args: Record<never, never>;
         Returns: boolean;
       };
+      is_ten29_owner: {
+        Args: Record<never, never>;
+        Returns: boolean;
+      };
+      issue_booking_quote: {
+        Args: { p_quote_id: string };
+        Returns: undefined;
+      };
     };
-    Enums: Record<string, never>;
+    Enums: {
+      booking_package_code: BookingPackageCode;
+      booking_request_source: BookingRequestSource;
+      booking_request_status: BookingRequestStatus;
+      booking_quote_status: "DRAFT" | "ISSUED";
+      booking_deposit_status: BookingDepositStatus;
+      reservation_status: ReservationStatus;
+    };
     CompositeTypes: Record<string, never>;
     Tables: {
       inquiries: {
@@ -100,6 +126,133 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["inquiry_audit_events"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_properties: {
+        Row: { id: number; timezone: string };
+        Insert: { id?: number; timezone?: string };
+        Update: Partial<Database["public"]["Tables"]["booking_properties"]["Insert"]>;
+        Relationships: [];
+      };
+      property_packages: {
+        Row: {
+          code: BookingPackageCode;
+          property_id: number;
+          bedrooms_access: number;
+          occupancy_scope: string;
+          max_guests: number | null;
+          created_at: string;
+        };
+        Insert: {
+          code: BookingPackageCode;
+          property_id?: number;
+          bedrooms_access: number;
+          occupancy_scope?: string;
+          max_guests?: number | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["property_packages"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_requests: {
+        Row: BookingRequest;
+        Insert: {
+          id?: string;
+          idempotency_key?: string | null;
+          inquiry_id?: string | null;
+          property_id?: number;
+          package_code: BookingPackageCode;
+          source: BookingRequestSource;
+          check_in_date: string;
+          check_out_date: string;
+          status?: BookingRequestStatus;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["booking_requests"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_quotes: {
+        Row: BookingQuote;
+        Insert: {
+          id?: string;
+          idempotency_key?: string | null;
+          request_id: string;
+          revision: number;
+          status?: "DRAFT" | "ISSUED";
+          currency?: string;
+          amount_total?: number | null;
+          required_deposit_amount?: number | null;
+          valid_until?: string | null;
+          line_items?: Array<Record<string, unknown>>;
+          owner_approved_by?: string | null;
+          owner_approved_at?: string | null;
+          issued_by?: string | null;
+          issued_at?: string | null;
+          created_by?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["booking_quotes"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_deposits: {
+        Row: {
+          id: string;
+          idempotency_key: string | null;
+          request_id: string;
+          amount: number;
+          payment_method: string | null;
+          external_reference_masked: string | null;
+          status: BookingDepositStatus;
+          recorded_by: string;
+          recorded_at: string;
+          verified_by: string | null;
+          verified_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          idempotency_key?: string | null;
+          request_id: string;
+          amount: number;
+          payment_method?: string | null;
+          external_reference_masked?: string | null;
+          status?: BookingDepositStatus;
+          recorded_by?: string;
+          recorded_at?: string;
+          verified_by?: string | null;
+          verified_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["booking_deposits"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_request_events: {
+        Row: BookingRequestEvent;
+        Insert: {
+          id?: string;
+          request_id: string;
+          previous_status?: BookingRequestStatus | null;
+          new_status: BookingRequestStatus;
+          actor_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["booking_request_events"]["Insert"]>;
+        Relationships: [];
+      };
+      booking_reservations: {
+        Row: BookingReservation;
+        Insert: {
+          id?: string;
+          request_id: string;
+          status?: ReservationStatus;
+          created_by: string;
+          confirmed_at: string;
+          completed_at?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["booking_reservations"]["Insert"]>;
         Relationships: [];
       };
     };

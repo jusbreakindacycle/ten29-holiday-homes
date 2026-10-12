@@ -1,0 +1,209 @@
+import { z } from "zod";
+
+export const BOOKING_PACKAGE_CODES = [
+  "WHOLE_HOME_1BR",
+  "WHOLE_HOME_2BR",
+  "WHOLE_HOME_3BR",
+] as const;
+
+export type BookingPackageCode = (typeof BOOKING_PACKAGE_CODES)[number];
+
+export const BOOKING_REQUEST_SOURCES = [
+  "WEBSITE",
+  "MESSENGER",
+  "PHONE",
+  "WALK_IN",
+  "EXTERNAL_PLATFORM",
+  "OTHER",
+] as const;
+
+export type BookingRequestSource = (typeof BOOKING_REQUEST_SOURCES)[number];
+
+export const BOOKING_REQUEST_STATUSES = [
+  "NEW",
+  "REVIEWING",
+  "QUOTED",
+  "AWAITING_DEPOSIT",
+  "DECLINED",
+  "WITHDRAWN",
+  "EXPIRED",
+] as const;
+
+export type BookingRequestStatus = (typeof BOOKING_REQUEST_STATUSES)[number];
+
+export const BOOKING_DEPOSIT_STATUSES = ["RECORDED_UNVERIFIED", "VERIFIED", "REJECTED"] as const;
+export type BookingDepositStatus = (typeof BOOKING_DEPOSIT_STATUSES)[number];
+
+export const RESERVATION_STATUSES = ["CONFIRMED", "COMPLETED", "CANCELLED"] as const;
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+
+export const ALLOWED_BOOKING_REQUEST_TRANSITIONS: Record<
+  BookingRequestStatus,
+  readonly BookingRequestStatus[]
+> = {
+  NEW: ["REVIEWING", "DECLINED", "WITHDRAWN", "EXPIRED"],
+  REVIEWING: ["QUOTED", "DECLINED", "WITHDRAWN", "EXPIRED"],
+  QUOTED: ["AWAITING_DEPOSIT", "DECLINED", "WITHDRAWN", "EXPIRED"],
+  AWAITING_DEPOSIT: ["QUOTED", "DECLINED", "WITHDRAWN", "EXPIRED"],
+  DECLINED: [],
+  WITHDRAWN: [],
+  EXPIRED: [],
+};
+
+export function isValidBookingRequestTransition(
+  from: BookingRequestStatus,
+  to: BookingRequestStatus
+): boolean {
+  return from === to || ALLOWED_BOOKING_REQUEST_TRANSITIONS[from].includes(to);
+}
+
+const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, "Enter a valid local calendar date.");
+
+export const createBookingRequestSchema = z
+  .object({
+    inquiry_id: z.string().uuid().nullable().optional(),
+    source: z.enum(BOOKING_REQUEST_SOURCES),
+    package_code: z.enum(BOOKING_PACKAGE_CODES),
+    check_in_date: localDate,
+    check_out_date: localDate,
+    idempotency_key: z.string().uuid().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.check_out_date <= value.check_in_date) {
+      context.addIssue({
+        code: "custom",
+        path: ["check_out_date"],
+        message: "Check-out date must be after check-in date.",
+      });
+    }
+    if (value.source === "WEBSITE" && !value.inquiry_id) {
+      context.addIssue({
+        code: "custom",
+        path: ["inquiry_id"],
+        message: "Website booking requests must link to an enquiry.",
+      });
+    }
+    if (value.source !== "WEBSITE" && value.inquiry_id) {
+      context.addIssue({
+        code: "custom",
+        path: ["inquiry_id"],
+        message: "Manual booking requests must not attach an unrelated website enquiry.",
+      });
+    }
+  });
+
+export type CreateBookingRequestInput = z.infer<typeof createBookingRequestSchema>;
+
+export const createBookingQuoteDraftSchema = z
+  .object({
+    request_id: z.string().uuid(),
+    revision: z.number().int().positive(),
+    amount_total: z.number().finite().nonnegative().nullable().default(null),
+    required_deposit_amount: z.number().finite().nonnegative().nullable().default(null),
+    valid_until: z.string().datetime({ offset: true }).nullable().default(null),
+    line_items: z.array(z.record(z.string(), z.unknown())).default([]),
+    idempotency_key: z.string().uuid().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.amount_total !== null &&
+      value.required_deposit_amount !== null &&
+      value.required_deposit_amount > value.amount_total
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["required_deposit_amount"],
+        message: "Required deposit cannot exceed the quote total.",
+      });
+    }
+  });
+
+export type CreateBookingQuoteDraftInput = z.input<typeof createBookingQuoteDraftSchema>;
+
+export const recordBookingDepositSchema = z
+  .object({
+    request_id: z.string().uuid(),
+    amount: z.number().finite().positive(),
+    payment_method: z.string().trim().max(40).nullable().optional(),
+    external_reference_masked: z.string().trim().max(80)
+      .refine((value) => !/[0-9]{5,}/.test(value), "Store only a masked payment reference.")
+      .nullable().optional(),
+    idempotency_key: z.string().uuid().optional(),
+  })
+  .strict();
+
+export type RecordBookingDepositInput = z.infer<typeof recordBookingDepositSchema>;
+
+export type BookingRequest = {
+  id: string;
+  idempotency_key: string | null;
+  inquiry_id: string | null;
+  property_id: number;
+  package_code: BookingPackageCode;
+  source: BookingRequestSource;
+  check_in_date: string;
+  check_out_date: string;
+  status: BookingRequestStatus;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BookingQuote = {
+  id: string;
+  idempotency_key: string | null;
+  request_id: string;
+  revision: number;
+  status: "DRAFT" | "ISSUED";
+  currency: string;
+  amount_total: number | null;
+  required_deposit_amount: number | null;
+  valid_until: string | null;
+  line_items: Array<Record<string, unknown>>;
+  owner_approved_by: string | null;
+  owner_approved_at: string | null;
+  issued_by: string | null;
+  issued_at: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type BookingDeposit = {
+  id: string;
+  idempotency_key: string | null;
+  request_id: string;
+  amount: number;
+  payment_method: string | null;
+  external_reference_masked: string | null;
+  status: BookingDepositStatus;
+  recorded_by: string;
+  recorded_at: string;
+  verified_by: string | null;
+  verified_at: string | null;
+};
+
+export type BookingRequestEvent = {
+  id: string;
+  request_id: string;
+  previous_status: BookingRequestStatus | null;
+  new_status: BookingRequestStatus;
+  actor_id: string;
+  created_at: string;
+};
+
+export type BookingReservation = {
+  id: string;
+  request_id: string;
+  status: ReservationStatus;
+  created_by: string;
+  confirmed_at: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
