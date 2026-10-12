@@ -89,8 +89,8 @@ select throws_ok(
   '23514', 'An owner-issued quote is required before QUOTED', 'database requires owner-issued quote before QUOTED'
 );
 
-insert into public.booking_quotes (id, request_id, revision)
-values ('00000000-0000-4000-8000-000000000046', '00000000-0000-4000-8000-000000000044', 1);
+insert into public.booking_quotes (request_id, revision)
+values ('00000000-0000-4000-8000-000000000044', 1);
 select is((select status::text from public.booking_quotes where request_id = '00000000-0000-4000-8000-000000000044'), 'DRAFT', 'quote remains a draft');
 select is((select amount_total from public.booking_quotes where request_id = '00000000-0000-4000-8000-000000000044'), null, 'unapproved price remains null');
 select is((select required_deposit_amount from public.booking_quotes where request_id = '00000000-0000-4000-8000-000000000044'), null, 'unapproved deposit policy remains null');
@@ -100,25 +100,30 @@ select throws_ok(
     values ('00000000-0000-4000-8000-000000000044', 2, 'ISSUED', 100, 50,
       '00000000-0000-4000-8000-000000000041', now(),
       '00000000-0000-4000-8000-000000000041', now())$$,
-  '23514', 'Quotes must be created as unapproved drafts', 'quote cannot be issued in this slice'
+  '42501', null, 'manager cannot directly set quote issue or approval fields'
 );
 
 select throws_ok(
-  $$select public.issue_booking_quote('00000000-0000-4000-8000-000000000046')$$,
+  $$select public.issue_booking_quote((select id from public.booking_quotes
+    where request_id = '00000000-0000-4000-8000-000000000044' and revision = 1))$$,
   '42501', 'TEN29 owner authorization required', 'manager cannot issue a quote as the owner'
 );
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000041', true);
 select throws_ok(
-  $$select public.issue_booking_quote('00000000-0000-4000-8000-000000000046')$$,
+  $$select public.issue_booking_quote((select id from public.booking_quotes
+    where request_id = '00000000-0000-4000-8000-000000000044' and revision = 1))$$,
   '23514', 'Quote must be a draft with owner-approved total and deposit', 'owner cannot issue a quote with unapproved null amounts'
 );
-insert into public.booking_quotes (id, request_id, revision, amount_total, required_deposit_amount)
-values ('00000000-0000-4000-8000-000000000045', '00000000-0000-4000-8000-000000000044', 2, 100, 25);
-select public.issue_booking_quote('00000000-0000-4000-8000-000000000045');
+insert into public.booking_quotes (request_id, revision, amount_total, required_deposit_amount)
+values ('00000000-0000-4000-8000-000000000044', 2, 100, 25);
+select public.issue_booking_quote((select id from public.booking_quotes
+  where request_id = '00000000-0000-4000-8000-000000000044' and revision = 2));
 select is((select status::text from public.booking_requests where id = '00000000-0000-4000-8000-000000000044'), 'QUOTED', 'owner issuance atomically records quote and advances request');
-select is((select owner_approved_by from public.booking_quotes where id = '00000000-0000-4000-8000-000000000045'), '00000000-0000-4000-8000-000000000041'::uuid, 'owner approval is attributed to the owner identity');
+select is((select owner_approved_by from public.booking_quotes
+  where request_id = '00000000-0000-4000-8000-000000000044' and revision = 2),
+  '00000000-0000-4000-8000-000000000041'::uuid, 'owner approval is attributed to the owner identity');
 update public.booking_requests set status = 'AWAITING_DEPOSIT'
 where id = '00000000-0000-4000-8000-000000000044';
 select is((select status::text from public.booking_requests where id = '00000000-0000-4000-8000-000000000044'), 'AWAITING_DEPOSIT', 'issued quote enables the awaiting-deposit state');
