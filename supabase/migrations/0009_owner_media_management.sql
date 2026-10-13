@@ -152,7 +152,7 @@ revoke all on function public.read_media_delivery(uuid,boolean) from public,anon
 grant execute on function public.read_media_delivery(uuid,boolean) to service_role;
 
 create function public.read_public_media() returns jsonb language sql stable security definer set search_path=pg_catalog,public as $$
- select coalesce(jsonb_agg(jsonb_build_object('id',id,'kind',kind,'category',category,'featured',featured,'version',version,'public_claim_id',public_claim_id) order by position,created_at),'[]')
+ select coalesce(jsonb_agg(jsonb_build_object('id',id,'kind',kind,'category',category,'featured',featured,'version',version,'public_claim_id',public_claim_id,'width',processing_info->'width','poster_width',processing_info->'poster_width') order by position,created_at),'[]')
  from public.property_media where state='PUBLISHED';
 $$;
 revoke all on function public.read_public_media() from public;

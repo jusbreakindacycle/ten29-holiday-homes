@@ -33,7 +33,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   const output=await request.get(`/api/media/${id}`);expect(output.status()).toBe(200);expect(output.headers()['cache-control']).toContain('no-store');
   const image=await sharp(await output.body()).metadata();expect(image.format).toBe('webp');expect(image.exif).toBeUndefined();
   await card.getByRole('button',{name:'Use as homepage cover'}).click();await expect(page.getByRole('status').first()).toContainText('Saved');
-  await page.goto('/');await expect(page.locator(`img[src='/api/media/${id}']`)).toBeVisible();
+  await page.goto('/');await expect(page.locator(`img[src='/api/media/${id}']`).first()).toBeVisible();
   await page.goto('/gallery');await expect(page.locator(`img[src='/api/media/${id}']`)).toBeVisible();await expect(page.getByText('Private unapproved caption')).toHaveCount(0);
   await page.goto('/admin/media');await page.setViewportSize({width:360,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner-media-mobile.png',fullPage:true});

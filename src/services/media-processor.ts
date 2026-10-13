@@ -30,8 +30,8 @@ export async function processMediaBytes(bytes: Buffer,mime:string,expectedBytes:
    if(!metadata.width || !metadata.height || (metadata.pages??1)>1) throw Error('INVALID_IMAGE');
    const rendition=await image.rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).webp({quality:82}).timeout({seconds:30}).toBuffer();
    const output=await sharp(rendition).metadata();
-   const poster=await sharp(rendition).resize({width:480,height:480,fit:'inside',withoutEnlargement:true}).webp({quality:75}).timeout({seconds:30}).toBuffer();
-   return {rendition,poster,mime:'image/webp',info:{width:output.width,height:output.height,format:'webp',metadata_stripped:true}};
+   const thumbnail=await sharp(rendition).resize({width:480,height:480,fit:'inside',withoutEnlargement:true}).webp({quality:75}).timeout({seconds:30}).toBuffer({resolveWithObject:true});
+   return {rendition,poster:thumbnail.data,mime:'image/webp',info:{width:output.width,height:output.height,poster_width:thumbnail.info.width,format:'webp',metadata_stripped:true}};
   } catch { throw Error(mime==='image/heic'||mime==='image/heif'?'HEIF_DECODER_UNAVAILABLE_OR_INVALID':'INVALID_IMAGE'); }
   finally {if(directory)await rm(directory,{recursive:true,force:true});}
  }

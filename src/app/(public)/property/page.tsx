@@ -2,7 +2,6 @@ import { PublishedMedia } from '@/components/features/media/PublishedMedia';
 export const dynamic='force-dynamic';
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Alert } from "@/components/ui/Alert";
 import { CtaLink } from "@/components/ui/CtaButton";
 import { CLAIMS, getPublicClaim } from "@/content/claims";
@@ -76,7 +75,6 @@ export default function PropertyPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
-      <PublishedMedia placement="property" />
       <SectionHeading
         as="h1"
         eyebrow="Property"
@@ -93,10 +91,8 @@ export default function PropertyPage() {
         {stayDurationOptions ? <p className="mt-3 text-sm text-muted">{stayDurationOptions}</p> : null}
       </div>
 
-      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <PlaceholderImage label="Exterior" />
-        <PlaceholderImage label="Living area" />
-        <PlaceholderImage label="Bedroom" />
+      <div className="mt-10">
+        <PublishedMedia placement="property" />
       </div>
 
       {factGroups.length > 0 ? (

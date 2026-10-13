@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Hero } from "@/components/ui/Hero";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CtaLink } from "@/components/ui/CtaButton";
-import { GalleryCard } from "@/components/ui/GalleryCard";
 import { RateCard } from "@/components/ui/RateCard";
 import { ContactCard } from "@/components/ui/ContactCard";
 import { FaqAccordion } from "@/components/ui/FaqAccordion";
@@ -74,9 +73,9 @@ export default function HomePage() {
 
   return (
     <>
-      <section className="mx-auto max-w-6xl px-6 pt-6"><PublishedMedia placement="home" /></section>
       <LocalBusinessJsonLd />
       <Hero headline={headline} subcopy={subcopy} highlights={heroHighlights} />
+      <section className="mx-auto max-w-6xl px-6 pt-6"><PublishedMedia placement="home" /></section>
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <SectionHeading
@@ -97,10 +96,8 @@ export default function HomePage() {
       <section className="bg-sand py-16">
         <div className="mx-auto max-w-6xl px-6">
           <SectionHeading eyebrow="Gallery" title="A first look at TEN29" />
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
-            <GalleryCard alt="TEN29 exterior" />
-            <GalleryCard alt="TEN29 living area" />
-            <GalleryCard alt="TEN29 bedroom" />
+          <div className="mt-10">
+            <PublishedMedia placement="teaser" />
           </div>
           <div className="mt-8">
             <CtaLink href="/gallery" variant="ghost">
