@@ -101,8 +101,11 @@ test.describe("Guest booking against disposable Supabase", () => {
     await expect(page.locator(`[data-date="${dates[4]}"]`)).toBeDisabled();
     await page.locator(`[data-date="${dates[0]}"]`).focus(); await page.keyboard.press("ArrowRight");
     await expect(page.locator(`[data-date="${dates[1]}"]`)).toBeFocused();
-    await page.getByLabel("Calendar month").fill("2027-12"); await page.getByRole("button", { name: "Next month" }).click();
+    await page.getByLabel("Calendar month").fill("2027-12");
+    await expect(page.locator('[data-date="2027-12-31"]')).toBeEnabled();
+    await page.locator('[data-date="2027-12-31"]').focus(); await page.keyboard.press("ArrowRight");
     await expect(page.getByLabel("Calendar month")).toHaveValue("2028-01");
+    await expect(page.locator('[data-date="2028-01-01"]')).toBeFocused();
     await page.getByLabel("Calendar month").fill(dates[0].slice(0, 7));
     await page.locator("#check_in_date").fill(dates[2]); await page.locator("#check_out_date").fill(dates[3]);
     await expect(page.getByRole("region", { name: "Accommodation estimate" })).toBeVisible();

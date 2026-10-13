@@ -50,7 +50,7 @@ test.describe("Public site — critical path", () => {
 
 test.describe("Booking enquiry form", () => {
   test("requires the core fields before submission", async ({ page }) => {
-    await page.goto("/book");
+    await page.goto("/book?check_in_date=malformed");
     const fullName = page.locator("#full_name");
     await expect(fullName).toHaveAttribute("required", "");
     await expect(page.locator("#mobile_number")).toHaveAttribute("required", "");

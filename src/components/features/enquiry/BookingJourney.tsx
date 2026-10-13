@@ -19,7 +19,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const [foams, setFoams] = useState(initial.folding_foams_requested === "true");
   const [start, setStart] = useState(calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : "");
   const [end, setEnd] = useState(calendarDate.safeParse(initial.check_out_date).success ? initial.check_out_date! : "");
-  const [month, setMonth] = useState((initial.check_in_date || manilaToday()).slice(0, 7));
+  const [month, setMonth] = useState((calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : manilaToday()).slice(0, 7));
   const [monthData, setMonthData] = useState<CalendarData | null>(null);
   const [stay, setStay] = useState<CalendarData | null>(null);
   const [reviewed, setReviewed] = useState<PublicPriceEstimate | null>(null);
@@ -138,9 +138,9 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         </div>
         <p aria-live="polite"><strong>{guests} overnight guests in total.</strong> All overnight people are included in the eight-person maximum; no child discounts or extra fees are assumed.</p>
         {!recommendation && <p role="alert">Choose between 1 and 8 overnight guests.</p>}
-        <label htmlFor="package_code">Bedroom package<select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setFoams(guests > 6); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
+        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setFoams(guests > 6); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
           {BOOKING_PACKAGE_CODES.map((code, i) => <option key={code} value={code} disabled={!recommendation || i < BOOKING_PACKAGE_CODES.indexOf(recommendation.packageCode)}>{i + 1} bedroom{ i ? "s" : ""} · Whole private house</option>)}
-        </select></label>
+        </select></div>
         <p>Rooms {Array.from({ length: rooms }, (_, i) => i + 1).join(", ")} opened.{rooms < 3 ? " Other bedrooms remain locked." : " All three bedrooms opened."}</p>
         <p className="text-sm text-muted">Room 1: queen-size bed.{rooms > 1 ? " Room 2: twin-size bedding." : ""}{rooms > 2 ? " Room 3: single-size double-deck bed." : ""}</p>
         {pkg === "WHOLE_HOME_3BR" && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={guests > 6} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Additional folding foams (up to two). Required for 7–8 guests. No automatic fee.</label>}
