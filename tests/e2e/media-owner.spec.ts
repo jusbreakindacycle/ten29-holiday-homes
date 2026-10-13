@@ -35,7 +35,9 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await card.getByRole('button',{name:'Use as homepage cover'}).click();await expect(page.getByRole('status').first()).toContainText('Saved');
   await page.goto('/');await expect(page.locator(`img[src='/api/media/${id}']`).first()).toBeVisible();
   await page.goto('/gallery');await expect(page.locator(`img[src='/api/media/${id}']`)).toBeVisible();await expect(page.getByText('Private unapproved caption')).toHaveCount(0);
-  await page.goto('/admin/media');await page.setViewportSize({width:360,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.goto('/admin/media');await expect(page.getByLabel('Add photos',{exact:true})).toBeEnabled();await expect(card).toBeVisible();
+  await card.locator('img').evaluate((img:HTMLImageElement)=>img.decode());
+  await page.setViewportSize({width:360,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner-media-mobile.png',fullPage:true});
   for(const width of [768,1280]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
   page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Unpublish',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('Unpublished');
