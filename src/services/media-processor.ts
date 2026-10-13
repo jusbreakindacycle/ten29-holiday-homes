@@ -19,7 +19,10 @@ export async function processMediaBytes(bytes: Buffer,mime:string,expectedBytes:
    if(mime==='image/heic'||mime==='image/heif') {
     directory=await mkdtemp(path.join(tmpdir(),'ten29-heif-'));const original=path.join(directory,'source.heic');const png=path.join(directory,'decoded.png');
     await writeFile(original,bytes,{flag:'wx'});
-    await run(process.env.TEN29_IMAGEMAGICK_PATH || (process.platform==='win32'?'magick':'convert'),['-limit','memory','128MiB','-limit','map','128MiB','-limit','disk','0','-limit','area','40MP','-limit','thread','1',original,'-auto-orient','-strip',png],{timeout:30000,maxBuffer:1024*1024,windowsHide:true});
+    const header=await run(process.env.TEN29_HEIF_INFO_PATH || 'heif-info',[original],{timeout:15000,maxBuffer:1024*1024,windowsHide:true});
+    const dimensions=Array.from(header.stdout.matchAll(/image:\s*(\d+)x(\d+)/g));
+    if(!dimensions.length || dimensions.some(d=>Number(d[1])*Number(d[2])>40000000)) throw Error('INVALID_IMAGE');
+    await run(process.env.TEN29_HEIF_CONVERT_PATH || 'heif-convert',['--strict','--quiet',original,png],{timeout:30000,maxBuffer:1024*1024,windowsHide:true});
     decoded=await readFile(png);if(decoded.length>160000000) throw Error('INVALID_IMAGE');
    }
    const image=sharp(decoded,{limitInputPixels:40000000,failOn:'warning',animated:false});

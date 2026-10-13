@@ -54,7 +54,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install disposable media probe and synthetic HEIC encoder
-        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg imagemagick libheif-plugin-libde265 libheif-plugin-x265 libheif-examples
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg libheif-plugin-libde265 libheif-plugin-x265 libheif-examples
       - name: Verify mobile OWNER pricing UI against real Supabase
         if: hashFiles('supabase/tests/provider_ui_fixture.py') != ''
         run: |
