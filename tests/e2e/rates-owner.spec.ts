@@ -1,7 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 test.describe("OWNER rate management with isolated Supabase", () => {
   test.skip(process.env.TEN29_PROVIDER_E2E !== "true", "Requires the disposable Supabase CI fixture");
-  test.describe.configure({ mode: "serial" });
+  // These tests intentionally preserve published revisions between steps.
+  // A failed sequence must rerun against a fresh disposable database, not replay
+  // the first step on already-published state.
+  test.describe.configure({ mode: "serial", retries: 0 });
   async function login(page: Page, role = "OWNER") {
     await page.goto("/admin/login");
     await page.getByLabel("Email").fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);
@@ -40,6 +43,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     expect(JSON.stringify(initial)).not.toMatch(/approved_by|actor_id|conditions|adjustments/);
     await expect(page.getByRole("button", { name: /2034-01-01, published PHP 100.01/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/owner-rates-mobile.png", fullPage: true });
   });
   test("monthly update and date override refresh subsequent reads and disclose a stale estimate", async ({ page, request }) => {
     const before = await (await request.get(priceUrl())).json();
@@ -73,8 +77,10 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await expect(page.getByRole("region", { name: "Rate revision history" })).toContainText("PUBLISHED");
   });
   test("selected larger package uses its own price and quote preview separates private arrangements", async ({ page, request }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await login(page);
     await page.getByLabel("Bedroom package").selectOption("WHOLE_HOME_3BR");
+    await expect(page.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_3BR");
     await page.getByLabel("Apply price to").selectOption("DEFAULT");
     await page.getByLabel("Nightly price (PHP)").fill("400.04");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
@@ -96,6 +102,8 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await expect(breakdown).toContainText("OWNER_MANUAL");
     await expect(breakdown).toContainText("DISCOUNT");
     await expect(breakdown).toContainText("8 guests");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/owner-quote-mobile.png", fullPage: true });
   });
   test("validation, unsaved changes, conflict messages and manager denial", async ({ page }) => {
     await login(page);

@@ -47,6 +47,7 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
   function acceptState(updated: OwnerRateState) {
     setState(updated); setHasOlder(updated.history.length === 30); const draft = updated.history.find((h) => h.status === "DRAFT" && h.base_revision_id === updated.published_revision_id);
     setRules(draft?.rules ?? updated.published_rules); setDraftId(draft?.id ?? null); setDirty(false); setPreview(null); setPrice("");
+    saveKey.current = crypto.randomUUID(); publishKey.current = crypto.randomUUID();
   }
   function changePackage(packageCode: BookingPackageCode) {
     if ((dirty || price.trim()) && !window.confirm("Discard unsaved rate changes?")) return;
@@ -96,14 +97,14 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
         {Array.from({ length: new Date(`${first}T00:00:00Z`).getUTCDay() }, (_, i) => <div key={`blank-${i}`} />)}
         {dates.map((date, i) => <button key={date} type="button" onClick={() => selectDay(date)}
           aria-pressed={date >= startDate && date <= endDate} aria-label={`${date}, published ${formatPhp(published[i].amount_centavos)}, draft ${formatPhp(draftPrices[i].amount_centavos)}`}
-          className={`min-h-24 min-w-0 rounded-sm border p-1 text-left ${date >= startDate && date <= endDate ? "border-gold bg-gold-soft/30" : "border-border bg-ivory"}`}>
+          disabled={pending} className={`min-h-24 min-w-0 rounded-sm border p-1 text-left ${date >= startDate && date <= endDate ? "border-gold bg-gold-soft/30" : "border-border bg-ivory"}`}>
           <span className="block font-semibold">{Number(date.slice(-2))}</span>
           <span className="block break-words text-[10px] text-forest">Published<br />{published[i].amount_centavos === null ? "—" : formatPhp(published[i].amount_centavos)}</span>
           <span className="mt-1 block break-words text-[10px] text-warning">Draft<br />{draftPrices[i].amount_centavos === null ? "—" : formatPhp(draftPrices[i].amount_centavos)}</span>
         </button>)}
       </div>
     </div>
-    <div className="rounded-sm border border-border bg-white p-4 sm:p-6">
+    <fieldset disabled={pending} className="rounded-sm border border-border bg-white p-4 sm:p-6">
       <h2 className="text-2xl text-forest">Edit nightly rates</h2>
       <p className="mt-2 text-sm text-muted">Priority: single date → range or month → weekday → default. Overlapping range rules are rejected; remove or replace the existing range explicitly.</p>
       <label className="mt-4 block" htmlFor="rule-kind">Apply price to</label>
@@ -127,7 +128,7 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       <div className="mt-4 flex flex-wrap gap-3">
         <CtaButton disabled={pending || !dirty} onClick={() => begin(async () => {
           setError(""); const response = await safely(saveRateEditor({ package_code: state.package_code, base_revision_id: state.published_revision_id, rules, idempotency_key: saveKey.current }));
-          if (response.error) setError(response.error); else { setDraftId(response.data!); setDirty(false); publishKey.current = crypto.randomUUID(); setMessage("Draft saved. Public rates are unchanged."); const updated = await safely(loadRateEditor(state.package_code)); if (updated.data) setState(updated.data); }
+          if (response.error) setError(response.error); else { setDraftId(response.data!); setDirty(false); publishKey.current = crypto.randomUUID(); setMessage("Draft saved. Public rates are unchanged."); const updated = await safely(loadRateEditor(state.package_code)); if (updated.data) { setState(updated.data); setHasOlder(updated.data.history.length === 30); } }
         })}>Save Draft</CtaButton>
         <CtaButton variant="secondary" disabled={pending} onClick={() => begin(async () => {
           setError(""); const response = await safely(previewRateEditor({ rules, selection: { package_code: state.package_code, check_in_date: first, check_out_date: next, overnight_guest_count: 1, folding_foams_requested: false } }));
@@ -156,13 +157,13 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
             }
           })}>Confirm publication</CtaButton></div>
       </dialog>
-    </div>
+    </fieldset>
     <section className="rounded-sm border border-border bg-white p-4 sm:p-6" aria-label="Rate revision history">
       <h2 className="text-2xl text-forest">Rate history</h2>
       {state.history.length === 0 ? <p className="mt-2">No rate revisions yet. Add the first owner-chosen price above.</p> : <ul>{state.history.map((h) => <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-3 text-sm">
         <span>Revision {h.revision} · {h.status}{h.id === state.published_revision_id ? " · Current" : ""}<small className="block">Saved {new Date(h.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}{h.published_at ? ` · Published ${new Date(h.published_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}` : ""} (Manila)</small>
           <small className="block">{h.rules.filter((r) => r.start_date).map((r) => `${r.start_date} through ${addDays(r.end_date!, -1)}`).join(", ") || "Default/weekday applicability"}</small></span>
-        <button className="min-h-11 px-3 text-forest underline" onClick={() => { if (!dirty || window.confirm("Discard unsaved changes?")) edited(h.rules); }}>Use revision {h.revision} as draft</button>
+        <button disabled={pending} className="min-h-11 px-3 text-forest underline" onClick={() => { if (!dirty || window.confirm("Discard unsaved changes?")) edited(h.rules); }}>Use revision {h.revision} as draft</button>
       </li>)}</ul>}
       {hasOlder && <CtaButton variant="secondary" className="mt-4" disabled={pending} onClick={() => begin(async () => {
         const older = await safely(loadRateEditor(state.package_code, state.history.length));
