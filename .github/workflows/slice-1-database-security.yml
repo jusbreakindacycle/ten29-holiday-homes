@@ -57,4 +57,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test -- --maxWorkers=1 --pool=threads
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e -- --workers=1
+      # Next 16.2.12's Turbopack Google-font import map fails on this Linux runner.
+      # Use the installed version's supported production Webpack build for CI.
+      - run: npm run build -- --webpack
+      - run: npx playwright test --workers=1
