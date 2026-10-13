@@ -61,15 +61,19 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
       const response = await fetch(`/api/booking-calendar?${new URLSearchParams({ ...selection, check_in_date: from, check_out_date: to })}`, { cache: "no-store", signal: abort.signal });
       if (!response.ok) throw new Error(); return response.json();
     };
-    read(`${month}-01`, `${nextMonth(month, 1)}-01`).then(v => { if (!abort.signal.aborted) { setMonthData(v); setCalendarError("");
-      if (pendingFocus.current) requestAnimationFrame(() => { calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${pendingFocus.current}"]`)?.focus(); pendingFocus.current = ""; });
-    } })
+    read(`${month}-01`, `${nextMonth(month, 1)}-01`).then(v => { if (!abort.signal.aborted) { setMonthData(v); setCalendarError(""); } })
       .catch(() => { if (!abort.signal.aborted) setCalendarError("Calendar could not load. Retry; availability has not been verified."); });
     if (nights.length > 0 && nights.length <= 366) read(start, end).then(v => {
       if (!abort.signal.aborted) { setStay(v); setReviewed(v.estimate); }
     }).catch(() => { if (!abort.signal.aborted) setCalendarError("Could not verify your selected stay. Retry before submitting."); });
     return () => abort.abort();
   }, [pkg, guests, foams, month, start, end, retry, eligible, nights.length]);
+  useEffect(() => {
+    if (monthData && pendingFocus.current) {
+      calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${pendingFocus.current}"]`)?.focus();
+      pendingFocus.current = "";
+    }
+  }, [monthData]);
   function pick(day: string) {
     resetEstimate();
     if (!start || end || day <= start) { setStart(day); setEnd(""); }
@@ -159,16 +163,17 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
           {Array.from({ length: offset }, (_, i) => <span key={`empty${i}`}/>)}
           {days.map(day => { const unavailable = !!monthData?.unavailable.some(b => b.check_in_date <= day && day < b.check_out_date);
             const amount = monthData?.estimate.nights.find(n => n.date === day)?.amount_centavos ?? null;
-            const selected = !!start && day >= start && day <= (end || start);
+            const checkout = !!end && day === end;
+            const selected = !!start && (end ? day >= start && day < end : day === start);
             const unavailableChoice = unavailable && (!start || !!end || day <= start);
             return <button key={day} type="button" data-date={day} onClick={() => { if (unavailableChoice) setMessage("This night is unavailable. Choose another check-in."); else pick(day); }} onKeyDown={e => keyboard(e, day)}
               disabled={!monthData || day < manilaToday()} aria-disabled={unavailableChoice}
-              aria-pressed={selected} aria-label={`${day}, ${unavailable ? "unavailable overnight; checkout only" : "requestable"}, ${formatPhp(amount)}`}
-              className={`min-h-16 min-w-0 rounded-sm border p-0.5 text-left focus-visible:outline-2 focus-visible:outline-gold ${selected ? "border-forest bg-forest text-white" : unavailable ? "border-border bg-gray-100 text-muted" : "border-border bg-sand/40"} disabled:opacity-60`}>
-              <span className="block text-sm font-semibold">{Number(day.slice(-2))}</span><span className="block break-words text-[10px] leading-tight">{unavailable ? "Unavailable" : amount === null ? "Quote" : formatPhp(amount).replace("PHP ", "")}</span>
+              aria-pressed={selected || checkout} aria-label={checkout ? `${day}, checkout boundary; not a charged night` : `${day}, ${unavailable ? "unavailable overnight; checkout only" : "requestable"}, ${formatPhp(amount)}`}
+              className={`min-h-16 min-w-0 rounded-sm border p-0.5 text-left focus-visible:outline-2 focus-visible:outline-gold ${selected ? "border-forest bg-forest text-white" : checkout ? "border-forest bg-sand text-forest" : unavailable ? "border-border bg-gray-100 text-muted" : "border-border bg-sand/40"} disabled:opacity-60`}>
+              <span className="block text-sm font-semibold">{Number(day.slice(-2))}</span><span className="block break-words text-[10px] leading-tight">{checkout ? "Checkout" : unavailable ? "Unavailable" : amount === null ? "Quote" : formatPhp(amount).replace("PHP ", "")}</span>
             </button>; })}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2"><label htmlFor="check_in_date">Check-in date<input id="check_in_date" type="date" required value={start} min={manilaToday()} onChange={e => { setStart(e.target.value); resetEstimate(); }} className={INPUT_CLASSES}/></label>
+        <div className="grid gap-3 sm:grid-cols-2"><label htmlFor="check_in_date">Check-in date<input id="check_in_date" type="date" required value={start} min={manilaToday()} onChange={e => { setStart(e.target.value); resetEstimate(); if (calendarDate.safeParse(e.target.value).success) { setMonthData(null); setMonth(e.target.value.slice(0, 7)); } }} className={INPUT_CLASSES}/></label>
           <label htmlFor="check_out_date">Check-out date<input id="check_out_date" type="date" required value={end} min={start || manilaToday()} onChange={e => { setEnd(e.target.value); resetEstimate(); }} className={INPUT_CLASSES}/></label></div>
         {blockedStay && <p role="alert">This stay includes unavailable nights. Choose different dates.</p>}
         {start && end && !nights.length && <p role="alert">Checkout must be after check-in.</p>}

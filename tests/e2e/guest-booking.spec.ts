@@ -28,6 +28,8 @@ test.describe("Guest booking against disposable Supabase", () => {
   test("mobile guest persists linked pair, recovers lost response and owner can inspect it", async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 }); await choose(page);
     await expect(page.getByRole("region", { name: "Accommodation estimate" })).toContainText("PHP 330.00");
+    await expect(page.locator(`[data-date="${dates[2]}"]`)).toContainText("Checkout");
+    await page.screenshot({ path: "test-results/guest-calendar-mobile.png", fullPage: true });
     let submitted: unknown;
     await page.route("**/api/booking-request", async route => { submitted = route.request().postDataJSON(); await route.fetch(); await route.abort("failed"); });
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
