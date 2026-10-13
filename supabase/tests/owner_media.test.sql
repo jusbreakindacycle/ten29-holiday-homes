@@ -37,6 +37,7 @@ update f set m=public.media_worker_action((m->>'id')::uuid,'FINISH',(m->>'lease'
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000071',true);
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Media is not ready for publication','ready media still requires rights acknowledgement and accessible description');
 update f set m=public.owner_media_action('EDIT',(m->>'id')::uuid,(m->>'version')::int,'{"title":"Private title","alt":"Private alt","caption":"Private note","category":"Room 1","position":2,"rights":true}');
 select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,1,'{}') from f$$,'P0001','Stale media revision','stale publication rejected');
 select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Rendition missing','DB rejects missing Storage object');

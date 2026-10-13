@@ -44,6 +44,8 @@ create policy media_scoped_original_upload on storage.objects for insert to auth
  select 1 from public.property_media m where m.original_key=name and m.uploaded_by=auth.uid()
  and m.state='UPLOADING' and (metadata is null or not metadata ? 'size' or m.bytes=(metadata->>'size')::bigint)
  and m.created_at > now()-interval '1 hour'));
+-- Storage's permission probe omits final size; its completion policy check supplies
+-- authoritative object metadata. Direct object writes are never exposed by this app.
 -- No public bucket, storage SELECT, UPDATE/upsert, or client rendition write grant.
 
 create function public.owner_media_action(p_action text, p_id uuid, p_version integer, p_data jsonb)

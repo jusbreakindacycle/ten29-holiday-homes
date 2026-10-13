@@ -121,4 +121,13 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await expect(page.getByRole('status').first()).toContainText(/cancelled|private/,{timeout:15000});
   await expect(page.getByRole('article').filter({has:page.getByRole('heading',{name:'synthetic-cancel.png',exact:true})}).getByRole('button',{name:'Publish media'})).toHaveCount(0);
  });
+ test('real unsupported video codec is rejected and remains private',async({page})=>{
+  test.setTimeout(90000);await login(page);const folder=await mkdtemp(path.join(tmpdir(),'ten29-vp9-'));const file=path.join(folder,'unsupported.mp4');
+  try {
+   await promisify(execFile)(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','color=c=red:s=64x64:d=1','-c:v','libvpx-vp9','-threads','1',file],{timeout:30000,maxBuffer:1024*1024});
+   await page.getByLabel('Add video',{exact:true}).setInputFiles({name:'unsupported.mp4',mimeType:'video/mp4',buffer:await readFile(file)});
+   await expect(page.getByRole('status').first()).toContainText('UNSUPPORTED_VIDEO',{timeout:60000});await expect(page.getByRole('article').first()).toContainText('FAILED');
+   await expect(page.getByRole('article').first().getByRole('button',{name:'Publish media'})).toHaveCount(0);
+  } finally {await rm(folder,{recursive:true,force:true});}
+ });
 });
