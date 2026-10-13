@@ -29,7 +29,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const [sessionReady, setSessionReady] = useState(false);
   const [receipt, setReceipt] = useState<BookingReceipt | null>(null);
   const [retry, setRetry] = useState(0);
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null); const pendingFocus = useRef("");
   const guests = adults + children;
   const recommendation = recommendBookingPackage(guests);
   const rooms = BOOKING_PACKAGE_CODES.indexOf(pkg) + 1;
@@ -57,7 +57,9 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
       const response = await fetch(`/api/booking-calendar?${new URLSearchParams({ ...selection, check_in_date: from, check_out_date: to })}`, { cache: "no-store", signal: abort.signal });
       if (!response.ok) throw new Error(); return response.json();
     };
-    read(`${month}-01`, `${nextMonth(month, 1)}-01`).then(v => { if (!abort.signal.aborted) { setMonthData(v); setCalendarError(""); } })
+    read(`${month}-01`, `${nextMonth(month, 1)}-01`).then(v => { if (!abort.signal.aborted) { setMonthData(v); setCalendarError("");
+      if (pendingFocus.current) requestAnimationFrame(() => { calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${pendingFocus.current}"]`)?.focus(); pendingFocus.current = ""; });
+    } })
       .catch(() => { if (!abort.signal.aborted) setCalendarError("Calendar could not load. Retry; availability has not been verified."); });
     if (nights.length > 0 && nights.length <= 366) read(start, end).then(v => {
       if (!abort.signal.aborted) { setStay(v); setReviewed(v.estimate); }
@@ -72,8 +74,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   function keyboard(event: React.KeyboardEvent<HTMLButtonElement>, day: string) {
     const move = ({ ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 } as Record<string, number>)[event.key];
     if (!move) return; event.preventDefault(); const target = addDays(day, move);
-    if (target.slice(0, 7) !== month) { setMonthData(null); setMonth(target.slice(0, 7));
-      window.setTimeout(() => calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${target}"]`)?.focus(), 100); }
+    if (target.slice(0, 7) !== month) { pendingFocus.current = target; setMonthData(null); setMonth(target.slice(0, 7)); }
     else calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${target}"]`)?.focus();
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -138,7 +139,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         <p className="text-sm text-muted">Room 1: queen-size bed.{rooms > 1 ? " Room 2: twin-size bedding." : ""}{rooms > 2 ? " Room 3: single-size double-deck bed." : ""}</p>
         {pkg === "WHOLE_HOME_3BR" && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={guests > 6} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Additional folding foams (up to two). Required for 7–8 guests. No automatic fee.</label>}
       </section>
-      <section className="rounded-sm border border-border bg-white p-3 sm:p-6 space-y-4">
+      <section className="rounded-sm border border-border bg-white p-2 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">Choose your requested dates</h2>
         <p>Check-in from 3:00 PM · Check-out before 12:00 PM · Asia/Manila.</p>
         <div className="flex items-center justify-between gap-2"><button type="button" className={button} aria-label="Previous month" onClick={() => { setMonthData(null); setMonth(nextMonth(month, -1)); }}>←</button>
@@ -153,8 +154,9 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
           {days.map(day => { const unavailable = !!monthData?.unavailable.some(b => b.check_in_date <= day && day < b.check_out_date);
             const amount = monthData?.estimate.nights.find(n => n.date === day)?.amount_centavos ?? null;
             const selected = !!start && day >= start && day <= (end || start);
-            return <button key={day} type="button" data-date={day} onClick={() => pick(day)} onKeyDown={e => keyboard(e, day)}
-              disabled={!monthData || day < manilaToday() || (unavailable && (!start || !!end || day <= start))}
+            const unavailableChoice = unavailable && (!start || !!end || day <= start);
+            return <button key={day} type="button" data-date={day} onClick={() => { if (unavailableChoice) setMessage("This night is unavailable. Choose another check-in."); else pick(day); }} onKeyDown={e => keyboard(e, day)}
+              disabled={!monthData || day < manilaToday()} aria-disabled={unavailableChoice}
               aria-pressed={selected} aria-label={`${day}, ${unavailable ? "unavailable overnight; checkout only" : "requestable"}, ${formatPhp(amount)}`}
               className={`min-h-16 min-w-0 rounded-sm border p-0.5 text-left focus-visible:outline-2 focus-visible:outline-gold ${selected ? "border-forest bg-forest text-white" : unavailable ? "border-border bg-gray-100 text-muted" : "border-border bg-sand/40"} disabled:opacity-60`}>
               <span className="block text-sm font-semibold">{Number(day.slice(-2))}</span><span className="block break-words text-[10px] leading-tight">{unavailable ? "Unavailable" : amount === null ? "Quote" : formatPhp(amount).replace("PHP ", "")}</span>

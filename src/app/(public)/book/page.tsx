@@ -23,7 +23,7 @@ export default async function BookPage({
   const params = await searchParams;
 
   return (
-    <div className="mx-auto max-w-3xl px-3 py-12 sm:px-6">
+    <div className="mx-auto max-w-3xl px-1 py-12 sm:px-6">
       <SectionHeading
         as="h1"
         eyebrow="Booking enquiry"

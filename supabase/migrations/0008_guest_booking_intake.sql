@@ -1,5 +1,5 @@
 -- Slice 5: restricted server intake; no public booking INSERT or admin bypass flag.
-create role ten29_intake_writer nologin noinherit;
+do $$ begin if not exists(select 1 from pg_roles where rolname='ten29_intake_writer') then create role ten29_intake_writer nologin noinherit; end if; end; $$;
 grant usage on schema public,ten29_private to ten29_intake_writer;
 grant usage on schema ten29_private to service_role;
 alter table public.booking_requests alter column created_by drop not null;
@@ -264,7 +264,12 @@ begin
   insert into public.website_booking_intakes(request_id,session_hash,idempotency_key,payload,estimate,receipt) values(v_request,p_session,p_key,p_payload,v_price,v_receipt);
   return v_receipt || jsonb_build_object('request_id',v_request);
 end; $$;
+-- Temporary ownership-transfer permissions only for the migration role.
+grant ten29_intake_writer to postgres;
+grant create on schema ten29_private to ten29_intake_writer;
 alter function ten29_private.accept_website_booking(jsonb,text,uuid,text) owner to ten29_intake_writer;
+revoke create on schema ten29_private from ten29_intake_writer;
+revoke ten29_intake_writer from postgres;
 create function public.accept_website_booking(p_payload jsonb,p_session text,p_key uuid,p_abuse text) returns jsonb language sql security invoker set search_path='' as $$
   select ten29_private.accept_website_booking(p_payload,p_session,p_key,p_abuse); $$;
 revoke all on function ten29_private.accept_website_booking(jsonb,text,uuid,text),public.accept_website_booking(jsonb,text,uuid,text) from public,anon,authenticated;

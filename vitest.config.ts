@@ -12,6 +12,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Unit tests execute server modules in jsdom; Next's production build enforces the boundary.
+      "server-only": path.resolve(__dirname, "./node_modules/next/dist/compiled/server-only/empty.js"),
       "@": path.resolve(__dirname, "./src"),
     },
   },
