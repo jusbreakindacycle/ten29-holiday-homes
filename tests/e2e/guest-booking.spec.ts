@@ -81,6 +81,8 @@ test.describe("Guest booking against disposable Supabase", () => {
   });
   test("missing rates allow an honest request; capacities preserve larger purchases", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 }); await choose(page, "WHOLE_HOME_2BR");
+    const targets = await page.locator("[data-date]").evaluateAll(nodes => nodes.map(n => ({ width: n.getBoundingClientRect().width, height: n.getBoundingClientRect().height })));
+    expect(targets.every(t => t.width >= 44 && t.height >= 44)).toBe(true);
     await expect(page.getByRole("region", { name: "Accommodation estimate" })).toContainText("Request a quote");
     await page.locator("#full_name").fill("Synthetic Missing Rate Guest");
     await page.getByRole("button", { name: /Send Enquiry/ }).click(); await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
@@ -119,5 +121,14 @@ test.describe("Guest booking against disposable Supabase", () => {
       expect(r.ok()).toBe(false); expect((await r.json()).outcome).not.toBe("SAVED");
     }
     const r = await page.request.post("/api/booking-request", { data: payload, headers: { Origin: "https://example.invalid" } }); expect(r.status()).toBe(403);
+  });
+  test("secure-session failure is visible and retry restores the genuine request path", async ({ page }) => {
+    await page.route("**/api/booking-session", route => route.abort("failed"));
+    await page.goto("/book"); await expect(page.getByText("Secure request session could not start. Retry or contact TEN29.")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeDisabled();
+    await page.unroute("**/api/booking-session");
+    await page.getByRole("button", { name: "Retry secure session" }).click();
+    await expect(page.getByRole("button", { name: "Retry secure session" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Request received" })).toHaveCount(0);
   });
 });

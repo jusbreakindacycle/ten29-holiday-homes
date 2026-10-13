@@ -239,6 +239,7 @@ export type BookingRequestEvent = {
   previous_status: BookingRequestStatus | null;
   new_status: BookingRequestStatus;
   actor_id: string | null;
+  actor_kind: "TEN29_ADMIN" | "WEBSITE_INTAKE";
   created_at: string;
 };
 

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { BOOKING_PACKAGE_CODES, recommendBookingPackage, type BookingPackageCode } from "@/types/booking";
 import { addDays, calendarDate, formatPhp, nightDates, type PublicPriceEstimate } from "@/types/pricing";
@@ -8,6 +8,7 @@ import { INPUT_CLASSES } from "@/components/ui/FormField";
 
 type CalendarData = { estimate: PublicPriceEstimate; unavailable: Array<{ check_in_date: string; check_out_date: string }> };
 const button = "min-h-11 rounded-sm border border-forest px-4 py-2 text-sm text-forest disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-gold";
+const subscribe = () => () => {};
 function nextMonth(month: string, offset: number): string { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + offset); return d.toISOString().slice(0, 7); }
 export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {} }: {
   availabilityOnly?: boolean; initial?: Record<string, string | undefined>; utm?: Record<string, string | undefined>;
@@ -27,6 +28,9 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const [changed, setChanged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionRetry, setSessionRetry] = useState(0);
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const [receipt, setReceipt] = useState<BookingReceipt | null>(null);
   const [retry, setRetry] = useState(0);
   const calendarRef = useRef<HTMLDivElement>(null); const pendingFocus = useRef("");
@@ -46,9 +50,9 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   }
   useEffect(() => {
     if (availabilityOnly) return;
-    fetch("/api/booking-session", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(); setSessionReady(true); })
-      .catch(() => setMessage("Booking requests are temporarily unavailable. Reload or contact TEN29."));
-  }, [availabilityOnly]);
+    fetch("/api/booking-session", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(); setSessionReady(true); setSessionError(""); })
+      .catch(() => setSessionError("Secure request session could not start. Retry or contact TEN29."));
+  }, [availabilityOnly, sessionRetry]);
   useEffect(() => {
     if (!eligible || !/^\d{4}-\d{2}$/.test(month)) return;
     const abort = new AbortController();
@@ -91,12 +95,14 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
     void _estimate;
     // Session storage retains only a digest, retry key and non-contact estimate.
     // Refresh/lost-response retries use the exact original reviewed snapshot.
-    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(identity))))).map(v => v.toString(16).padStart(2, "0")).join("");
+    setBusy(true);
+    let digest: string;
+    try { digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(identity))))).map(v => v.toString(16).padStart(2, "0")).join(""); }
+    catch { setBusy(false); setMessage("Use a secure browser connection to submit, or contact TEN29."); return; }
     let saved: { digest: string; key: string; estimate: PublicPriceEstimate } | null = null;
     try { saved = JSON.parse(sessionStorage.getItem("ten29-request-retry") || "null"); } catch { /* Start a fresh bounded attempt. */ }
     const attempt = saved?.digest === digest ? saved : { digest, key: crypto.randomUUID(), estimate: reviewed };
-    try { sessionStorage.setItem("ten29-request-retry", JSON.stringify(attempt)); } catch { setMessage("Enable session storage to submit with safe refresh/retry protection, or contact TEN29."); return; }
-    setBusy(true);
+    try { sessionStorage.setItem("ten29-request-retry", JSON.stringify(attempt)); } catch { setBusy(false); setMessage("Enable session storage to submit with safe refresh/retry protection, or contact TEN29."); return; }
     try {
       const response = await fetch("/api/booking-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, reviewed_estimate: attempt.estimate, idempotency_key: attempt.key }) });
       const result = await response.json();
@@ -114,7 +120,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
     <h2 className="font-heading text-2xl text-forest">Request received</h2><p className="break-all">Reference: <strong>{receipt.reference_code}</strong></p>
     <p>{receipt.overnight_guest_count} overnight guests · {BOOKING_PACKAGE_CODES.indexOf(receipt.package_code) + 1} bedrooms · one private house</p>
     <p>{receipt.check_in_date} to {receipt.check_out_date}</p><p>Estimated accommodation: {formatPhp(receipt.estimate.estimated_total_centavos)}</p>
-    <p>Your request is safely saved. Owner notification is queued; email delivery is not yet confirmed.</p>
+    <p>Your request is safely saved. A notification task was recorded; this acknowledgement does not verify email delivery.</p>
     <p className="font-semibold">Dates are not reserved. The owner will review availability and final pricing.</p>
     <p>A reservation requires an owner-issued quotation, the owner’s approved down-payment conditions, independently verified receipt of payment and successful owner-authorized confirmation. Do not send payment until those terms are agreed.</p>
   </section>;
@@ -122,7 +128,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const days = nightDates(`${month}-01`, `${nextMonth(month, 1)}-01`);
   const offset = new Date(`${month}-01T00:00:00Z`).getUTCDay();
   return <form onSubmit={submit} className="space-y-6" aria-label="Request to Book">
-    <fieldset disabled={busy} className="space-y-6 min-w-0">
+    <fieldset disabled={busy || !hydrated} className="space-y-6 min-w-0">
       <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">One private house. Choose how many bedrooms you&apos;d like opened.</h2>
         <p>Every package gives your group exclusive use of the whole house and approved common areas.</p>
@@ -186,6 +192,8 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         <label htmlFor="purpose_of_stay">Purpose of stay<input id="purpose_of_stay" name="purpose_of_stay" maxLength={200} className={INPUT_CLASSES}/></label>
         <label htmlFor="message">Message or requests<textarea id="message" name="message" rows={3} maxLength={1000} className={INPUT_CLASSES}/></label>
         <label className="flex gap-3 min-h-11" htmlFor="privacy_consent"><input id="privacy_consent" name="privacy_consent" type="checkbox" required className="mt-1 h-5 w-5 shrink-0"/><span>I agree to the <Link href="/privacy" className="underline">privacy notice</Link> and understand this is a request, not a confirmed reservation.</span></label>
+        {sessionError && <div role="alert"><p>{sessionError}</p><button type="button" className={button} onClick={() => setSessionRetry(v => v + 1)}>Retry secure session</button></div>}
+        {!sessionReady && !sessionError && <p role="status">Preparing a secure request session…</p>}
         <div aria-hidden="true" className="absolute left-[-9999px] h-0 overflow-hidden"><label htmlFor="website">Leave empty</label><input id="website" name="website" tabIndex={-1} autoComplete="off"/></div>
         <button type="submit" className={`${button} bg-forest text-white w-full`} disabled={busy || changed || !sessionReady || !reviewed || !stay || blockedStay || !eligible} aria-busy={busy}>{busy ? "Saving your request…" : "Request to Book — Send Enquiry"}</button>
       </section>}

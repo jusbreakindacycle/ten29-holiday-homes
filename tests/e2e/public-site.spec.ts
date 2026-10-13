@@ -75,7 +75,7 @@ test.describe("Booking enquiry form", () => {
 
     // Unconfigured services cannot establish availability or persist requests.
     await expect(page.getByRole("button", { name: /send enquiry/i })).toBeDisabled();
-    await expect(page.getByText(/Calendar could not load|Could not verify|temporarily unavailable/).first()).toBeVisible();
+    await expect(page.getByText(/Calendar could not load|Could not verify|temporarily unavailable|Secure request session/).first()).toBeVisible();
 
     // Without a configured Supabase project in this environment, submission
     // fails gracefully — the important assertion is that the UI never claims
