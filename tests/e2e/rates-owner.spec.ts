@@ -19,6 +19,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await login(page);
     await expect(page.getByRole("heading", { name: "Rate Management", exact: true })).toBeVisible();
     await page.getByLabel("Go to month").fill("2034-01");
+    await expect(page.getByRole("heading", { name: "January 2034", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /2034-01-01, published/ }).click();
     await page.getByRole("button", { name: /2034-01-02, published/ }).click();
     await expect(page.getByLabel("Apply price to")).toHaveValue("RANGE");
@@ -49,6 +50,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     const before = await (await request.get(priceUrl())).json();
     await login(page);
     await page.getByLabel("Go to month").fill("2034-01");
+    await expect(page.getByRole("heading", { name: "January 2034", exact: true })).toBeVisible();
     await page.getByLabel("Apply price to").selectOption("MONTH");
     await page.getByLabel("Nightly price (PHP)").fill("200.02");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { BOOKING_PACKAGE_CODES, type BookingPackageCode } from "@/types/booking";
 import { addDays, formatPhp, nightDates, phpToCentavos, rateRulesSchema, type NightlyPrice, type OwnerRateState, type RateRule } from "@/types/pricing";
 import { previewRateRules } from "@/lib/pricing";
@@ -16,7 +16,11 @@ async function safely<T>(operation: Promise<{ data?: T; error?: string }>): Prom
   try { return await operation; }
   catch { return { error: "Could not reach the server. Reload to verify whether the change was saved before retrying." }; }
 }
+const subscribeReady = () => () => {};
 export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState; initialMonth: string }) {
+  // Server-rendered controls stay disabled until their event handlers are active.
+  // Prevents pre-hydration input from looking applied while retaining old dates.
+  const ready = useSyncExternalStore(subscribeReady, () => true, () => false);
   const [state, setState] = useState(initial), [month, setMonth] = useState(initialMonth);
   const initialDraft = initial.history.find((h) => h.status === "DRAFT" && h.base_revision_id === initial.published_revision_id);
   const [rules, setRules] = useState<RateRule[]>(initialDraft?.rules ?? initial.published_rules);
@@ -80,31 +84,31 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
   return <section aria-label="Calendar rate editor" className="space-y-6">
     <div className="rounded-sm border border-border bg-white p-4 sm:p-6">
       <label className="block font-semibold" htmlFor="rate-package">Bedroom package</label>
-      <select id="rate-package" className={`${INPUT_CLASSES} mt-2`} value={state.package_code} disabled={pending} onChange={(e) => changePackage(e.target.value as BookingPackageCode)}>
+      <select id="rate-package" className={`${INPUT_CLASSES} mt-2`} value={state.package_code} disabled={pending || !ready} onChange={(e) => changePackage(e.target.value as BookingPackageCode)}>
         {BOOKING_PACKAGE_CODES.map((code, index) => <option value={code} key={code}>{index + 1} bedroom{index ? "s" : ""} · Whole private house</option>)}
       </select>
       <p className="mt-2 text-sm text-muted">One private house. This is the nightly package price, not a per-person price. Current publication: {state.published_revision_id ? `revision ${state.history.find((h) => h.id === state.published_revision_id)?.revision ?? state.published_revision_id}` : "No rates published"}.</p>
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-        <CtaButton variant="secondary" onClick={() => changeMonth(-1)} aria-label="Previous month">←</CtaButton>
+        <CtaButton disabled={pending || !ready} variant="secondary" onClick={() => changeMonth(-1)} aria-label="Previous month">←</CtaButton>
         <h2 className="text-xl">{new Date(`${first}T00:00:00Z`).toLocaleDateString("en-PH", { month: "long", year: "numeric", timeZone: "UTC" })}</h2>
-        <CtaButton variant="secondary" onClick={() => changeMonth(1)} aria-label="Next month">→</CtaButton>
+        <CtaButton disabled={pending || !ready} variant="secondary" onClick={() => changeMonth(1)} aria-label="Next month">→</CtaButton>
       </div>
       <label className="mt-3 block text-sm" htmlFor="rate-month">Go to month</label>
-      <input id="rate-month" type="month" className={INPUT_CLASSES} value={month} onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { setMonth(e.target.value); setPreview(null); } }} />
+      <input id="rate-month" type="month" disabled={pending || !ready} className={INPUT_CLASSES} value={month} onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { setMonth(e.target.value); setPreview(null); } }} />
       <p className="my-3 text-sm">Tap a date, then another date to select a range. Draft values remain private until publication.</p>
       <div className="grid grid-cols-7 gap-1" aria-label="Monthly nightly prices">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="text-center text-xs font-semibold">{day}</div>)}
         {Array.from({ length: new Date(`${first}T00:00:00Z`).getUTCDay() }, (_, i) => <div key={`blank-${i}`} />)}
         {dates.map((date, i) => <button key={date} type="button" onClick={() => selectDay(date)}
           aria-pressed={date >= startDate && date <= endDate} aria-label={`${date}, published ${formatPhp(published[i].amount_centavos)}, draft ${formatPhp(draftPrices[i].amount_centavos)}`}
-          disabled={pending} className={`min-h-24 min-w-0 rounded-sm border p-1 text-left ${date >= startDate && date <= endDate ? "border-gold bg-gold-soft/30" : "border-border bg-ivory"}`}>
+          disabled={pending || !ready} className={`min-h-24 min-w-0 rounded-sm border p-1 text-left ${date >= startDate && date <= endDate ? "border-gold bg-gold-soft/30" : "border-border bg-ivory"}`}>
           <span className="block font-semibold">{Number(date.slice(-2))}</span>
           <span className="block break-words text-[10px] text-forest">Published<br />{published[i].amount_centavos === null ? "—" : formatPhp(published[i].amount_centavos)}</span>
           <span className="mt-1 block break-words text-[10px] text-warning">Draft<br />{draftPrices[i].amount_centavos === null ? "—" : formatPhp(draftPrices[i].amount_centavos)}</span>
         </button>)}
       </div>
     </div>
-    <fieldset disabled={pending} className="rounded-sm border border-border bg-white p-4 sm:p-6">
+    <fieldset disabled={pending || !ready} className="rounded-sm border border-border bg-white p-4 sm:p-6">
       <h2 className="text-2xl text-forest">Edit nightly rates</h2>
       <p className="mt-2 text-sm text-muted">Priority: single date → range or month → weekday → default. Overlapping range rules are rejected; remove or replace the existing range explicitly.</p>
       <label className="mt-4 block" htmlFor="rule-kind">Apply price to</label>
@@ -163,9 +167,9 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       {state.history.length === 0 ? <p className="mt-2">No rate revisions yet. Add the first owner-chosen price above.</p> : <ul>{state.history.map((h) => <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-3 text-sm">
         <span>Revision {h.revision} · {h.status}{h.id === state.published_revision_id ? " · Current" : ""}<small className="block">Saved {new Date(h.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}{h.published_at ? ` · Published ${new Date(h.published_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}` : ""} (Manila)</small>
           <small className="block">{h.rules.filter((r) => r.start_date).map((r) => `${r.start_date} through ${addDays(r.end_date!, -1)}`).join(", ") || "Default/weekday applicability"}</small></span>
-        <button disabled={pending} className="min-h-11 px-3 text-forest underline" onClick={() => { if (!dirty || window.confirm("Discard unsaved changes?")) edited(h.rules); }}>Use revision {h.revision} as draft</button>
+        <button disabled={pending || !ready} className="min-h-11 px-3 text-forest underline" onClick={() => { if (!dirty || window.confirm("Discard unsaved changes?")) edited(h.rules); }}>Use revision {h.revision} as draft</button>
       </li>)}</ul>}
-      {hasOlder && <CtaButton variant="secondary" className="mt-4" disabled={pending} onClick={() => begin(async () => {
+      {hasOlder && <CtaButton variant="secondary" className="mt-4" disabled={pending || !ready} onClick={() => begin(async () => {
         const older = await safely(loadRateEditor(state.package_code, state.history.length));
         if (older.error) setError(older.error); else {
           setHasOlder(older.data!.history.length === 30);
