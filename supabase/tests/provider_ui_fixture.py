@@ -22,7 +22,10 @@ password = "Synthetic-ci-account-only-42!"
 psql = ["docker", "exec", "-i", "supabase_db_ten29-holiday-homes", "psql", "-X", "-Atq", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres"]
 
 def sql(statement):
-    return subprocess.run(psql, input=statement, capture_output=True, text=True, check=True).stdout
+    result = subprocess.run(psql, input=statement, capture_output=True, text=True)
+    if result.returncode:
+        raise RuntimeError(result.stderr)  # SQL contains only synthetic local fixture data.
+    return result.stdout
 
 owner_id = None
 for role in ["OWNER", "MANAGER"]:
@@ -44,7 +47,7 @@ select set_config('request.jwt.claim.sub','{owner_id}',true);
 insert into public.booking_requests(id,source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested)
 values('{request_id}','PHONE','WHOLE_HOME_3BR','2034-01-01','2034-01-03',8,true);
 update public.booking_requests set status='REVIEWING' where id='{request_id}';
-select public.prepare_itemized_booking_quote('{request_id}',null,1000,
+select public.prepare_itemized_booking_quote('{request_id}',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_3BR'),1000,
 '[{{"type":"CHARGE","description":"Synthetic private arrangement","quantity":1,"unit_amount_centavos":200,"reason":"CI fixture owner-approved arrangement"}},
 {{"type":"DISCOUNT","description":"Synthetic private discount","quantity":1,"unit_amount_centavos":100,"reason":"CI fixture owner-approved discount"}}]',
 '[{{"date":"2034-01-01","amount_centavos":15000,"reason":"CI fixture manual quote exception"}},
