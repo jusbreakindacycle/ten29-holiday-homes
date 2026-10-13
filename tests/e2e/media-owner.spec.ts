@@ -13,6 +13,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
  async function login(page:Page,role='OWNER') {
   await page.goto('/admin/login');await page.getByLabel('Email').fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);await page.getByLabel('Password').fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);
   await page.getByRole('button',{name:'Sign In',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);await page.goto('/admin/media');
+  if(role==='OWNER')await expect(page.getByLabel('Add photos',{exact:true})).toBeEnabled();
  }
  async function metadata(page:Page,title:string) {
   const card=page.getByRole('article').filter({has:page.getByRole('button',{name:'Save metadata'})}).first();

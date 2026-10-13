@@ -1,12 +1,14 @@
 /* eslint-disable @next/next/no-img-element -- private previews must bypass optimizer caches */
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Upload } from 'tus-js-client';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MEDIA_CATEGORIES, reserveMediaSchema } from '@/lib/media-validation';
 import type { OwnerMedia } from '@/types/media';
 const button='min-h-11 rounded-lg border border-forest/25 px-4 py-2 text-sm font-medium disabled:opacity-50';
+const subscribe=()=>()=>{};
 export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array<{id:string;label:string}>}) {
+ const hydrated=useSyncExternalStore(subscribe,()=>true,()=>false);
  const [media,setMedia]=useState(initial); const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false);
  const [selected,setSelected]=useState<Array<{name:string;preview:string|null}>>([]);
  useEffect(()=>()=>{for(const f of selected)if(f.preview)URL.revokeObjectURL(f.preview);},[selected]);
@@ -72,8 +74,8 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
   <p className="text-sm">Photo limit: 20 MiB. Video limit: 50 MiB / 2 minutes. Library allowance: 200 active files / 1 GiB of originals. Processing and rendition storage also consume provider capacity.</p>
   <p className="text-sm">Active originals: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
   <div className="flex flex-wrap gap-3">
-   <label className={button}>Add photos<input aria-label="Add photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
-   <label className={button}>Add video<input aria-label="Add video" type="file" accept="video/mp4,video/quicktime" disabled={busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
+   <label className={button}>Add photos<input aria-label="Add photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
+   <label className={button}>Add video<input aria-label="Add video" type="file" accept="video/mp4,video/quicktime" disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
    {busy&&<button className={button} onClick={()=>void cancelUploads()}>Cancel upload</button>}
    <button className={button} onClick={()=>void refresh().catch(()=>setMessage('Library unavailable. Retry.'))}>Refresh library</button>
   </div>
