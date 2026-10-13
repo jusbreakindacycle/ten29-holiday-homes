@@ -3,9 +3,16 @@ test.describe("Guest booking against disposable Supabase", () => {
   test.describe.configure({ mode: "serial", retries: 0 });
   test.skip(process.env.TEN29_PROVIDER_E2E !== "true", "Requires disposable real provider fixtures");
   const dates = (process.env.TEN29_GUEST_DATES || "").split(",");
-  const serviceHeaders = () => ({ apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}` });
+  let ownerToken = "";
+  async function ownerHeaders(request: APIRequestContext) {
+    if (!ownerToken) {
+      const auth = await request.post(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }, data: { email: process.env.TEN29_E2E_OWNER_EMAIL, password: process.env.TEN29_E2E_OWNER_PASSWORD } });
+      ownerToken = (await auth.json()).access_token;
+    }
+    return { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${ownerToken}` };
+  }
   async function rows(request: APIRequestContext, table: string, filter: string) {
-    const r = await request.get(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?${filter}`, { headers: serviceHeaders() });
+    const r = await request.get(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?${filter}`, { headers: await ownerHeaders(request) });
     expect(r.ok()).toBe(true); return r.json();
   }
   async function choose(page: Page, pack = "WHOLE_HOME_3BR", from = dates[0], to = dates[2]) {

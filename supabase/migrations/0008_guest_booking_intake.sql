@@ -10,7 +10,7 @@ alter table public.booking_request_events add constraint request_event_actor_kin
 create or replace function public.record_booking_request_event() returns trigger language plpgsql security definer set search_path='' as $$
 begin
   insert into public.booking_request_events(request_id,previous_status,new_status,actor_id,actor_kind)
-  values(new.id,case when tg_op='INSERT' then null else old.status end,new.status,auth.uid(),
+  values(new.id,case when tg_op='INSERT' then null else old.status end,new.status,case when tg_op='INSERT' and new.created_by is null then null else auth.uid() end,
     case when tg_op='INSERT' and new.created_by is null then 'WEBSITE_INTAKE' else 'TEN29_ADMIN' end);
   return new;
 end; $$;

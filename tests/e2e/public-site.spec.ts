@@ -31,7 +31,7 @@ test.describe("Public site — critical path", () => {
 
   test("availability page states enquiries do not reserve a date", async ({ page }) => {
     await page.goto("/availability");
-    await expect(page.getByText(/does not place a hold or create a reservation/i)).toBeVisible();
+    await expect(page.getByText(/does not place a hold or create a reservation/i).first()).toBeVisible();
   });
 
   test("policies page never silently fabricates house rules", async ({ page }) => {

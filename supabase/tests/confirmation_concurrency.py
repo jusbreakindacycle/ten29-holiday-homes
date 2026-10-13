@@ -162,7 +162,7 @@ assert sql("select count(*) from public.website_booking_intakes where session_ha
 print('PASS: owner block versus public intake: occupancy write lock observed, unavailable intake persisted no pair')
 
 # Rate publication is held uncommitted while intake waits for the package head.
-revision = sql(f"begin; {AUTH} select public.save_calendar_rate_draft('WHOLE_HOME_3BR',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_3BR'),'[{{\"kind\":\"DEFAULT\",\"amount_centavos\":77777,\"weekday\":null,\"start_date\":null,\"end_date\":null}}]'::jsonb,'{uuid.uuid4()}'); commit;").stdout.strip()
+revision = sql(f"begin; {AUTH} select public.save_calendar_rate_draft('WHOLE_HOME_3BR',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_3BR'),'[{{\"kind\":\"DEFAULT\",\"amount_centavos\":77777,\"weekday\":null,\"start_date\":null,\"end_date\":null}}]'::jsonb,'{uuid.uuid4()}'); commit;").stdout.strip().splitlines()[-1]
 # Use a different available span to isolate stale-price behavior from the previous owner block.
 payload2 = {**payload, 'check_in_date': sql("select ((now() at time zone 'Asia/Manila')::date+80)::text;").stdout.strip(), 'check_out_date': sql("select ((now() at time zone 'Asia/Manila')::date+82)::text;").stdout.strip()}
 payload2['reviewed_estimate'] = json.loads(sql(f"select public.read_public_calendar_prices('WHOLE_HOME_3BR','{payload2['check_in_date']}','{payload2['check_out_date']}',2,false);").stdout)
