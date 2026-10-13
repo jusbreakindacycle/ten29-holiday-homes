@@ -82,7 +82,7 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       setStartDate(from); setEndDate(to); setKind(from === to ? "DATE" : "RANGE"); setChoosingEnd(false); }
   }
   return <section aria-label="Calendar rate editor" className="space-y-6">
-    <div className="rounded-sm border border-border bg-white p-4 sm:p-6">
+    <div className="rounded-sm border border-border bg-white p-2 sm:p-6">
       <label className="block font-semibold" htmlFor="rate-package">Bedroom package</label>
       <select id="rate-package" className={`${INPUT_CLASSES} mt-2`} value={state.package_code} disabled={pending || !ready} onChange={(e) => changePackage(e.target.value as BookingPackageCode)}>
         {BOOKING_PACKAGE_CODES.map((code, index) => <option value={code} key={code}>{index + 1} bedroom{index ? "s" : ""} · Whole private house</option>)}
@@ -95,16 +95,16 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       </div>
       <label className="mt-3 block text-sm" htmlFor="rate-month">Go to month</label>
       <input id="rate-month" type="month" disabled={pending || !ready} className={INPUT_CLASSES} value={month} onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { setMonth(e.target.value); setPreview(null); } }} />
-      <p className="my-3 text-sm">Tap a date, then another date to select a range. Draft values remain private until publication.</p>
-      <div className="grid grid-cols-7 gap-1" aria-label="Monthly nightly prices">
+      <p className="my-3 text-sm">Tap a date, then another date to select a range. Prices are in PHP. Live = published; Draft = private. A dash means no applicable rate.</p>
+      <div className="grid grid-cols-7 gap-px sm:gap-1" aria-label="Monthly nightly prices">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="text-center text-xs font-semibold">{day}</div>)}
         {Array.from({ length: new Date(`${first}T00:00:00Z`).getUTCDay() }, (_, i) => <div key={`blank-${i}`} />)}
         {dates.map((date, i) => <button key={date} type="button" onClick={() => selectDay(date)}
           aria-pressed={date >= startDate && date <= endDate} aria-label={`${date}, published ${formatPhp(published[i].amount_centavos)}, draft ${formatPhp(draftPrices[i].amount_centavos)}`}
           disabled={pending || !ready} className={`min-h-24 min-w-0 rounded-sm border p-1 text-left ${date >= startDate && date <= endDate ? "border-gold bg-gold-soft/30" : "border-border bg-ivory"}`}>
           <span className="block font-semibold">{Number(date.slice(-2))}</span>
-          <span className="block break-words text-[10px] text-forest">Published<br />{published[i].amount_centavos === null ? "—" : formatPhp(published[i].amount_centavos)}</span>
-          <span className="mt-1 block break-words text-[10px] text-warning">Draft<br />{draftPrices[i].amount_centavos === null ? "—" : formatPhp(draftPrices[i].amount_centavos)}</span>
+          <span className="block break-words text-[11px] leading-tight text-forest">Live<br /><span className="tabular-nums">{published[i].amount_centavos === null ? "—" : formatPhp(published[i].amount_centavos).replace("PHP ", "")}</span></span>
+          <span className="mt-1 block break-words text-[11px] leading-tight text-warning">Draft<br /><span className="tabular-nums">{draftPrices[i].amount_centavos === null ? "—" : formatPhp(draftPrices[i].amount_centavos).replace("PHP ", "")}</span></span>
         </button>)}
       </div>
     </div>

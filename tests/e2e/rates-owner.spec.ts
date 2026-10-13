@@ -44,6 +44,11 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     expect(JSON.stringify(initial)).not.toMatch(/approved_by|actor_id|conditions|adjustments/);
     await expect(page.getByRole("button", { name: /2034-01-01, published PHP 100.01/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.setViewportSize({ width: 360, height: 800 });
+    const target = await page.getByRole("button", { name: /2034-01-01, published PHP 100.01/ }).boundingBox();
+    expect(target!.width).toBeGreaterThanOrEqual(44);
+    expect(target!.height).toBeGreaterThanOrEqual(44);
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: "test-results/owner-rates-mobile.png", fullPage: true });
   });
   test("monthly update and date override refresh subsequent reads and disclose a stale estimate", async ({ page, request }) => {
