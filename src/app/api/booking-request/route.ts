@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     if (!reader) return Response.json({ error: "Missing request." }, { status: 400, headers });
     const decoder = new TextDecoder();
     while (true) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength;
-      if (size > 32768) { await reader.cancel(); return Response.json({ error: "Request too large." }, { status: 413, headers }); }
+      if (size > 196608) { await reader.cancel(); return Response.json({ error: "Request too large." }, { status: 413, headers }); }
       body += decoder.decode(part.value, { stream: true }); }
     body += decoder.decode();
     const raw = JSON.parse(body);

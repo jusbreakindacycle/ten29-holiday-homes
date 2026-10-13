@@ -146,6 +146,13 @@ set local role service_role;
 select is((public.accept_website_booking(pg_temp.payload('Quota Guest'),repeat('6',64),gen_random_uuid(),repeat('6',64))->>'outcome'),'RATE_LIMITED','server quota enforced across fresh retry keys');
 reset role;
 select is((select count(*)::integer from public.booking_requests),3,'quota response is not fabricated success');
+insert into f(name,payload) values('long-stay',pg_temp.payload('Long Stay Synthetic Guest') || jsonb_build_object(
+'check_in_date',(now() at time zone 'Asia/Manila')::date+100,'check_out_date',(now() at time zone 'Asia/Manila')::date+466,
+'reviewed_estimate',public.read_public_calendar_prices('WHOLE_HOME_3BR',(now() at time zone 'Asia/Manila')::date+100,(now() at time zone 'Asia/Manila')::date+466,2,false)));
+set local role service_role;
+select lives_ok($$select public.accept_website_booking((select payload from f where name='long-stay'),
+repeat('5',64),gen_random_uuid(),repeat('5',64))$$,'full bounded nightly breakdown fits atomic intake size limits');
+reset role;
 set local role anon;
 select throws_ok($$select public.accept_website_booking('{}',repeat('a',64),gen_random_uuid(),repeat('b',64))$$,'42501',null,'anon cannot call server intake RPC');
 select throws_ok($$select * from public.website_booking_intakes$$,'42501',null,'anon cannot enumerate intake snapshots');

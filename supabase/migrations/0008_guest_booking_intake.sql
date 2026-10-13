@@ -216,7 +216,7 @@ declare
   v_from date; v_to date; v_package public.booking_package_code; v_guests integer; v_bucket text; v_attempts integer;
 begin
   if p_session is null or p_session !~ '^[a-f0-9]{64}$' or p_abuse is null or p_abuse !~ '^[a-f0-9]{64}$' or p_key is null
-    or jsonb_typeof(p_payload) <> 'object' or octet_length(p_payload::text) > 8192 then raise check_violation; end if;
+    or jsonb_typeof(p_payload) <> 'object' or octet_length(p_payload::text) > 131072 then raise check_violation; end if;
   if exists(select 1 from jsonb_object_keys(p_payload) k where k not in ('full_name','mobile_number','email','adults','children','day_visitors','vehicles',
     'message','purpose_of_stay','privacy_consent','utm_source','utm_medium','utm_campaign','package_code','check_in_date','check_out_date','folding_foams_requested','reviewed_estimate')) then raise check_violation; end if;
   perform pg_advisory_xact_lock(hashtextextended(p_session || p_key::text,0));

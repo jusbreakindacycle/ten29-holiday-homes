@@ -53,6 +53,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await page.screenshot({ path: "test-results/guest-request-mobile.png", fullPage: true });
     await page.goto("/admin/login"); await page.getByLabel("Email").fill(process.env.TEN29_E2E_OWNER_EMAIL!);
     await page.getByLabel("Password").fill(process.env.TEN29_E2E_OWNER_PASSWORD!); await page.getByRole("button", { name: /sign in/i }).click();
+    await expect(page).toHaveURL(/\/admin$/);
     await page.goto(`/admin/inquiries/${enquiries[0].id}`);
     await expect(page.getByText("Linked website booking request")).toBeVisible();
     await page.getByRole("link", { name: "View booking request and saved estimate" }).click();
