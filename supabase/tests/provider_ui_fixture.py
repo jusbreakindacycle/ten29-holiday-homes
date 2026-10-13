@@ -52,6 +52,25 @@ select public.prepare_itemized_booking_quote('{request_id}',null,1000,
 select public.issue_itemized_booking_quote(:'quote_id');
 select 'QUOTE=' || :'quote_id'; commit;""")
 env["TEN29_E2E_QUOTE_ID"] = next(line[6:] for line in output.splitlines() if line.startswith("QUOTE="))
+# Current synthetic guest-calendar dates remain inside the bounded public intake horizon.
+dates = sql("select ((now() at time zone 'Asia/Manila')::date+20)::text || ',' || ((now() at time zone 'Asia/Manila')::date+21)::text || ',' || ((now() at time zone 'Asia/Manila')::date+22)::text || ',' || ((now() at time zone 'Asia/Manila')::date+24)::text || ',' || ((now() at time zone 'Asia/Manila')::date+26)::text || ',' || ((now() at time zone 'Asia/Manila')::date+28)::text;").strip().split(',')
+env['TEN29_GUEST_DATES'] = ','.join(dates)
+d1,d2,d3,blocked,confirmed,checkout = dates
+sql(rf"""begin; set local role authenticated; select set_config('request.jwt.claim.sub','{owner_id}',true);
+select public.save_calendar_rate_draft('WHOLE_HOME_3BR',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_3BR'),
+jsonb_build_array(jsonb_build_object('kind','RANGE','amount_centavos',11000,'weekday',null,'start_date','{d1}','end_date','{d3}'),
+jsonb_build_object('kind','DATE','amount_centavos',22000,'weekday',null,'start_date','{d2}','end_date','{d3}')), '{uuid.uuid4()}') as rev \gset
+select public.publish_calendar_rate_revision(:'rev',(select base_revision_id from public.calendar_rate_revisions where id=:'rev'),'{uuid.uuid4()}');
+select public.create_booking_owner_block('{blocked}','{confirmed}','{uuid.uuid4()}');
+insert into public.booking_requests(source,package_code,check_in_date,check_out_date,overnight_guest_count)
+values('PHONE','WHOLE_HOME_1BR','{confirmed}','{checkout}',1) returning id as r \gset
+update public.booking_requests set status='REVIEWING' where id=:'r';
+insert into public.booking_quotes(request_id,revision,amount_total,required_deposit_amount) values(:'r',1,100,25) returning id as q \gset
+select public.issue_booking_quote(:'q');
+update public.booking_requests set status='AWAITING_DEPOSIT' where id=:'r';
+insert into public.booking_deposits(request_id,amount) values(:'r',25) returning id as d \gset
+select public.decide_booking_deposit(:'d','VERIFIED',true,'{uuid.uuid4()}');
+select public.confirm_booking_reservation(:'r',:'q','{uuid.uuid4()}'); commit;""")
 with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as file:
     for name, value in env.items():
         if "KEY" in name or "PASSWORD" in name:

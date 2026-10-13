@@ -29,7 +29,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const [sessionReady, setSessionReady] = useState(false);
   const [receipt, setReceipt] = useState<BookingReceipt | null>(null);
   const [retry, setRetry] = useState(0);
-  const key = useRef(""); const lastPayload = useRef(""); const calendarRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const guests = adults + children;
   const recommendation = recommendBookingPackage(guests);
   const rooms = BOOKING_PACKAGE_CODES.indexOf(pkg) + 1;
@@ -86,15 +86,23 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
       privacy_consent: f.get("privacy_consent") === "on", message: String(f.get("message") || ""), purpose_of_stay: String(f.get("purpose_of_stay") || ""),
       utm_source: utm.utm_source || "", utm_medium: utm.utm_medium || "", utm_campaign: utm.utm_campaign || "",
       website: String(f.get("website") || ""), reviewed_estimate: reviewed };
-    const serialized = JSON.stringify(payload);
-    if (lastPayload.current !== serialized) { key.current = crypto.randomUUID(); lastPayload.current = serialized; }
+    const { reviewed_estimate: _estimate, ...identity } = payload;
+    void _estimate;
+    // Session storage retains only a digest, retry key and non-contact estimate.
+    // Refresh/lost-response retries use the exact original reviewed snapshot.
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(identity))))).map(v => v.toString(16).padStart(2, "0")).join("");
+    let saved: { digest: string; key: string; estimate: PublicPriceEstimate } | null = null;
+    try { saved = JSON.parse(sessionStorage.getItem("ten29-request-retry") || "null"); } catch { /* Start a fresh bounded attempt. */ }
+    const attempt = saved?.digest === digest ? saved : { digest, key: crypto.randomUUID(), estimate: reviewed };
+    try { sessionStorage.setItem("ten29-request-retry", JSON.stringify(attempt)); } catch { setMessage("Enable session storage to submit with safe refresh/retry protection, or contact TEN29."); return; }
     setBusy(true);
     try {
-      const response = await fetch("/api/booking-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, idempotency_key: key.current }) });
+      const response = await fetch("/api/booking-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, reviewed_estimate: attempt.estimate, idempotency_key: attempt.key }) });
       const result = await response.json();
       if (response.ok && result.outcome === "SAVED") { setReceipt(result); return; }
       if (result.outcome === "PRICE_CHANGED") {
         setReviewed(result.estimate); setChanged(true); setMessage("Published prices changed. Review the updated nightly breakdown and acknowledge it before continuing.");
+        sessionStorage.setItem("ten29-request-retry", JSON.stringify({ ...attempt, estimate: result.estimate }));
       } else if (result.outcome === "UNAVAILABLE") {
         setMonthData(null); setStay(null); setReviewed(null); setRetry(v => v + 1); setMessage("These dates became unavailable. Choose another stay; no request was saved.");
       } else setMessage(result.error || (response.status === 429 ? "Too many requests. Please wait before retrying, or contact TEN29." : "Request was not saved. Retry or contact TEN29."));

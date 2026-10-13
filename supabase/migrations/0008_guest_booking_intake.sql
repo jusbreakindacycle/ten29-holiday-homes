@@ -220,7 +220,7 @@ begin
     insert into ten29_private.intake_limits values(v_bucket,date_trunc('hour',now()),1)
     on conflict(bucket) do update set attempts=case when intake_limits.window_start=date_trunc('hour',now()) then intake_limits.attempts+1 else 1 end,
       window_start=date_trunc('hour',now()) returning attempts into v_attempts;
-    if v_attempts > case when v_bucket='global' then 200 else 10 end then
+    if v_attempts > (case when v_bucket='global' then 200 else 10 end) then
       return jsonb_build_object('outcome','RATE_LIMITED');
     end if;
   end loop;
@@ -243,7 +243,7 @@ begin
   if v_price is distinct from p_payload->'reviewed_estimate' then
     return jsonb_build_object('outcome','PRICE_CHANGED','estimate',v_price);
   end if;
-  perform pg_advisory_xact_lock_shared(421295); 
+  perform pg_advisory_xact_lock_shared(421295);
   if exists(select 1 from public.property_occupancies where active and property_id=1
     and daterange(check_in_date,check_out_date,'[)') && daterange(v_from,v_to,'[)')) then
     return jsonb_build_object('outcome','UNAVAILABLE');
