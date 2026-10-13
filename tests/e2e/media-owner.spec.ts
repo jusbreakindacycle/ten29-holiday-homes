@@ -37,6 +37,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await page.goto('/gallery');await expect(page.locator(`img[src='/api/media/${id}']`)).toBeVisible();await expect(page.getByText('Private unapproved caption')).toHaveCount(0);
   await page.goto('/admin/media');await page.setViewportSize({width:360,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner-media-mobile.png',fullPage:true});
+  for(const width of [768,1280]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
   page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Unpublish',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('Unpublished');
   expect((await request.get(`/api/media/${id}`)).status()).toBe(404);
  });
@@ -150,5 +151,14 @@ test.describe('OWNER media with actual disposable Storage',()=>{
    await expect(page.getByRole('status').first()).toContainText('VIDEO_PROCESSING_FAILED',{timeout:60000});await expect(page.getByRole('article').first()).toContainText('FAILED');
    await expect(page.getByRole('article').first().getByRole('button',{name:'Publish media'})).toHaveCount(0);
   } finally {await rm(folder,{recursive:true,force:true});}
+ });
+ test('concurrent authorized cover changes leave exactly one primary photo',async()=>{
+  const owner=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);await owner.auth.signInWithPassword({email:process.env.TEN29_E2E_OWNER_EMAIL!,password:process.env.TEN29_E2E_OWNER_PASSWORD!});
+  const rows=await owner.from('property_media').select('*').eq('kind','PHOTO');expect(rows.error).toBeNull();
+  let a=rows.data!.find(m=>m.title==='Synthetic photo')!;const b=rows.data!.find(m=>m.title==='Synthetic replacement')!;
+  const republished=await owner.rpc('owner_media_action',{p_action:'PUBLISH',p_id:a.id,p_version:a.version,p_data:{}});expect(republished.error).toBeNull();a=republished.data;
+  const results=await Promise.all([a,b].map(m=>owner.rpc('owner_media_action',{p_action:'COVER',p_id:m.id,p_version:m.version,p_data:{}})));expect(results.every(r=>!r.error)).toBe(true);
+  const covers=await owner.from('property_media').select('*').eq('featured',true);expect(covers.error).toBeNull();expect(covers.data).toHaveLength(1);
+  const stale=await owner.rpc('owner_media_action',{p_action:'COVER',p_id:a.id,p_version:a.version,p_data:{}});expect(stale.error).not.toBeNull();
  });
 });
