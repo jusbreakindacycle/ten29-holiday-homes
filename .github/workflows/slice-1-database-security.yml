@@ -55,7 +55,7 @@ jobs:
           cache: npm
       - name: Install disposable media probe and synthetic HEIC encoder
         run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg libheif-plugin-libde265 libheif-plugin-x265 libheif-examples
-      - name: Verify mobile OWNER pricing UI against real Supabase
+      - name: Verify pricing, guest intake and media against real Supabase
         if: hashFiles('supabase/tests/provider_ui_fixture.py') != ''
         run: |
           npm ci
@@ -88,7 +88,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run test -- --maxWorkers=1 --pool=threads
       - run: npx playwright install --with-deps chromium
-      # Next 16.2.12's Turbopack Google-font import map fails on this Linux runner.
-      # Use the installed version's supported production Webpack build for CI.
+      # Retain the verified supported production Webpack build for this pipeline.
       - run: npm run build -- --webpack
       - run: npx playwright test --workers=1
