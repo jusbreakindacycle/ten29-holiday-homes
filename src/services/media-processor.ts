@@ -45,7 +45,7 @@ export async function processMediaBytes(bytes: Buffer,mime:string,expectedBytes:
   await run(ffmpeg,['-nostdin','-v','error','-xerror','-threads','1','-protocol_whitelist','file,pipe','-enable_drefs','0','-i',original,'-map','0:v:0','-map','0:a:0?','-map_metadata','-1','-map_chapters','-1','-vf',"scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2",'-c:v','libx264','-threads','1','-preset','veryfast','-crf','25','-pix_fmt','yuv420p','-c:a','aac','-b:a','96k','-movflags','+faststart',output],{timeout:150000,maxBuffer:1024*1024,windowsHide:true});
   await run(ffmpeg,['-nostdin','-v','error','-threads','1','-i',output,'-frames:v','1','-vf','scale=480:-2',posterPath],{timeout:15000,maxBuffer:1024*1024,windowsHide:true});
   const rendition=await readFile(output); if(rendition.length>50*1024*1024) throw Error('OUTPUT_TOO_LARGE');
-  return {rendition,poster:await readFile(posterPath),mime:'video/mp4',info:{duration_seconds:duration,source_codec:video.codec_name,codec:'h264',audio:'aac',metadata_stripped:true}};
+  return {rendition,poster:await readFile(posterPath),mime:'video/mp4',info:{duration_seconds:duration,source_codec:video.codec_name,codec:'h264',audio:info.streams.some(s=>s.codec_type==='audio')?'aac':null,metadata_stripped:true}};
  } catch(e) { if(e instanceof Error && ['UNSUPPORTED_VIDEO','UNSUPPORTED_AUDIO','OUTPUT_TOO_LARGE'].includes(e.message)) throw e; throw Error('VIDEO_PROCESSING_FAILED'); }
  finally { await rm(folder,{recursive:true,force:true}); }
 }

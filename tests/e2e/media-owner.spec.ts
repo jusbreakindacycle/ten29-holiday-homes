@@ -43,7 +43,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
  for(const codec of ['libx264','libx265']) test(`actual ${codec==='libx264'?'Android MP4':'MOV HEVC'} upload becomes playable H264`,async({page,request})=>{
   test.setTimeout(120000);await login(page);const folder=await mkdtemp(path.join(tmpdir(),'ten29-fixture-'));const mov=codec==='libx265';const file=path.join(folder,mov?'synthetic.mov':'synthetic.mp4');
   try {
-   await promisify(execFile)(ffmpeg!,['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=96x64:d=1','-c:v',codec,'-threads','1','-pix_fmt','yuv420p',...(mov?['-tag:v','hvc1']:[]),file],{timeout:30000,maxBuffer:1024*1024,windowsHide:true});
+   await promisify(execFile)(ffmpeg!,['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=96x64:d=1','-f','lavfi','-i','sine=frequency=440:duration=1','-c:v',codec,'-threads','1','-pix_fmt','yuv420p','-c:a','aac','-shortest',...(mov?['-tag:v','hvc1']:[]),file],{timeout:30000,maxBuffer:1024*1024,windowsHide:true});
    await page.getByLabel('Add video',{exact:true}).setInputFiles({name:path.basename(file),mimeType:mov?'video/quicktime':'video/mp4',buffer:await readFile(file)});
    await expect(page.getByText('Upload processed. Review the private preview before publication.')).toBeVisible({timeout:90000});
    const card=await metadata(page,mov?'Synthetic HEVC':'Synthetic MP4');page.once('dialog',d=>d.accept());await card.getByRole('button',{name:'Publish media'}).click();await expect(page.getByRole('status').first()).toContainText('Published');
@@ -108,7 +108,8 @@ test.describe('OWNER media with actual disposable Storage',()=>{
  test('actual synthetic HEIC conversion is either decoded or explicitly private and unsupported',async({page})=>{
   await login(page);const folder=await mkdtemp(path.join(tmpdir(),'ten29-heic-'));const file=path.join(folder,'synthetic.heic');
   try {
-   await promisify(execFile)('convert',['-size','32x32','xc:blue',file],{timeout:30000,maxBuffer:1024*1024});
+   const png=path.join(folder,'source.png');await sharp({create:{width:64,height:64,channels:3,background:'blue'}}).png().toFile(png);
+   await promisify(execFile)('heif-enc',['-o',file,png],{timeout:30000,maxBuffer:1024*1024});
    const source=await readFile(file);expect(source.toString('ascii',4,8)).toBe('ftyp');
    await page.getByLabel('Add photos',{exact:true}).setInputFiles({name:'synthetic.heic',mimeType:'image/heic',buffer:source});
    await expect(page.getByRole('status').first()).toContainText(/HEIF_DECODER_UNAVAILABLE_OR_INVALID|Upload processed/,{timeout:90000});
