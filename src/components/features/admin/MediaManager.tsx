@@ -24,6 +24,8 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
   catch(e) {setMessage(e instanceof Error?e.message:'Action failed. Retry.');} finally {await refresh().catch(()=>{});setBusy(false);}
  }
  async function uploadFiles(files:File[]) {
+  if(!files.length)return;
+  if(files.length>10){setSelected([]);setMessage('Choose up to 10 photos per upload batch. No files were uploaded.');return;}
   setBusy(true);setMessage('');cancel.current=false;setSelected(files.slice(0,10).map(file=>({name:file.name,preview:['image/jpeg','image/png','image/webp'].includes(file.type)?URL.createObjectURL(file):null})));
   const client=createSupabaseBrowserClient();
   try {
@@ -33,7 +35,7 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
     if(!reserveMediaSchema.safeParse({key:crypto.randomUUID(),mime:file.type,bytes:file.size}).success) throw Error(`${file.name}: unsupported type or file size. Photos: 20 MiB; videos: 50 MiB.`);
     const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))).map(b=>b.toString(16).padStart(2,'0')).join('');
     const scope=`ten29-upload-${session.user.id}-${file.type}-${digest}`;let key=crypto.randomUUID();
-    try {const prior=JSON.parse(sessionStorage.getItem(scope)||'null');if(prior&&Date.now()-prior.at<50*60*1000)key=prior.key;sessionStorage.setItem(scope,JSON.stringify({key,at:Date.now()}));} catch {}
+    try {const prior=JSON.parse(sessionStorage.getItem(scope)||'null');const reusable=prior&&Date.now()-prior.at<50*60*1000;if(reusable)key=prior.key;sessionStorage.setItem(scope,JSON.stringify({key,at:reusable?prior.at:Date.now()}));} catch {}
     const raw={key,mime:file.type,bytes:file.size};
     if(!reserveMediaSchema.safeParse(raw).success) throw Error(`${file.name}: unsupported type or file size. Photos: 20 MiB; videos: 50 MiB.`);
     let m=await api('RESERVE',undefined,undefined,raw);activeId.current=m.id;
@@ -71,7 +73,7 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
  const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.quota_bytes,0);
  return <div className="space-y-6">
   <p>Upload original TEN29 property media from your phone gallery. Uploading does not publish a file.</p>
-  <p className="text-sm">Photo limit: 20 MiB. Video limit: 50 MiB / 2 minutes. Library allowance: 200 retained files / 1 GiB. Each unfinished upload reserves 101 MiB for its original and renditions; validation releases unused capacity.</p>
+  <p className="text-sm">Photo limit: 20 MiB, up to 10 photos per batch. Video limit: 50 MiB / 2 minutes. Library allowance: 200 retained files / 1 GiB. Each unfinished upload reserves 101 MiB for its original and renditions; validation releases unused capacity.</p>
   <p className="text-sm">Used or reserved capacity: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
   <div className="flex flex-wrap gap-3">
    <label className={button}>Add photos<input aria-label="Add photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
