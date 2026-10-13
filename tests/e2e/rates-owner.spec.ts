@@ -107,9 +107,10 @@ test.describe("OWNER rate management with isolated Supabase", () => {
   });
   test("validation, unsaved changes, conflict messages and manager denial", async ({ page }) => {
     await login(page);
+    const editor = page.getByRole("region", { name: "Calendar rate editor" });
     await page.getByLabel("Nightly price (PHP)").fill("1.001");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("at most two decimal places");
+    await expect(editor.getByRole("alert")).toContainText("at most two decimal places");
     page.once("dialog", (dialog) => dialog.dismiss());
     await page.getByLabel("Bedroom package").selectOption("WHOLE_HOME_2BR");
     await expect(page.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_1BR");
@@ -119,19 +120,19 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByLabel("Last night (inclusive)").fill("2034-02-01");
     await page.getByLabel("Nightly price (PHP)").fill("10.00");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("Conflicting rules");
+    await expect(editor.getByRole("alert")).toContainText("Conflicting rules");
     await page.getByLabel("Apply price to").selectOption("DEFAULT");
     await page.getByLabel("Nightly price (PHP)").fill("123.45");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
     await page.route("**/admin/rates", (route) => route.request().method() === "POST" ? route.abort() : route.continue());
     await page.getByRole("button", { name: "Save Draft", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("Could not reach the server");
+    await expect(editor.getByRole("alert")).toContainText("Could not reach the server");
     await page.unroute("**/admin/rates");
     await page.getByRole("button", { name: "Save Draft", exact: true }).click();
     await expect(page.getByText("Draft saved. Public rates are unchanged.")).toBeVisible();
     await page.getByRole("button", { name: "Sign Out", exact: true }).click();
     await login(page, "MANAGER");
-    await expect(page.getByRole("alert")).toContainText("OWNER authorization required");
+    await expect(page.getByRole("alert").filter({ hasText: "OWNER authorization required" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save Draft", exact: true })).toHaveCount(0);
   });
 });
