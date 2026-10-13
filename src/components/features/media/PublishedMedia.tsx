@@ -5,6 +5,7 @@ import { getPublicClaims } from '@/content/claims';
 /** No optimizer/CDN caching: each byte request rechecks current publication. */
 export async function PublishedMedia({placement='gallery'}:{placement?:'gallery'|'home'|'property'}) {
  const library=await readPublicMedia();
+ if(!library) return placement==='gallery'?<p role="status">Media is temporarily unavailable. Please reload to retry.</p>:null;
  const media=placement==='home'?library.filter(m=>m.featured).slice(0,1):library;
  if(!media.length) return placement==='gallery'?<p className="mt-8">Owner-authorized photos and videos will appear here after publication. No property media has been published yet.</p>:null;
  return <div className={`grid gap-6 ${placement==='home'?'':'sm:grid-cols-2 lg:grid-cols-3'}`}>

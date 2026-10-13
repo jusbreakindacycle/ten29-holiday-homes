@@ -1,6 +1,6 @@
 export type MediaState = 'UPLOADING' | 'PROCESSING' | 'READY_FOR_REVIEW' | 'PUBLISHED' | 'UNPUBLISHED' | 'FAILED' | 'ARCHIVED';
 export type OwnerMedia = {
- id: string; kind: 'PHOTO' | 'VIDEO'; mime: string; bytes: number; original_key: string;
+ id: string; kind: 'PHOTO' | 'VIDEO'; mime: string; bytes: number; quota_bytes: number; original_key: string;
  rendition_key: string | null; poster_key: string | null; state: MediaState;
  title: string; caption: string; alt: string; category: string; position: number; public_claim_id: string | null;
  featured: boolean; rights_acknowledged: boolean; version: number; failure_code: string | null;

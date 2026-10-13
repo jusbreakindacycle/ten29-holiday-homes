@@ -12,6 +12,7 @@ create table public.property_media (
  id uuid primary key default gen_random_uuid(), property_id integer not null default 1 check(property_id=1),
  kind text not null check(kind in ('PHOTO','VIDEO')), mime text not null,
  bytes bigint not null check(bytes between 1 and 52428800),
+ quota_bytes bigint not null default 105906176 check(quota_bytes between 1 and 105906176),
  original_key text not null unique, rendition_key text, poster_key text,
  state text not null default 'UPLOADING' check(state in ('UPLOADING','PROCESSING','READY_FOR_REVIEW','PUBLISHED','UNPUBLISHED','FAILED','ARCHIVED')),
  title text not null default '' check(length(title)<=120), caption text not null default '' check(length(caption)<=500),
@@ -42,10 +43,11 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) v
 create policy media_scoped_original_upload on storage.objects for insert to authenticated with check(
  bucket_id='ten29-originals' and public.is_ten29_owner() and exists(
  select 1 from public.property_media m where m.original_key=name and m.uploaded_by=auth.uid()
- and m.state='UPLOADING' and (metadata is null or not metadata ? 'size' or m.bytes=(metadata->>'size')::bigint)
+ and m.state='UPLOADING'
  and m.created_at > now()-interval '1 hour'));
--- Storage's permission probe omits final size; its completion policy check supplies
--- authoritative object metadata. Direct object writes are never exposed by this app.
+-- Storage permission probes do not consistently enforce final metadata in the
+-- installed provider version. Bucket caps and conservative quota reservations
+-- bound quarantine storage; the processor verifies exact bytes before readiness.
 -- No public bucket, storage SELECT, UPDATE/upsert, or client rendition write grant.
 
 create function public.owner_media_action(p_action text, p_id uuid, p_version integer, p_data jsonb)
@@ -62,7 +64,7 @@ begin
    return to_jsonb(m);
   end if;
   if (select count(*) from public.property_media where cleaned_at is null)>=(select file_count from public.media_limits where id=1)
-   or (select coalesce(sum(bytes+coalesce((processing_info->>'output_bytes')::bigint,0)),0) from public.property_media where cleaned_at is null)+(p_data->>'bytes')::bigint >(select library_bytes from public.media_limits where id=1)
+   or (select coalesce(sum(quota_bytes),0) from public.property_media where cleaned_at is null)+105906176 >(select library_bytes from public.media_limits where id=1)
    then raise exception 'Media quota reached'; end if;
   if p_data->>'mime' not in ('image/jpeg','image/png','image/webp','image/heic','image/heif','video/mp4','video/quicktime') then raise exception 'Unsupported type'; end if;
   if (p_data->>'bytes')::bigint > (select case when p_data->>'mime' like 'image/%' then photo_bytes else video_bytes end from public.media_limits where id=1) then raise exception 'File too large'; end if;
@@ -120,10 +122,10 @@ begin
   update public.property_media set state='PROCESSING',lease=gen_random_uuid(),lease_until=now()+interval '6 minutes',failure_code=null,version=version+1 where id=m.id returning * into m;
  elsif p_action='FINISH' then
   if m.state<>'PROCESSING' or m.lease is distinct from p_token or m.lease_until<=now() then raise exception 'Expired processing lease'; end if;
-  if p_data->>'error' is null and (select coalesce(sum(bytes+coalesce((processing_info->>'output_bytes')::bigint,0)),0) from public.property_media where cleaned_at is null)+coalesce((p_data->'info'->>'output_bytes')::bigint,0) > (select library_bytes from public.media_limits where id=1) then raise exception 'Media quota reached'; end if;
+  if p_data->>'error' is null and (select coalesce(sum(quota_bytes),0) from public.property_media where cleaned_at is null)-m.quota_bytes+m.bytes+coalesce((p_data->'info'->>'output_bytes')::bigint,0) > (select library_bytes from public.media_limits where id=1) then raise exception 'Media quota reached'; end if;
   update public.property_media set state=case when p_data->>'error' is null then 'READY_FOR_REVIEW' else 'FAILED' end,
    rendition_key=p_data->>'rendition',poster_key=p_data->>'poster',processing_info=coalesce(p_data->'info','{}'),
-   failure_code=p_data->>'error',lease=null,lease_until=null,version=version+1 where id=m.id returning * into m;
+   failure_code=p_data->>'error',quota_bytes=case when p_data->>'error' is null then m.bytes+coalesce((p_data->'info'->>'output_bytes')::bigint,0) else m.quota_bytes end,lease=null,lease_until=null,version=version+1 where id=m.id returning * into m;
  elsif p_action='CLEANED' then
   if m.state<>'ARCHIVED' then raise exception 'Archive before cleanup'; end if;
   if m.lease_until>now() then raise exception 'Processing still finishing; retry cleanup after lease expiry'; end if;

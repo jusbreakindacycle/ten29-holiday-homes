@@ -81,11 +81,11 @@ export async function cleanupArchivedMedia(client:Client,id:string) {
  if(done.error) throw Error('Files removed; quota update pending. Retry cleanup.');
  return {cleaned:true};
 }
-export async function readPublicMedia():Promise<PublicMedia[]> {
+export async function readPublicMedia():Promise<PublicMedia[]|null> {
  try {
   const client=await createSupabaseServerClient(); const {data,error}=await client.rpc('read_public_media');
-  if(error) return []; return data??[];
- } catch { return []; }
+  if(error) return null; return data??[];
+ } catch { return null; }
 }
 export async function readMediaDelivery(client:Client,id:string,preview:boolean):Promise<MediaDelivery|null> {
  if(preview) await requireMediaOwner(client);

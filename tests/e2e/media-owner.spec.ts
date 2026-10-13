@@ -77,7 +77,15 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   const reserve=await owner.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{key:crypto.randomUUID(),mime:'image/png',bytes:1}});
   expect(reserve.error).toBeNull();
   const png=await sharp({create:{width:8,height:8,channels:3,background:'red'}}).png().toBuffer();
-  expect((await owner.storage.from('ten29-originals').upload(reserve.data.original_key,png,{contentType:'image/png'})).error).not.toBeNull();
+  expect(reserve.data.quota_bytes).toBe(101*1024*1024);
+  const uploaded=await owner.storage.from('ten29-originals').upload(reserve.data.original_key,png,{contentType:'image/png'});expect(uploaded.error).toBeNull();
+  await login(page);const rejected=await page.context().request.post('/api/admin/media',{headers:{Origin:new URL(page.url()).origin},data:{action:'PROCESS',id:reserve.data.id,version:reserve.data.version,data:{}}});
+  expect(rejected.status()).toBe(400);expect((await rejected.json()).error).toContain('SIZE_MISMATCH');
+  const retained=await owner.from('property_media').select('*').eq('id',reserve.data.id).single();expect(retained.data!.state).toBe('FAILED');expect(retained.data!.quota_bytes).toBe(101*1024*1024);
+  const large=await owner.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{key:crypto.randomUUID(),mime:'video/mp4',bytes:50*1024*1024}});expect(large.error).toBeNull();
+  expect((await owner.storage.from('ten29-originals').upload(large.data.original_key,Buffer.alloc(51*1024*1024),{contentType:'video/mp4'})).error).not.toBeNull();
+  const archived=await owner.rpc('owner_media_action',{p_action:'ARCHIVE',p_id:large.data.id,p_version:large.data.version,p_data:{}});expect(archived.error).toBeNull();
+  expect((await page.context().request.post('/api/admin/media',{headers:{Origin:new URL(page.url()).origin},data:{action:'CLEANUP',id:large.data.id,version:archived.data.version,data:{}}})).status()).toBe(200);
  });
  test('real corrupt upload fails processing without public visibility',async({page})=>{
   await login(page);await page.getByLabel('Add photos',{exact:true}).setInputFiles({name:'corrupt.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0,73,69,78,68,0,0,0,0])});

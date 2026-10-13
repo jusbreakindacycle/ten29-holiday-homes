@@ -16,6 +16,7 @@ select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000071',true);
 insert into f select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}');
 select is((select m->>'state' from f),'UPLOADING','owner reserves private upload');
+select is((select (m->>'quota_bytes')::bigint from f),105906176::bigint,'pending scope reserves worst-case original and rendition capacity regardless of declared bytes');
 select is(public.read_public_media(),'[]'::jsonb,'upload not public');
 select is((public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}')->>'id'),(select m->>'id' from f),'upload key idempotent');
 select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":129}')$$,'P0001','Upload key conflict','changed idempotent payload rejected');

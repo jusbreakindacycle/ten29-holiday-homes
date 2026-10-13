@@ -68,11 +68,11 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
   rejectUpload.current?.(Error('Upload cancelled. The original remains private.'));
   await refresh().catch(()=>{});
  }
- const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.bytes+Number(m.processing_info.output_bytes??0),0);
+ const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.quota_bytes,0);
  return <div className="space-y-6">
   <p>Upload original TEN29 property media from your phone gallery. Uploading does not publish a file.</p>
-  <p className="text-sm">Photo limit: 20 MiB. Video limit: 50 MiB / 2 minutes. Library allowance: 200 active files / 1 GiB of originals. Processing and rendition storage also consume provider capacity.</p>
-  <p className="text-sm">Tracked originals and renditions: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
+  <p className="text-sm">Photo limit: 20 MiB. Video limit: 50 MiB / 2 minutes. Library allowance: 200 retained files / 1 GiB. Each unfinished upload reserves 101 MiB for its original and renditions; validation releases unused capacity.</p>
+  <p className="text-sm">Used or reserved capacity: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
   <div className="flex flex-wrap gap-3">
    <label className={button}>Add photos<input aria-label="Add photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
    <label className={button}>Add video<input aria-label="Add video" type="file" accept="video/mp4,video/quicktime" disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
