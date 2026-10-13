@@ -1,11 +1,17 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { createSupabaseServerClient, createSupabaseServiceRoleClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
+import { getSupabaseUrl, getSupabaseServiceRoleKey } from '@/lib/env';
 import { processMediaBytes } from './media-processor';
 import type { OwnerMedia, PublicMedia, MediaDelivery } from '@/types/media';
 import { editMediaSchema, reserveMediaSchema } from '@/lib/media-validation';
 import { getPublicClaims } from '@/content/claims';
 type Client=Awaited<ReturnType<typeof createSupabaseServerClient>>;
+function mediaWorker() {
+ return createClient<Database>(getSupabaseUrl(),getSupabaseServiceRoleKey(),{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(30000)})}});
+}
 export async function requireMediaOwner(client:Client) {
  const {data:{user},error}=await client.auth.getUser();
  const owner=user && !error ? await client.rpc('is_ten29_owner') : null;
@@ -29,7 +35,7 @@ export async function changeMedia(client:Client,id:string,version:number,action:
  if(result.error || !result.data) throw Error('Action rejected. Reload to check the latest state and publication requirements.'); return result.data;
 }
 export async function processOwnerMedia(client:Client,id:string) {
- await requireMediaOwner(client); const worker=createSupabaseServiceRoleClient();
+ await requireMediaOwner(client); const worker=mediaWorker();
  const claim=await worker.rpc('media_worker_action',{p_id:id,p_action:'CLAIM',p_token:null,p_data:{}});
  if(claim.error || !claim.data) throw Error('Already processing or unavailable. Reload to retry.');
  const m=claim.data; const keys:string[]=[];
@@ -52,12 +58,14 @@ export async function processOwnerMedia(client:Client,id:string) {
   await worker.rpc('media_worker_action',{p_id:id,p_action:'FINISH',p_token:m.lease,p_data:{error:code}});
   throw Error(`Processing failed: ${code}. The original remains private.`);
  }
+ finally {await worker.rpc('media_worker_action',{p_id:id,p_action:'RELEASE_CANCELLED',p_token:m.lease,p_data:{}});}
 }
 export async function cleanupArchivedMedia(client:Client,id:string) {
  await requireMediaOwner(client);
  const {data:m,error}=await client.from('property_media').select('*').eq('id',id).single();
  if(error || !m || m.state!=='ARCHIVED') throw Error('Archive before cleanup');
- const worker=createSupabaseServiceRoleClient();
+ if(m.lease_until && new Date(m.lease_until).getTime()>Date.now()) throw Error('Processing is finishing. Retry cleanup after a few minutes.');
+ const worker=mediaWorker();
  // Includes cancelled worker outputs; use Storage API, never storage.objects mutation.
  const listed=await worker.storage.from('ten29-renditions').list(id,{limit:100});
  if(listed.error) throw Error('Cleanup unavailable. Retry.');
@@ -81,7 +89,7 @@ export async function readPublicMedia():Promise<PublicMedia[]> {
 }
 export async function readMediaDelivery(client:Client,id:string,preview:boolean):Promise<MediaDelivery|null> {
  if(preview) await requireMediaOwner(client);
- const {data,error}=await createSupabaseServiceRoleClient().rpc('read_media_delivery',{p_id:id,p_preview:preview});
+ const {data,error}=await mediaWorker().rpc('read_media_delivery',{p_id:id,p_preview:preview});
  if(error) throw Error('Media unavailable'); return data;
 }
 export const mediaUploadId = randomUUID;

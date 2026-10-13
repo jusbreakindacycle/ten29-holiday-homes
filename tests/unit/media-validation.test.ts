@@ -37,4 +37,9 @@ describe('private media validation and safe processing',()=>{
   expect(editMediaSchema.safeParse({...input,position:-1}).success).toBe(false);
   expect(editMediaSchema.safeParse({...input,category:'Free pool access'}).success).toBe(false);
  });
+ it('normalizes phone photo orientation before stripping EXIF',async()=>{
+  const input=await sharp({create:{width:64,height:48,channels:3,background:'blue'}}).jpeg().withMetadata({orientation:6}).toBuffer();
+  const output=await processMediaBytes(input,'image/jpeg',input.length);const meta=await sharp(output.rendition).metadata();
+  expect(meta.width).toBe(48);expect(meta.height).toBe(64);expect(meta.exif).toBeUndefined();
+ });
 });

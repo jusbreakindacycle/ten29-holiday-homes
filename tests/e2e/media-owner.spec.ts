@@ -53,7 +53,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   } finally {await rm(folder,{recursive:true,force:true});}
  });
  test('manager and anonymous clients cannot upload, enumerate, publish or read private Storage',async({page,request})=>{
-  await login(page,'MANAGER');await expect(page.getByRole('alert')).toContainText('OWNER access required');expect((await request.get('/api/admin/media')).status()).toBe(403);
+  await login(page,'MANAGER');await expect(page.getByRole('main').getByRole('alert')).toContainText('OWNER access required');expect((await request.get('/api/admin/media')).status()).toBe(403);
   const anon=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   expect((await anon.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{}})).error).not.toBeNull();
   expect((await anon.storage.from('ten29-originals').upload('evil/original',Buffer.from('bad'),{contentType:'image/png'})).error).not.toBeNull();
@@ -106,7 +106,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
    await expect(page.getByRole('status').first()).toContainText(/HEIF_DECODER_UNAVAILABLE_OR_INVALID|Upload processed/,{timeout:90000});
    const card=page.getByRole('article').first();
    if((await card.textContent())!.includes('FAILED')){await expect(card.getByRole('button',{name:'Publish media'})).toHaveCount(0);console.log('HEIC compatibility: BLOCKED by server decoder; private failure verified.');}
-   else console.log('HEIC compatibility: actual synthetic conversion passed.');
+   else {const img=card.locator('img');await img.evaluate((element:HTMLImageElement)=>element.decode());const src=await img.getAttribute('src');const response=await page.context().request.get(src!);const info=await sharp(await response.body()).metadata();expect(info.format).toBe('webp');expect(info.exif).toBeUndefined();console.log('HEIC compatibility: actual synthetic conversion and browser WebP decode passed.');}
   } finally {await rm(folder,{recursive:true,force:true});}
  });
  test('interrupted upload retries the same reserved record and cancellation cannot publish',async({page})=>{
@@ -129,6 +129,16 @@ test.describe('OWNER media with actual disposable Storage',()=>{
    await promisify(execFile)(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','color=c=red:s=64x64:d=1','-c:v','libvpx-vp9','-threads','1',file],{timeout:30000,maxBuffer:1024*1024});
    await page.getByLabel('Add video',{exact:true}).setInputFiles({name:'unsupported.mp4',mimeType:'video/mp4',buffer:await readFile(file)});
    await expect(page.getByRole('status').first()).toContainText('UNSUPPORTED_VIDEO',{timeout:60000});await expect(page.getByRole('article').first()).toContainText('FAILED');
+   await expect(page.getByRole('article').first().getByRole('button',{name:'Publish media'})).toHaveCount(0);
+  } finally {await rm(folder,{recursive:true,force:true});}
+ });
+ test('a corrupt H264 stream in a valid MP4 container fails decoding privately',async({page})=>{
+  test.setTimeout(90000);await login(page);const folder=await mkdtemp(path.join(tmpdir(),'ten29-corrupt-'));const file=path.join(folder,'source.mp4');
+  try {
+   await promisify(execFile)(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','color=c=red:s=64x64:d=1','-c:v','libx264','-threads','1',file],{timeout:30000,maxBuffer:1024*1024});
+   const input=await readFile(file);const mdat=input.indexOf(Buffer.from('mdat'));expect(mdat).toBeGreaterThan(4);const size=input.readUInt32BE(mdat-4);input.fill(0,mdat+4,mdat-4+size);
+   await page.getByLabel('Add video',{exact:true}).setInputFiles({name:'corrupt-stream.mp4',mimeType:'video/mp4',buffer:input});
+   await expect(page.getByRole('status').first()).toContainText('VIDEO_PROCESSING_FAILED',{timeout:60000});await expect(page.getByRole('article').first()).toContainText('FAILED');
    await expect(page.getByRole('article').first().getByRole('button',{name:'Publish media'})).toHaveCount(0);
   } finally {await rm(folder,{recursive:true,force:true});}
  });

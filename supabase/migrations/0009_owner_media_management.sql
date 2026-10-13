@@ -92,7 +92,7 @@ begin
    update public.property_media set state='PUBLISHED',published_by=auth.uid(),published_at=now(),version=version+1 where id=m.id returning * into m;
   elsif p_action in ('UNPUBLISH','ARCHIVE') then
    if p_action='UNPUBLISH' and m.state<>'PUBLISHED' then raise exception 'Not published'; end if;
-   update public.property_media set state=case when p_action='ARCHIVE' then 'ARCHIVED' else 'UNPUBLISHED' end,featured=false,lease=null,lease_until=null,version=version+1 where id=m.id returning * into m;
+   update public.property_media set state=case when p_action='ARCHIVE' then 'ARCHIVED' else 'UNPUBLISHED' end,featured=false,version=version+1 where id=m.id returning * into m;
   elsif p_action='COVER' then
    if m.kind<>'PHOTO' or m.state<>'PUBLISHED' then raise exception 'Cover must be a published photo'; end if;
    insert into public.media_audit_events(media_id,actor,event,version) select id,auth.uid(),'COVER_CLEARED',version+1 from public.property_media where featured and id<>m.id;
@@ -117,7 +117,7 @@ begin
  if p_action='CLAIM' then
   if m.state not in ('UPLOADING','FAILED','PROCESSING') or (m.lease_until>now()) then raise exception 'Media processing unavailable'; end if;
   if (select count(*) from public.property_media where lease_until>now())>=2 then raise exception 'Processor busy'; end if;
-  update public.property_media set state='PROCESSING',lease=gen_random_uuid(),lease_until=now()+interval '5 minutes',failure_code=null,version=version+1 where id=m.id returning * into m;
+  update public.property_media set state='PROCESSING',lease=gen_random_uuid(),lease_until=now()+interval '6 minutes',failure_code=null,version=version+1 where id=m.id returning * into m;
  elsif p_action='FINISH' then
   if m.state<>'PROCESSING' or m.lease is distinct from p_token or m.lease_until<=now() then raise exception 'Expired processing lease'; end if;
   if p_data->>'error' is null and (select coalesce(sum(bytes+coalesce((processing_info->>'output_bytes')::bigint,0)),0) from public.property_media where cleaned_at is null)+coalesce((p_data->'info'->>'output_bytes')::bigint,0) > (select library_bytes from public.media_limits where id=1) then raise exception 'Media quota reached'; end if;
@@ -126,7 +126,11 @@ begin
    failure_code=p_data->>'error',lease=null,lease_until=null,version=version+1 where id=m.id returning * into m;
  elsif p_action='CLEANED' then
   if m.state<>'ARCHIVED' then raise exception 'Archive before cleanup'; end if;
+  if m.lease_until>now() then raise exception 'Processing still finishing; retry cleanup after lease expiry'; end if;
   update public.property_media set cleaned_at=now(),version=version+1 where id=m.id returning * into m;
+ elsif p_action='RELEASE_CANCELLED' then
+  if m.state<>'ARCHIVED' or m.lease is distinct from p_token then return to_jsonb(m); end if;
+  update public.property_media set lease=null,lease_until=null,version=version+1 where id=m.id returning * into m;
  else raise exception 'Invalid worker operation'; end if;
  insert into public.media_audit_events(media_id,event,version) values(m.id,'WORKER_'||p_action,m.version);
  return to_jsonb(m);

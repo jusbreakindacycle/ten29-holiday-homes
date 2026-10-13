@@ -68,11 +68,11 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
   rejectUpload.current?.(Error('Upload cancelled. The original remains private.'));
   await refresh().catch(()=>{});
  }
- const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.bytes,0);
+ const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.bytes+Number(m.processing_info.output_bytes??0),0);
  return <div className="space-y-6">
   <p>Upload original TEN29 property media from your phone gallery. Uploading does not publish a file.</p>
   <p className="text-sm">Photo limit: 20 MiB. Video limit: 50 MiB / 2 minutes. Library allowance: 200 active files / 1 GiB of originals. Processing and rendition storage also consume provider capacity.</p>
-  <p className="text-sm">Active originals: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
+  <p className="text-sm">Tracked originals and renditions: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
   <div className="flex flex-wrap gap-3">
    <label className={button}>Add photos<input aria-label="Add photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
    <label className={button}>Add video<input aria-label="Add video" type="file" accept="video/mp4,video/quicktime" disabled={!hydrated||busy} className="mt-2 block w-full max-w-64 text-sm" onChange={e=>{void uploadFiles(Array.from(e.target.files??[]));e.target.value='';}} /></label>
@@ -94,7 +94,7 @@ function MediaCard({media:m,library,claims,busy,act}:{media:OwnerMedia;library:O
  const label=`${m.kind==='PHOTO'?'Photo':'Video'} ${m.id.slice(0,8)}`;
  return <article className="min-w-0 rounded-xl border border-border bg-ivory p-4" aria-label={label}>
   <h2 className="text-xl text-forest">{m.title||label}</h2><p className="my-2 text-sm">{m.state} · revision {m.version}{m.featured?' · Homepage cover':''}</p>
-  {ready&&(m.kind==='PHOTO'?<img className="max-h-64 w-full rounded-lg object-contain" src={`/api/media/${m.id}?preview=1`} alt={m.alt||'Private photo preview'} />:<video className="w-full rounded-lg" controls preload="metadata" poster={`/api/media/${m.id}?preview=1&poster=1`} src={`/api/media/${m.id}?preview=1`} aria-label={m.alt||'Private video preview'} />)}
+  {ready&&(m.kind==='PHOTO'?<a href={`/api/media/${m.id}?preview=1`} target="_blank" rel="noopener"><img className="max-h-64 w-full rounded-lg object-contain" loading="lazy" src={`/api/media/${m.id}?preview=1&poster=1`} alt={m.alt||'Private photo preview'} /></a>:<video className="w-full rounded-lg" controls preload="none" poster={`/api/media/${m.id}?preview=1&poster=1`} src={`/api/media/${m.id}?preview=1`} aria-label={m.alt||'Private video preview'} />)}
   {m.failure_code&&<p role="alert" className="mt-3">{m.failure_code}. This file is private. Retry processing or archive it.</p>}
   <fieldset disabled={!editable||busy} className="mt-4 grid gap-3">
    <label>Title<input className="block min-h-11 w-full rounded border p-2" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} /></label>
