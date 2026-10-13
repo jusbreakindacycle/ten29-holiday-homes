@@ -2,6 +2,10 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createBookingQuoteDraftSchema,
+  bookingAvailabilitySchema,
+  confirmBookingReservationSchema,
+  createBookingOwnerBlockSchema,
+  decideBookingDepositSchema,
   createBookingRequestSchema,
   isValidBookingRequestTransition,
   recordBookingDepositSchema,
@@ -13,11 +17,87 @@ import {
   type CreateBookingQuoteDraftInput,
   type CreateBookingRequestInput,
   type RecordBookingDepositInput,
+  type BookingAvailabilityInput,
+  type ConfirmBookingReservationInput,
+  type CreateBookingOwnerBlockInput,
+  type DecideBookingDepositInput,
+  type PublicBookingUnavailableSpan,
 } from "@/types/booking";
 
 export type BookingDbClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 export class BookingServiceError extends Error {}
+
+async function requireTen29Owner(client: BookingDbClient): Promise<void> {
+  await requireTen29Admin(client);
+  const { data, error } = await client.rpc("is_ten29_owner");
+  if (error || data !== true) throw new BookingServiceError("TEN29 owner authorization required");
+}
+
+function rejectBookingRpc(error: { code?: string } | null): never {
+  throw new BookingServiceError(error?.code === "23P01"
+    ? "Property dates are unavailable"
+    : "Booking operation was rejected; review the request, quote and payment verification");
+}
+
+export async function decideBookingDeposit(client: BookingDbClient, rawInput: DecideBookingDepositInput): Promise<string> {
+  await requireTen29Owner(client);
+  const input = decideBookingDepositSchema.safeParse(rawInput);
+  if (!input.success) throw new BookingServiceError("Invalid payment verification decision");
+  const { data, error } = await client.rpc("decide_booking_deposit", {
+    p_deposit_id: input.data.deposit_id,
+    p_decision: input.data.decision,
+    p_independently_verified: input.data.independently_verified,
+    p_idempotency_key: input.data.idempotency_key,
+  });
+  if (error || !data) rejectBookingRpc(error);
+  return data;
+}
+
+export async function confirmBookingReservation(client: BookingDbClient, rawInput: ConfirmBookingReservationInput): Promise<string> {
+  await requireTen29Owner(client);
+  const input = confirmBookingReservationSchema.safeParse(rawInput);
+  if (!input.success) throw new BookingServiceError("Invalid reservation confirmation");
+  const { data, error } = await client.rpc("confirm_booking_reservation", {
+    p_request_id: input.data.request_id,
+    p_quote_id: input.data.quote_id,
+    p_idempotency_key: input.data.idempotency_key,
+  });
+  if (error || !data) rejectBookingRpc(error);
+  // This ID is returned only after the database transaction succeeds.
+  return data;
+}
+
+export async function createBookingOwnerBlock(client: BookingDbClient, rawInput: CreateBookingOwnerBlockInput): Promise<string> {
+  await requireTen29Owner(client);
+  const input = createBookingOwnerBlockSchema.safeParse(rawInput);
+  if (!input.success) throw new BookingServiceError("Invalid owner block");
+  const { data, error } = await client.rpc("create_booking_owner_block", {
+    p_check_in: input.data.check_in_date,
+    p_check_out: input.data.check_out_date,
+    p_idempotency_key: input.data.idempotency_key,
+  });
+  if (error || !data) rejectBookingRpc(error);
+  return data;
+}
+
+export async function releaseBookingOwnerBlock(client: BookingDbClient, blockId: string): Promise<void> {
+  await requireTen29Owner(client);
+  if (!z.string().uuid().safeParse(blockId).success) throw new BookingServiceError("Invalid owner block ID");
+  const { error } = await client.rpc("release_booking_owner_block", { p_block_id: blockId });
+  if (error) rejectBookingRpc(error);
+}
+
+export async function readBookingAvailability(client: BookingDbClient, rawInput: BookingAvailabilityInput): Promise<PublicBookingUnavailableSpan[]> {
+  const input = bookingAvailabilitySchema.safeParse(rawInput);
+  if (!input.success) throw new BookingServiceError("Invalid availability window");
+  const { data, error } = await client.rpc("read_booking_availability", {
+    p_check_in: input.data.check_in_date, p_check_out: input.data.check_out_date,
+  });
+  if (error || !data) throw new BookingServiceError("Could not read property availability");
+  // Whitelist the public projection even if a future RPC accidentally adds fields.
+  return data.map(({ check_in_date, check_out_date }) => ({ check_in_date, check_out_date }));
+}
 
 async function requireTen29Admin(client: BookingDbClient): Promise<string> {
   const { data, error } = await client.rpc("is_ten29_admin");

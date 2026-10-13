@@ -5,6 +5,7 @@ on:
     branches:
       - feature/slice-1-admin-authorization
       - feature/slice-2-reservation-domain
+      - feature/slice-3-atomic-confirmation
   workflow_dispatch:
 
 permissions:
@@ -29,10 +30,31 @@ jobs:
           version: 2.111.0
 
       - name: Start disposable local Supabase stack
-        run: supabase start
+        run: supabase start > /dev/null
 
       - name: Replay repository migrations on local database
         run: supabase db reset --local --no-seed
 
       - name: Run database security and booking-domain assertions
         run: supabase test db --local supabase/tests
+
+      - name: Prove concurrent confirmation and owner-block exclusion
+        if: hashFiles('supabase/tests/confirmation_concurrency.py') != ''
+        run: python3 supabase/tests/confirmation_concurrency.py
+
+  application:
+    name: Application regression checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test -- --maxWorkers=1 --pool=threads
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=1

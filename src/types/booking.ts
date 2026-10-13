@@ -252,4 +252,48 @@ export type BookingReservation = {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  idempotency_key: string | null;
+  quote_id: string | null;
+  property_id: number | null;
+  package_code: BookingPackageCode | null;
+  check_in_date: string | null;
+  check_out_date: string | null;
+  overnight_guest_count: number | null;
+  folding_foams_requested: boolean | null;
+  verified_deposit_total: number | null;
 };
+
+export const decideBookingDepositSchema = z.object({
+  deposit_id: z.string().uuid(),
+  decision: z.enum(["VERIFIED", "REJECTED"]),
+  independently_verified: z.boolean(),
+  idempotency_key: z.string().uuid(),
+}).strict().refine((value) => value.decision !== "VERIFIED" || value.independently_verified, {
+  message: "Independently verify receipt of funds before verifying a deposit.",
+  path: ["independently_verified"],
+});
+export type DecideBookingDepositInput = z.infer<typeof decideBookingDepositSchema>;
+
+export const confirmBookingReservationSchema = z.object({
+  request_id: z.string().uuid(),
+  quote_id: z.string().uuid(),
+  idempotency_key: z.string().uuid(),
+}).strict();
+export type ConfirmBookingReservationInput = z.infer<typeof confirmBookingReservationSchema>;
+
+export const bookingAvailabilitySchema = z.object({
+  check_in_date: localDate,
+  check_out_date: localDate,
+}).strict().refine((value) => {
+  const nights = (Date.parse(value.check_out_date) - Date.parse(value.check_in_date)) / 86400000;
+  // ISO date-only ordinals; operating clock times never enter this calculation.
+  return nights >= 1 && nights <= 366;
+}, "Availability window must be between 1 and 366 nights.");
+export type BookingAvailabilityInput = z.infer<typeof bookingAvailabilitySchema>;
+export type PublicBookingUnavailableSpan = BookingAvailabilityInput;
+export const createBookingOwnerBlockSchema = z.object({
+  check_in_date: localDate,
+  check_out_date: localDate,
+  idempotency_key: z.string().uuid(),
+}).strict().refine((value) => value.check_out_date > value.check_in_date, "Check-out must be after check-in.");
+export type CreateBookingOwnerBlockInput = z.infer<typeof createBookingOwnerBlockSchema>;

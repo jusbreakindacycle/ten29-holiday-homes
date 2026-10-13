@@ -35,6 +35,23 @@ export interface Database {
         Args: { p_quote_id: string };
         Returns: undefined;
       };
+      decide_booking_deposit: {
+        Args: { p_deposit_id: string; p_decision: string; p_independently_verified: boolean; p_idempotency_key: string };
+        Returns: string;
+      };
+      confirm_booking_reservation: {
+        Args: { p_request_id: string; p_quote_id: string; p_idempotency_key: string };
+        Returns: string;
+      };
+      create_booking_owner_block: {
+        Args: { p_check_in: string; p_check_out: string; p_idempotency_key: string };
+        Returns: string;
+      };
+      release_booking_owner_block: { Args: { p_block_id: string }; Returns: undefined };
+      read_booking_availability: {
+        Args: { p_check_in: string; p_check_out: string };
+        Returns: Array<{ check_in_date: string; check_out_date: string }>;
+      };
     };
     Enums: {
       booking_package_code: BookingPackageCode;
@@ -46,6 +63,30 @@ export interface Database {
     };
     CompositeTypes: Record<string, never>;
     Tables: {
+      booking_deposit_verifications: {
+        Row: { id: string; idempotency_key: string; deposit_id: string; decision: "VERIFIED" | "REJECTED"; independently_verified: boolean; actor_id: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      property_occupancies: {
+        Row: { id: string; idempotency_key: string; property_id: number; check_in_date: string; check_out_date: string; kind: "RESERVATION" | "OWNER_BLOCK"; reservation_id: string | null; active: boolean; created_by: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      property_occupancy_events: {
+        Row: { id: string; occupancy_id: string; event: "CREATED" | "RELEASED"; actor_id: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      booking_reservation_events: {
+        Row: { id: string; reservation_id: string; previous_status: ReservationStatus | null; new_status: ReservationStatus; actor_id: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       inquiries: {
         Row: {
           id: string;
@@ -253,6 +294,15 @@ export interface Database {
           cancelled_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          idempotency_key?: string | null;
+          quote_id?: string | null;
+          property_id?: number | null;
+          package_code?: BookingPackageCode | null;
+          check_in_date?: string | null;
+          check_out_date?: string | null;
+          overnight_guest_count?: number | null;
+          folding_foams_requested?: boolean | null;
+          verified_deposit_total?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["booking_reservations"]["Insert"]>;
         Relationships: [];
