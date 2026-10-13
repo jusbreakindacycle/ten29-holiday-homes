@@ -86,6 +86,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await page.setViewportSize({ width: 768, height: 1024 }); await page.goto("/availability");
     await page.getByLabel("Bedroom package", { exact: true }).selectOption("WHOLE_HOME_3BR");
     await page.getByLabel("Calendar month").fill(dates[0].slice(0, 7));
+    await expect(page.locator(`[data-date="${dates[0]}"]`)).toBeEnabled();
     await expect(page.locator(`[data-date="${dates[3]}"]`)).toBeDisabled();
     await expect(page.locator(`[data-date="${dates[4]}"]`)).toBeDisabled();
     await page.locator(`[data-date="${dates[0]}"]`).focus(); await page.keyboard.press("ArrowRight");

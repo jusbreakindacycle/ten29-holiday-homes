@@ -8,7 +8,7 @@ export class ResendEmailProvider implements EmailProvider {
       const resend = new Resend(getResendApiKey());
       const fromEmail = process.env.INQUIRY_FROM_EMAIL || "bookings@ten29holidayhomes.com";
 
-      const { error } = await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: `TEN29 Holiday Homes <${fromEmail}>`,
         to: message.to,
         subject: message.subject,
@@ -19,6 +19,7 @@ export class ResendEmailProvider implements EmailProvider {
       if (error) {
         return { ok: false, error: error.message ?? "Resend returned an error" };
       }
+      if (!data?.id) return { ok: false, error: "Email provider did not confirm acceptance." };
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "Unknown email error" };

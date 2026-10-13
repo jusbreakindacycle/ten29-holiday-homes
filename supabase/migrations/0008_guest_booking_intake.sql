@@ -159,7 +159,7 @@ create table public.website_booking_intakes (
   request_id uuid primary key references public.booking_requests(id) on delete restrict,
   session_hash text not null check (session_hash ~ '^[a-f0-9]{64}$'),
   idempotency_key uuid not null,
-  payload jsonb not null,
+  payload_hash text not null check(payload_hash ~ '^[a-f0-9]{64}$'),
   estimate jsonb not null,
   receipt jsonb not null,
   created_at timestamptz not null default now(),
@@ -176,6 +176,8 @@ create table public.booking_notification_outbox (
 );
 create index booking_outbox_pending on public.booking_notification_outbox(next_attempt_at) where status <> 'SENT';
 create table ten29_private.intake_limits (bucket text primary key, window_start timestamptz not null, attempts integer not null);
+alter table ten29_private.intake_limits enable row level security;
+create policy "Restricted intake quota" on ten29_private.intake_limits for all to ten29_intake_writer using(true) with check(true);
 -- Only this role has the exact read/insert privileges required by the transaction.
 grant select,insert on public.inquiries,public.inquiry_audit_events,public.booking_requests,public.website_booking_intakes,public.booking_notification_outbox to ten29_intake_writer;
 grant select on public.booking_properties,public.property_packages,public.calendar_rate_heads,public.property_occupancies to ten29_intake_writer;
@@ -212,7 +214,7 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(p_session || p_key::text,0));
   select * into v_existing from public.website_booking_intakes where session_hash=p_session and idempotency_key=p_key;
   if found then
-    if v_existing.payload is distinct from p_payload then raise exception using errcode='23514',message='Retry does not match the saved request'; end if;
+    if v_existing.payload_hash is distinct from encode(sha256(convert_to(p_payload::text,'UTF8')),'hex') then raise exception using errcode='23514',message='Retry does not match the saved request'; end if;
     return v_existing.receipt || jsonb_build_object('request_id',v_existing.request_id);
   end if;
   -- Quotas are atomic across processes; retries of committed requests do not consume quota.
@@ -261,7 +263,7 @@ begin
   if nullif(p_payload->>'email','') is not null then insert into public.booking_notification_outbox(request_id,recipient_kind) values(v_request,'GUEST'); end if;
   v_receipt := jsonb_build_object('outcome','SAVED','reference_code',v_ref,'package_code',v_package,'overnight_guest_count',v_guests,
     'folding_foams_requested',(p_payload->>'folding_foams_requested')::boolean,'check_in_date',v_from,'check_out_date',v_to,'estimate',v_price,'notification_status','PENDING');
-  insert into public.website_booking_intakes(request_id,session_hash,idempotency_key,payload,estimate,receipt) values(v_request,p_session,p_key,p_payload,v_price,v_receipt);
+  insert into public.website_booking_intakes(request_id,session_hash,idempotency_key,payload_hash,estimate,receipt) values(v_request,p_session,p_key,encode(sha256(convert_to(p_payload::text,'UTF8')),'hex'),v_price,v_receipt);
   return v_receipt || jsonb_build_object('request_id',v_request);
 end; $$;
 -- Temporary ownership-transfer permissions only for the migration role.
