@@ -86,6 +86,8 @@ create trigger booking_requests_capacity_guard
   for each row execute function public.guard_booking_request_capacity();
 
 grant select on public.booking_properties to authenticated;
+grant insert (overnight_guest_count, folding_foams_requested)
+  on public.booking_requests to authenticated;
 
 create policy "TEN29 admins can read booking property capacity"
   on public.booking_properties for select to authenticated
