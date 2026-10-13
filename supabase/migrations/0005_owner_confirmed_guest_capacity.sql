@@ -42,6 +42,10 @@ declare
   v_property_max smallint;
   v_package_max smallint;
 begin
+  if not public.is_ten29_admin() then
+    raise insufficient_privilege using message = 'TEN29 administrator authorization required';
+  end if;
+
   if new.overnight_guest_count is null then
     raise check_violation using message = 'Overnight guest count is required for new booking requests';
   end if;
@@ -80,6 +84,12 @@ revoke all on function public.guard_booking_request_capacity() from public, anon
 create trigger booking_requests_capacity_guard
   before insert or update on public.booking_requests
   for each row execute function public.guard_booking_request_capacity();
+
+grant select on public.booking_properties to authenticated;
+
+create policy "TEN29 admins can read booking property capacity"
+  on public.booking_properties for select to authenticated
+  using (public.is_ten29_admin());
 
 comment on column public.booking_properties.max_overnight_guests is
   'Owner-confirmed total overnight occupancy ceiling. Does not define child counting or daytime visitor rules.';

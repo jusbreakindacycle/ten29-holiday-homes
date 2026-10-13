@@ -1,6 +1,6 @@
 begin;
 
-select plan(41);
+select plan(42);
 
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at)
 values
@@ -28,6 +28,7 @@ where user_id = '00000000-0000-4000-8000-000000000041';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000043', true);
 select is((select count(*)::integer from public.booking_requests), 0, 'authenticated non-member cannot read booking requests');
+select is((select count(*)::integer from public.booking_properties), 0, 'authenticated non-member cannot read property capacity settings');
 select throws_ok(
   $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date)
     values ('MESSENGER', 'WHOLE_HOME_1BR', date '2027-04-01', date '2027-04-03')$$,
