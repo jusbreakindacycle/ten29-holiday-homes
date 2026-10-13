@@ -99,6 +99,10 @@ select lives_ok($$select public.confirm_booking_reservation('00000000-0000-4000-
 select is((public.read_owner_quote_breakdown((select id from f where name='quote-two'))->>'remaining_balance_centavos')::bigint,119026::bigint,'verified deposit reduces remaining balance, not quotation charges');
 select throws_ok($$select public.prepare_itemized_booking_quote('00000000-0000-4000-8000-000000000064',(select id from f where name='new-three'),1000,'[]','[]',null,null,null,gen_random_uuid())$$,
  '23514','Request is not eligible for a new quote','confirmed financial agreement cannot be replaced');
+insert into f(name) values('canonical');
+update f set id=public.save_calendar_rate_draft('WHOLE_HOME_1BR',(select id from f where name='one'),'[{"kind":"DEFAULT","amount_centavos":1}]',key) where name='canonical';
+select lives_ok($$select public.save_calendar_rate_draft('WHOLE_HOME_1BR',(select id from f where name='one'),'[{"kind":"DEFAULT","amount_centavos":1}]',key) from f where name='canonical'$$,'raw OWNER RPC retry canonicalizes optional null fields');
+select is((select count(*)::integer from public.calendar_rate_revisions where save_key=(select key from f where name='canonical')),1,'canonicalized retry does not duplicate a draft');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000062',true);
 select is((select count(*)::integer from public.calendar_rate_revisions),0,'manager cannot read draft/history tables');
 select throws_ok($$select public.publish_calendar_rate_revision(id,null,publish_key) from f where name='stale'$$,'42501','TEN29 owner authorization required','manager cannot publish');

@@ -84,6 +84,11 @@ declare h public.calendar_rate_heads; v public.calendar_rate_revisions; v_id uui
 begin
  perform ten29_private.require_pricing_owner();
  perform ten29_private.validate_rate_rules(p_rules);
+ -- Canonicalize optional null fields/types before matching an idempotent retry.
+ select coalesce(jsonb_agg(jsonb_build_object('kind',r->>'kind','amount_centavos',(r->>'amount_centavos')::bigint,
+  'weekday',(r->>'weekday')::smallint,'start_date',(r->>'start_date')::date,'end_date',(r->>'end_date')::date)
+  order by ordinality),'[]'::jsonb) into p_rules
+ from jsonb_array_elements(p_rules) with ordinality x(r,ordinality);
  if p_key is null then raise check_violation using message='Idempotency key required'; end if;
  select * into h from public.calendar_rate_heads where package_code=p_package for update;
  if not found then raise check_violation using message='Invalid package'; end if;
