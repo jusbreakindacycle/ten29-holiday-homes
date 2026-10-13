@@ -70,6 +70,12 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   expect((await owner.from('property_media').update({state:'PUBLISHED'}).eq('id',m.id)).error).not.toBeNull();
   expect((await owner.storage.from('ten29-originals').upload(m.original_key,Buffer.from('bad'),{contentType:m.mime,upsert:true})).error).not.toBeNull();
   const publicOriginal=await request.get(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/ten29-originals/${m.original_key}`);expect(publicOriginal.ok()).toBe(false);
+  expect((await request.get(`/api/media/${m.id}?preview=1`)).status()).toBe(404);
+  if(m.rendition_key)expect((await anon.storage.from('ten29-renditions').download(m.rendition_key)).error).not.toBeNull();
+  const reserve=await owner.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{key:crypto.randomUUID(),mime:'image/png',bytes:1}});
+  expect(reserve.error).toBeNull();
+  const png=await sharp({create:{width:8,height:8,channels:3,background:'red'}}).png().toBuffer();
+  expect((await owner.storage.from('ten29-originals').upload(reserve.data.original_key,png,{contentType:'image/png'})).error).not.toBeNull();
  });
  test('real corrupt upload fails processing without public visibility',async({page})=>{
   await login(page);await page.getByLabel('Add photos',{exact:true}).setInputFiles({name:'corrupt.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0,73,69,78,68,0,0,0,0])});

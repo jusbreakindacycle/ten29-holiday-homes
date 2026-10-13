@@ -42,7 +42,7 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) v
 create policy media_scoped_original_upload on storage.objects for insert to authenticated with check(
  bucket_id='ten29-originals' and public.is_ten29_owner() and exists(
  select 1 from public.property_media m where m.original_key=name and m.uploaded_by=auth.uid()
- and m.state='UPLOADING' and m.created_at > now()-interval '1 hour'));
+ and m.state='UPLOADING' and m.bytes=(metadata->>'size')::bigint and m.created_at > now()-interval '1 hour'));
 -- No public bucket, storage SELECT, UPDATE/upsert, or client rendition write grant.
 
 create function public.owner_media_action(p_action text, p_id uuid, p_version integer, p_data jsonb)
