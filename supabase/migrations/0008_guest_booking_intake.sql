@@ -180,8 +180,7 @@ alter table ten29_private.intake_limits enable row level security;
 create policy "Restricted intake quota" on ten29_private.intake_limits for all to ten29_intake_writer using(true) with check(true);
 -- Only this role has the exact read/insert privileges required by the transaction.
 grant select,insert on public.inquiries,public.inquiry_audit_events,public.booking_requests,public.website_booking_intakes,public.booking_notification_outbox to ten29_intake_writer;
-grant select on public.booking_properties,public.property_packages,public.calendar_rate_heads,public.property_occupancies to ten29_intake_writer;
-grant update(published_revision_id) on public.calendar_rate_heads to ten29_intake_writer; -- SELECT FOR SHARE privilege; no UPDATE path exposed.
+grant select on public.booking_properties,public.property_packages,public.property_occupancies to ten29_intake_writer;
 grant select,insert,update on ten29_private.intake_limits to ten29_intake_writer;
 grant execute on function public.is_ten29_admin(),ten29_private.read_prices(public.booking_package_code,date,date,integer,boolean) to ten29_intake_writer;
 -- Explicit role policies; no changes to anon/authenticated booking write policies.
@@ -190,7 +189,6 @@ create policy "Restricted intake enquiry audits" on public.inquiry_audit_events 
 create policy "Restricted intake requests" on public.booking_requests for all to ten29_intake_writer using(true) with check(true);
 create policy "Restricted intake property read" on public.booking_properties for select to ten29_intake_writer using(true);
 create policy "Restricted intake packages read" on public.property_packages for select to ten29_intake_writer using(true);
-create policy "Restricted intake head read" on public.calendar_rate_heads for select to ten29_intake_writer using(true);
 create policy "Restricted intake occupancy read" on public.property_occupancies for select to ten29_intake_writer using(true);
 alter table public.website_booking_intakes enable row level security;
 alter table public.booking_notification_outbox enable row level security;
@@ -201,6 +199,16 @@ create policy "Admin reads notification tasks" on public.booking_notification_ou
 revoke all on public.website_booking_intakes,public.booking_notification_outbox from public,anon,authenticated;
 grant select on public.website_booking_intakes,public.booking_notification_outbox to authenticated;
 
+-- FOR SHARE under a read-only RLS policy can filter the head row. Keep this
+-- internal locking operation privileged, with no rate-update grant to intake.
+create function ten29_private.lock_intake_rate_head(p_package public.booking_package_code) returns void
+language plpgsql security definer set search_path='' as $$
+begin
+  perform 1 from public.calendar_rate_heads where package_code=p_package for share;
+  if not found then raise check_violation; end if;
+end; $$;
+revoke all on function ten29_private.lock_intake_rate_head(public.booking_package_code) from public,anon,authenticated,service_role;
+grant execute on function ten29_private.lock_intake_rate_head(public.booking_package_code) to ten29_intake_writer;
 create function ten29_private.accept_website_booking(p_payload jsonb,p_session text,p_key uuid,p_abuse text) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare
@@ -240,7 +248,7 @@ begin
   v_package := (p_payload->>'package_code')::public.booking_package_code;
   v_guests := (p_payload->>'adults')::integer + (p_payload->>'children')::integer;
   -- Stable rate publication and occupancy read at the transaction's acceptance point.
-  perform 1 from public.calendar_rate_heads where package_code=v_package for share;
+  perform ten29_private.lock_intake_rate_head(v_package);
   v_price := ten29_private.read_prices(v_package,v_from,v_to,v_guests,(p_payload->>'folding_foams_requested')::boolean);
   if v_price is distinct from p_payload->'reviewed_estimate' then
     return jsonb_build_object('outcome','PRICE_CHANGED','estimate',v_price);
