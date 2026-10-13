@@ -103,6 +103,9 @@ insert into f(name) values('canonical');
 update f set id=public.save_calendar_rate_draft('WHOLE_HOME_1BR',(select id from f where name='one'),'[{"kind":"DEFAULT","amount_centavos":1}]',key) where name='canonical';
 select lives_ok($$select public.save_calendar_rate_draft('WHOLE_HOME_1BR',(select id from f where name='one'),'[{"kind":"DEFAULT","amount_centavos":1}]',key) from f where name='canonical'$$,'raw OWNER RPC retry canonicalizes optional null fields');
 select is((select count(*)::integer from public.calendar_rate_revisions where save_key=(select key from f where name='canonical')),1,'canonicalized retry does not duplicate a draft');
+insert into public.booking_quotes(request_id,revision,currency,amount_total) values('00000000-0000-4000-8000-000000000064',3,'USD',1);
+select throws_ok($$select public.read_owner_quote_breakdown(id) from public.booking_quotes where currency='USD'$$,
+ '23514','This preview supports PHP quotations only; the historical record is unchanged','foreign historical currency is never mislabeled or converted into PHP');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000062',true);
 select is((select count(*)::integer from public.calendar_rate_revisions),0,'manager cannot read draft/history tables');
 select throws_ok($$select public.publish_calendar_rate_revision(id,null,publish_key) from f where name='stale'$$,'42501','TEN29 owner authorization required','manager cannot publish');

@@ -13,7 +13,8 @@ export async function requirePricingOwner(client: BookingDbClient): Promise<void
 }
 function fail(error: { code?: string; message?: string } | null): never {
   const safe = ["Rates changed; reload before saving", "Rates changed; reload before publishing", "Rates changed; review the current estimate",
-    "Missing nightly rate; request an owner quote", "Request is not eligible for a new quote", "Owner-approved payment terms are required"];
+    "Missing nightly rate; request an owner quote", "Request is not eligible for a new quote", "Owner-approved payment terms are required",
+    "This preview supports PHP quotations only; the historical record is unchanged"];
   throw new PricingError(error?.code === "23P01" || error?.code === "23505"
     ? "Conflicting rule or duplicate operation. Reload and review the affected dates."
     : safe.includes(error?.message ?? "") ? error!.message! : "Pricing operation was rejected. Review the inputs and try again.");

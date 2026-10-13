@@ -305,6 +305,7 @@ begin
  perform ten29_private.require_pricing_owner();
  select * into q from public.booking_quotes where id=p_quote;
  if not found then raise check_violation using message='Quote not found'; end if;
+ if q.currency<>'PHP' then raise check_violation using message='This preview supports PHP quotations only; the historical record is unchanged'; end if;
  select * into req from public.booking_requests where id=q.request_id;
  select breakdown-'owner_input' into snapshot from public.booking_quote_pricing_snapshots where quote_id=q.id;
  select (coalesce(sum(d.amount),0)*100)::bigint into paid from public.booking_deposits d
