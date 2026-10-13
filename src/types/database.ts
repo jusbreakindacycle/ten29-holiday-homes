@@ -129,8 +129,8 @@ export interface Database {
         Relationships: [];
       };
       booking_properties: {
-        Row: { id: number; timezone: string };
-        Insert: { id?: number; timezone?: string };
+        Row: { id: number; timezone: string; max_overnight_guests: number };
+        Insert: { id?: number; timezone?: string; max_overnight_guests?: number };
         Update: Partial<Database["public"]["Tables"]["booking_properties"]["Insert"]>;
         Relationships: [];
       };
@@ -140,7 +140,7 @@ export interface Database {
           property_id: number;
           bedrooms_access: number;
           occupancy_scope: string;
-          max_guests: number | null;
+          max_guests: number;
           created_at: string;
         };
         Insert: {
@@ -148,7 +148,7 @@ export interface Database {
           property_id?: number;
           bedrooms_access: number;
           occupancy_scope?: string;
-          max_guests?: number | null;
+          max_guests: number;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["property_packages"]["Insert"]>;
@@ -165,6 +165,8 @@ export interface Database {
           source: BookingRequestSource;
           check_in_date: string;
           check_out_date: string;
+          overnight_guest_count: number;
+          folding_foams_requested?: boolean;
           status?: BookingRequestStatus;
           created_by?: string;
           created_at?: string;

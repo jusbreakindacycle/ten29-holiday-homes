@@ -72,7 +72,12 @@ export function createFakeSupabaseClient() {
         }
         const tableDefaults: Record<string, Row> = {
           inquiries: INQUIRY_DEFAULTS,
-          booking_requests: { property_id: 1, status: "NEW", created_by: "admin-user" },
+          booking_requests: {
+            property_id: 1,
+            status: "NEW",
+            created_by: "admin-user",
+            folding_foams_requested: false,
+          },
           booking_quotes: {
             status: "DRAFT", currency: "PHP", amount_total: null, required_deposit_amount: null,
             valid_until: null, line_items: [], owner_approved_by: null, owner_approved_at: null,

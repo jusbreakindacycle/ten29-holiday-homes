@@ -5,6 +5,7 @@ import {
   createBookingQuoteDraftSchema,
   createBookingRequestSchema,
   isValidBookingRequestTransition,
+  recommendBookingPackage,
   recordBookingDepositSchema,
 } from "@/types/booking";
 
@@ -26,7 +27,53 @@ describe("booking package and request domain", () => {
       package_code: "WHOLE_HOME_2BR",
       check_in_date: "2027-02-28",
       check_out_date: "2027-03-01",
+      overnight_guest_count: 4,
     }).success).toBe(true);
+  });
+
+  it.each([
+    ["WHOLE_HOME_1BR", 2, false],
+    ["WHOLE_HOME_2BR", 4, false],
+    ["WHOLE_HOME_3BR", 6, false],
+    ["WHOLE_HOME_3BR", 8, true],
+  ] as const)("accepts %s for %s overnight guests (foam option: %s)", (package_code, overnight_guest_count, folding_foams_requested) => {
+    expect(createBookingRequestSchema.safeParse({
+      source: "PHONE",
+      package_code,
+      check_in_date: "2027-06-10",
+      check_out_date: "2027-06-11",
+      overnight_guest_count,
+      folding_foams_requested,
+    }).success).toBe(true);
+  });
+
+  it.each([
+    ["WHOLE_HOME_1BR", 3, false],
+    ["WHOLE_HOME_2BR", 5, false],
+    ["WHOLE_HOME_3BR", 7, false],
+    ["WHOLE_HOME_3BR", 9, true],
+    ["WHOLE_HOME_2BR", 4, true],
+  ] as const)("rejects over-capacity or misplaced foam option: %s, %s guests, foam=%s", (package_code, overnight_guest_count, folding_foams_requested) => {
+    expect(createBookingRequestSchema.safeParse({
+      source: "PHONE",
+      package_code,
+      check_in_date: "2027-06-10",
+      check_out_date: "2027-06-11",
+      overnight_guest_count,
+      folding_foams_requested,
+    }).success).toBe(false);
+  });
+
+  it("recommends package access from the total overnight guest count", () => {
+    expect(recommendBookingPackage(1)).toEqual({ packageCode: "WHOLE_HOME_1BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(2)).toEqual({ packageCode: "WHOLE_HOME_1BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(3)).toEqual({ packageCode: "WHOLE_HOME_2BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(4)).toEqual({ packageCode: "WHOLE_HOME_2BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(5)).toEqual({ packageCode: "WHOLE_HOME_3BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(6)).toEqual({ packageCode: "WHOLE_HOME_3BR", foldingFoamsRequested: false });
+    expect(recommendBookingPackage(7)).toEqual({ packageCode: "WHOLE_HOME_3BR", foldingFoamsRequested: true });
+    expect(recommendBookingPackage(8)).toEqual({ packageCode: "WHOLE_HOME_3BR", foldingFoamsRequested: true });
+    expect(recommendBookingPackage(9)).toBeNull();
   });
 
   it.each([
@@ -37,6 +84,7 @@ describe("booking package and request domain", () => {
       source: "PHONE",
       package_code: "WHOLE_HOME_1BR",
       ...dates,
+      overnight_guest_count: 2,
     }).success).toBe(false);
   });
 
@@ -46,6 +94,7 @@ describe("booking package and request domain", () => {
       package_code: "WHOLE_HOME_1BR",
       check_in_date: "2027-03-01",
       check_out_date: "2027-03-02",
+      overnight_guest_count: 2,
     }).success).toBe(false);
 
     expect(createBookingRequestSchema.safeParse({
@@ -54,6 +103,7 @@ describe("booking package and request domain", () => {
       package_code: "WHOLE_HOME_1BR",
       check_in_date: "2027-03-01",
       check_out_date: "2027-03-02",
+      overnight_guest_count: 2,
       status: "CONFIRMED",
     }).success).toBe(false);
   });
@@ -65,6 +115,7 @@ describe("booking package and request domain", () => {
       package_code: "WHOLE_HOME_1BR",
       check_in_date: "2027-03-01",
       check_out_date: "2027-03-02",
+      overnight_guest_count: 1,
     }).success).toBe(false);
   });
 });

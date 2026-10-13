@@ -28,6 +28,8 @@ const manualRequest = {
   package_code: "WHOLE_HOME_2BR" as const,
   check_in_date: "2027-05-02",
   check_out_date: "2027-05-04",
+  overnight_guest_count: 4,
+  folding_foams_requested: false,
   idempotency_key: REQUEST_KEY,
 };
 
@@ -60,6 +62,35 @@ describe("booking service authorization and lifecycle", () => {
     await expect(createBookingRequest(client(), {
       ...manualRequest,
       inquiry_id: "00000000-0000-4000-8000-000000000099",
+    })).rejects.toThrow("Invalid booking request");
+  });
+
+  it("enforces the selected package capacity server-side, including the 3BR foam option", async () => {
+    const db = client();
+    const request = await createBookingRequest(db, {
+      ...manualRequest,
+      package_code: "WHOLE_HOME_3BR",
+      overnight_guest_count: 8,
+      folding_foams_requested: true,
+    });
+    expect(request.overnight_guest_count).toBe(8);
+    expect(request.folding_foams_requested).toBe(true);
+
+    await expect(createBookingRequest(client(), {
+      ...manualRequest,
+      package_code: "WHOLE_HOME_1BR",
+      overnight_guest_count: 3,
+    })).rejects.toThrow("Invalid booking request");
+    await expect(createBookingRequest(client(), {
+      ...manualRequest,
+      package_code: "WHOLE_HOME_3BR",
+      overnight_guest_count: 7,
+    })).rejects.toThrow("Invalid booking request");
+    await expect(createBookingRequest(client(), {
+      ...manualRequest,
+      package_code: "WHOLE_HOME_3BR",
+      overnight_guest_count: 9,
+      folding_foams_requested: true,
     })).rejects.toThrow("Invalid booking request");
   });
 

@@ -8,6 +8,27 @@ export const BOOKING_PACKAGE_CODES = [
 
 export type BookingPackageCode = (typeof BOOKING_PACKAGE_CODES)[number];
 
+export interface BookingPackageRecommendation {
+  packageCode: BookingPackageCode;
+  foldingFoamsRequested: boolean;
+}
+
+export function recommendBookingPackage(overnightGuestCount: number): BookingPackageRecommendation | null {
+  if (!Number.isInteger(overnightGuestCount) || overnightGuestCount < 1 || overnightGuestCount > 8) {
+    return null;
+  }
+  if (overnightGuestCount <= 2) {
+    return { packageCode: "WHOLE_HOME_1BR", foldingFoamsRequested: false };
+  }
+  if (overnightGuestCount <= 4) {
+    return { packageCode: "WHOLE_HOME_2BR", foldingFoamsRequested: false };
+  }
+  return {
+    packageCode: "WHOLE_HOME_3BR",
+    foldingFoamsRequested: overnightGuestCount > 6,
+  };
+}
+
 export const BOOKING_REQUEST_SOURCES = [
   "WEBSITE",
   "MESSENGER",
@@ -69,6 +90,8 @@ export const createBookingRequestSchema = z
     package_code: z.enum(BOOKING_PACKAGE_CODES),
     check_in_date: localDate,
     check_out_date: localDate,
+    overnight_guest_count: z.number().int().min(1).max(8),
+    folding_foams_requested: z.boolean().default(false),
     idempotency_key: z.string().uuid().optional(),
   })
   .strict()
@@ -92,6 +115,27 @@ export const createBookingRequestSchema = z
         code: "custom",
         path: ["inquiry_id"],
         message: "Manual booking requests must not attach an unrelated website enquiry.",
+      });
+    }
+    const maximumGuests = value.package_code === "WHOLE_HOME_1BR"
+      ? 2
+      : value.package_code === "WHOLE_HOME_2BR"
+        ? 4
+        : value.folding_foams_requested ? 8 : 6;
+    if (value.overnight_guest_count > maximumGuests) {
+      context.addIssue({
+        code: "custom",
+        path: ["overnight_guest_count"],
+        message: value.overnight_guest_count > 6 && value.package_code === "WHOLE_HOME_3BR"
+          ? "Select the 3-bedroom folding-foam option for 7–8 overnight guests."
+          : "Overnight guest count exceeds this package capacity.",
+      });
+    }
+    if (value.folding_foams_requested && value.package_code !== "WHOLE_HOME_3BR") {
+      context.addIssue({
+        code: "custom",
+        path: ["folding_foams_requested"],
+        message: "Additional folding foams are an option within the 3-bedroom package only.",
       });
     }
   });
@@ -148,6 +192,8 @@ export type BookingRequest = {
   source: BookingRequestSource;
   check_in_date: string;
   check_out_date: string;
+  overnight_guest_count: number | null;
+  folding_foams_requested: boolean;
   status: BookingRequestStatus;
   created_by: string;
   created_at: string;

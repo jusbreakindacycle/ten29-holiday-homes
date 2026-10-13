@@ -1,6 +1,6 @@
 begin;
 
-select plan(31);
+select plan(41);
 
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at)
 values
@@ -55,13 +55,53 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000042', true);
 select is(public.is_ten29_owner(), false, 'manager is not implicitly an owner');
 select is((select count(*)::integer from public.property_packages where occupancy_scope = 'WHOLE_PROPERTY'), 3, 'all three packages occupy the same whole property');
-select is((select max_guests from public.property_packages where code = 'WHOLE_HOME_1BR'), null, 'package capacity remains unapproved and unset');
+select is((select count(distinct property_id)::integer from public.property_packages), 1, 'all bedroom packages share one property inventory');
+select is((select max_guests::integer from public.property_packages where code = 'WHOLE_HOME_1BR'), 2, '1BR owner-confirmed maximum is 2 guests');
+select is((select max_guests::integer from public.property_packages where code = 'WHOLE_HOME_2BR'), 4, '2BR owner-confirmed maximum is 4 guests');
+select is((select max_guests::integer from public.property_packages where code = 'WHOLE_HOME_3BR'), 6, '3BR standard owner-confirmed maximum is 6 guests');
+select is((select max_overnight_guests::integer from public.booking_properties where id = 1), 8, 'owner-confirmed property maximum is 8 overnight guests');
 
-insert into public.booking_requests (id, inquiry_id, source, package_code, check_in_date, check_out_date)
+insert into public.booking_requests (
+  source, package_code, check_in_date, check_out_date, overnight_guest_count, folding_foams_requested
+)
+values
+  ('PHONE', 'WHOLE_HOME_1BR', date '2027-04-05', date '2027-04-06', 2, false),
+  ('PHONE', 'WHOLE_HOME_2BR', date '2027-04-05', date '2027-04-06', 4, false),
+  ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-05', date '2027-04-06', 6, false),
+  ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-05', date '2027-04-06', 8, true);
+select is((select count(*)::integer from public.booking_requests where check_in_date = date '2027-04-05'), 4, 'database accepts package caps and 3BR foam occupancy up to 8');
+
+select throws_ok(
+  $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count)
+    values ('PHONE', 'WHOLE_HOME_1BR', date '2027-04-07', date '2027-04-08', 3)$$,
+  '23514', 'Request exceeds selected package capacity', 'database rejects 1BR request above 2 guests'
+);
+select throws_ok(
+  $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count)
+    values ('PHONE', 'WHOLE_HOME_2BR', date '2027-04-07', date '2027-04-08', 5)$$,
+  '23514', 'Request exceeds selected package capacity', 'database rejects 2BR request above 4 guests'
+);
+select throws_ok(
+  $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count)
+    values ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-07', date '2027-04-08', 7)$$,
+  '23514', 'Request exceeds selected package capacity', 'database requires folding foam option for 7 or 8 guests'
+);
+select throws_ok(
+  $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count, folding_foams_requested)
+    values ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-07', date '2027-04-08', 9, true)$$,
+  '23514', 'Request exceeds maximum property occupancy', 'database rejects guest count above property ceiling'
+);
+select throws_ok(
+  $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count, folding_foams_requested)
+    values ('PHONE', 'WHOLE_HOME_2BR', date '2027-04-07', date '2027-04-08', 4, true)$$,
+  '23514', 'Folding foams are available within the 3-bedroom package only', 'database rejects foam option on non-3BR package'
+);
+
+insert into public.booking_requests (id, inquiry_id, source, package_code, check_in_date, check_out_date, overnight_guest_count)
 values (
   '00000000-0000-4000-8000-000000000044',
   '00000000-0000-4000-8000-000000000047',
-  'WEBSITE', 'WHOLE_HOME_2BR', date '2027-04-01', date '2027-04-03'
+  'WEBSITE', 'WHOLE_HOME_2BR', date '2027-04-01', date '2027-04-03', 4
 );
 select is((select status::text from public.booking_requests where id = '00000000-0000-4000-8000-000000000044'), 'NEW', 'new request starts in NEW');
 select is((select count(*)::integer from public.booking_request_events where request_id = '00000000-0000-4000-8000-000000000044'), 1, 'request creation is audited');
@@ -72,13 +112,13 @@ select throws_ok(
   '23514', 'Invalid booking request status transition', 'database rejects skipped request transitions'
 );
 select throws_ok(
-  $$insert into public.booking_requests (inquiry_id, source, package_code, check_in_date, check_out_date)
-    values ('00000000-0000-4000-8000-000000000047', 'WEBSITE', 'WHOLE_HOME_1BR', date '2027-04-02', date '2027-04-04')$$,
+  $$insert into public.booking_requests (inquiry_id, source, package_code, check_in_date, check_out_date, overnight_guest_count)
+    values ('00000000-0000-4000-8000-000000000047', 'WEBSITE', 'WHOLE_HOME_1BR', date '2027-04-02', date '2027-04-04', 1)$$,
   '23514', 'Website requests must match a linked website enquiry', 'website request dates must match linked enquiry'
 );
 select throws_ok(
-  $$insert into public.booking_requests (inquiry_id, source, package_code, check_in_date, check_out_date)
-    values ('00000000-0000-4000-8000-000000000047', 'MESSENGER', 'WHOLE_HOME_1BR', date '2027-04-01', date '2027-04-03')$$,
+  $$insert into public.booking_requests (inquiry_id, source, package_code, check_in_date, check_out_date, overnight_guest_count)
+    values ('00000000-0000-4000-8000-000000000047', 'MESSENGER', 'WHOLE_HOME_1BR', date '2027-04-01', date '2027-04-03', 1)$$,
   '23514', 'Manual requests cannot link to website enquiries', 'manual source cannot be linked to website enquiry'
 );
 update public.booking_requests set status = 'REVIEWING'

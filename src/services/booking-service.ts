@@ -37,7 +37,9 @@ function sameRequest(existing: BookingRequest, input: CreateBookingRequestInput)
     && existing.source === input.source
     && existing.package_code === input.package_code
     && existing.check_in_date === input.check_in_date
-    && existing.check_out_date === input.check_out_date;
+    && existing.check_out_date === input.check_out_date
+    && existing.overnight_guest_count === input.overnight_guest_count
+    && existing.folding_foams_requested === input.folding_foams_requested;
 }
 
 export async function createBookingRequest(
@@ -86,6 +88,8 @@ export async function createBookingRequest(
       source: input.source,
       check_in_date: input.check_in_date,
       check_out_date: input.check_out_date,
+      overnight_guest_count: input.overnight_guest_count,
+      folding_foams_requested: input.folding_foams_requested,
     })
     .select("*")
     .single();
