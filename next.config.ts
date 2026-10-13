@@ -8,6 +8,7 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["sharp"],
   // Next.js 16 blocks cross-origin dev-mode requests (HMR, etc.) by default.
   // 127.0.0.1 is used here (in addition to localhost) because local test
   // tooling (Playwright, curl smoke tests) targets it directly.

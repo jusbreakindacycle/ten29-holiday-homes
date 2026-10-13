@@ -170,3 +170,11 @@ result = race(f"select public.publish_calendar_rate_revision('{revision}',(selec
 assert 'PRICE_CHANGED' in result.stdout, result.stdout
 assert sql("select count(*) from public.website_booking_intakes where session_hash=repeat('b',64);").stdout.strip()=='0'
 print('PASS: publication versus public intake: package-head lock observed, current estimate disclosed without silent persistence')
+# Media reservation retries serialize on the actual PostgreSQL advisory lock.
+# Both transactions must return the same object, not two storage upload scopes.
+media_key = str(uuid.uuid4())
+media_reserve = "select public.owner_media_action('RESERVE',null,null," + \
+    "'{\"key\":\"" + media_key + "\",\"mime\":\"image/png\",\"bytes\":128}'::jsonb);"
+race(media_reserve, media_reserve)
+assert sql(f"select count(*) from public.property_media where upload_key='{media_key}';").stdout.strip() == '1'
+print('PASS media same-key reservation concurrency: one upload scope')

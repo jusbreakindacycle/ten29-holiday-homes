@@ -1,0 +1,58 @@
+begin;
+select no_plan();
+insert into auth.users(id,aud,role,email) values
+ ('00000000-0000-4000-8000-000000000071','authenticated','authenticated','media-owner@example.invalid'),
+ ('00000000-0000-4000-8000-000000000072','authenticated','authenticated','media-manager@example.invalid'),
+ ('00000000-0000-4000-8000-000000000073','authenticated','authenticated','media-outsider@example.invalid');
+insert into public.ten29_admins(user_id,role) values('00000000-0000-4000-8000-000000000071','OWNER'),('00000000-0000-4000-8000-000000000072','MANAGER');
+create temporary table f(m jsonb);
+grant all on f to authenticated,service_role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000072',true);
+select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}')$$,'42501','OWNER required','manager cannot reserve');
+select is((select count(*)::int from public.property_media),0,'manager sees no media');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000073',true);
+select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}')$$,'42501','OWNER required','nonmember cannot reserve');
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000071',true);
+insert into f select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}');
+select is((select m->>'state' from f),'UPLOADING','owner reserves private upload');
+select is(public.read_public_media(),'[]'::jsonb,'upload not public');
+select is((public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}')->>'id'),(select m->>'id' from f),'upload key idempotent');
+select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":129}')$$,'P0001','Upload key conflict','changed idempotent payload rejected');
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,1,'{}') from f$$,'P0001','Media is not ready for publication','incomplete upload cannot publish');
+select throws_ok($$update public.property_media set state='PUBLISHED'$$,'42501',null,'direct status writes denied');
+select throws_ok($$select public.media_worker_action((m->>'id')::uuid,'CLAIM',null,'{}') from f$$,'42501',null,'owner cannot forge worker readiness');
+select throws_ok($$select public.read_media_delivery((m->>'id')::uuid,true) from f$$,'42501',null,'raw private paths unavailable to owner RPC client');
+reset role;
+set local role service_role;
+update f set m=public.media_worker_action((m->>'id')::uuid,'CLAIM',null,'{}');
+select is((select m->>'state' from f),'PROCESSING','service worker leases processing');
+select throws_ok($$select public.media_worker_action((m->>'id')::uuid,'CLAIM',null,'{}') from f$$,'P0001','Media processing unavailable','duplicate processor lease rejected');
+select throws_ok($$select public.media_worker_action((m->>'id')::uuid,'FINISH','00000000-0000-4000-8000-000000000082','{}') from f$$,'P0001','Expired processing lease','forged worker token rejected');
+update f set m=public.media_worker_action((m->>'id')::uuid,'FINISH',(m->>'lease')::uuid,'{"error":"INVALID_IMAGE"}');
+select is((select m->>'state' from f),'FAILED','invalid image stays private');
+select is(public.read_media_delivery((select m->>'id' from f)::uuid,false),null,'failed rendition not delivered');
+update f set m=public.media_worker_action((m->>'id')::uuid,'CLAIM',null,'{}');
+update f set m=public.media_worker_action((m->>'id')::uuid,'FINISH',(m->>'lease')::uuid,jsonb_build_object('rendition',(m->>'id')||'/test/rendition.webp','poster',(m->>'id')||'/test/poster.webp','info','{"codec":"webp"}'::jsonb));
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000071',true);
+update f set m=public.owner_media_action('EDIT',(m->>'id')::uuid,(m->>'version')::int,'{"title":"Private title","alt":"Private alt","caption":"Private note","category":"Room 1","position":2,"rights":true}');
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,1,'{}') from f$$,'P0001','Stale media revision','stale publication rejected');
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Rendition missing','DB rejects missing Storage object');
+-- Provider-backed suite creates real objects; no direct Storage metadata insertion here.
+select is(public.read_public_media(),'[]'::jsonb,'ready draft metadata stays private');
+update f set m=public.owner_media_action('ARCHIVE',(m->>'id')::uuid,(m->>'version')::int,'{}');
+select is((select m->>'state' from f),'ARCHIVED','owner archives safely');
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Media is not ready for publication','archive cannot publish');
+select ok((select count(*)>0 from public.media_audit_events),'operations audited');
+reset role;
+set local role anon;
+select throws_ok($$select * from public.property_media$$,'42501',null,'anonymous metadata reads denied');
+select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{}')$$,'42501',null,'anonymous administrative RPC denied');
+select is(public.read_public_media(),'[]'::jsonb,'public projection excludes archived records');
+reset role;
+select ok(not (select public from storage.buckets where id='ten29-originals'),'original bucket private');
+select ok(not (select public from storage.buckets where id='ten29-renditions'),'rendition bucket private');
+select * from finish();
+rollback;

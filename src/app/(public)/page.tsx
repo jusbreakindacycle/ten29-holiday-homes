@@ -1,3 +1,5 @@
+import { PublishedMedia } from '@/components/features/media/PublishedMedia';
+export const dynamic='force-dynamic';
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero } from "@/components/ui/Hero";
@@ -72,6 +74,7 @@ export default function HomePage() {
 
   return (
     <>
+      <section className="mx-auto max-w-6xl px-6 pt-6"><PublishedMedia placement="home" /></section>
       <LocalBusinessJsonLd />
       <Hero headline={headline} subcopy={subcopy} highlights={heroHighlights} />
 

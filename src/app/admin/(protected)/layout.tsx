@@ -8,6 +8,7 @@ const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin" },
   { label: "Inquiries", href: "/admin/inquiries" },
   { label: "Rates", href: "/admin/rates" },
+  { label: "Media", href: "/admin/media" },
   { label: "Owner Preview", href: "/admin/owner-preview" },
   { label: "Claim Registry", href: "/admin/claims" },
 ];
