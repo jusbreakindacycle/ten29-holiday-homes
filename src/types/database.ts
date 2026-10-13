@@ -1,4 +1,5 @@
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
+import type { RateRule, AdjustmentInput, OwnerRateState, PublicPriceEstimate, QuoteBreakdown } from "@/types/pricing";
 import type {
   BookingDepositStatus,
   BookingPackageCode,
@@ -23,6 +24,18 @@ export interface Database {
   public: {
     Views: Record<string, never>;
     Functions: {
+      save_calendar_rate_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_rules: RateRule[]; p_key: string }; Returns: string };
+      publish_calendar_rate_revision: { Args: { p_revision: string; p_base: string | null; p_key: string }; Returns: string };
+      read_owner_rate_state: { Args: { p_package: BookingPackageCode }; Returns: OwnerRateState };
+      read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
+      prepare_itemized_booking_quote: {
+        Args: { p_request: string; p_expected_rate: string | null; p_deposit: number | null; p_adjustments: AdjustmentInput[];
+          p_manual_nights: Array<{ date: string; amount_centavos: number; reason: string }>;
+          p_security_deposit: number | null; p_conditions: string | null; p_valid_until: string | null; p_key: string };
+        Returns: string;
+      };
+      issue_itemized_booking_quote: { Args: { p_quote: string }; Returns: string };
+      read_owner_quote_breakdown: { Args: { p_quote: string }; Returns: QuoteBreakdown };
       is_ten29_admin: {
         Args: Record<never, never>;
         Returns: boolean;
@@ -63,6 +76,11 @@ export interface Database {
     };
     CompositeTypes: Record<string, never>;
     Tables: {
+      calendar_rate_heads: { Row: { package_code: BookingPackageCode; next_revision: number; published_revision_id: string | null }; Insert: never; Update: never; Relationships: [] };
+      calendar_rate_revisions: { Row: { id: string; package_code: BookingPackageCode; revision: number; base_revision_id: string | null; save_key: string; publication_key: string | null; status: "DRAFT" | "PUBLISHED"; created_by: string; created_at: string; published_by: string | null; published_at: string | null }; Insert: never; Update: never; Relationships: [] };
+      calendar_rate_rules: { Row: RateRule & { revision_id: string; position: number }; Insert: never; Update: never; Relationships: [] };
+      calendar_rate_events: { Row: { id: string; revision_id: string; event: "DRAFT_SAVED" | "PUBLISHED"; actor_id: string; created_at: string }; Insert: never; Update: never; Relationships: [] };
+      booking_quote_pricing_snapshots: { Row: { quote_id: string; breakdown: QuoteBreakdown; created_by: string; created_at: string }; Insert: never; Update: never; Relationships: [] };
       booking_deposit_verifications: {
         Row: { id: string; idempotency_key: string; deposit_id: string; decision: "VERIFIED" | "REJECTED"; independently_verified: boolean; actor_id: string; created_at: string };
         Insert: never;

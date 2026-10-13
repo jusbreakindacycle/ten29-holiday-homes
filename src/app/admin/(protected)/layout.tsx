@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/features/admin/SignOutButton";
 const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin" },
   { label: "Inquiries", href: "/admin/inquiries" },
+  { label: "Rates", href: "/admin/rates" },
   { label: "Owner Preview", href: "/admin/owner-preview" },
   { label: "Claim Registry", href: "/admin/claims" },
 ];

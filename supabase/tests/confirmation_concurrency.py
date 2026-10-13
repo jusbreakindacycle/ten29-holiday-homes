@@ -120,3 +120,19 @@ d = ready("WHOLE_HOME_3BR", "2031-03-10", "2031-03-12", 6)
 race(f"select public.create_booking_owner_block('2031-03-10','2031-03-12','{uuid.uuid4()}');", confirm(d), "23P01")
 assert sql(f"select count(*) from public.booking_reservations where request_id='{d[0]}';").stdout.strip() == "0"
 print("PASS: simultaneous owner block and confirmation: exclusion lock observed, confirmation rolled back")
+
+def rate_draft(amount):
+    rule = '[{"kind":"DEFAULT","amount_centavos":' + str(amount) + ',"weekday":null,"start_date":null,"end_date":null}]'
+    output = sql(f"begin; {AUTH} select 'RATE=' || public.save_calendar_rate_draft('WHOLE_HOME_2BR',null,'{rule}','{uuid.uuid4()}'); commit;").stdout
+    return next(line[5:] for line in output.splitlines() if line.startswith("RATE=")), str(uuid.uuid4())
+
+rate_a, publish_a = rate_draft(12345)
+rate_b, publish_b = rate_draft(23456)
+publish_first = f"select public.publish_calendar_rate_revision('{rate_a}',null,'{publish_a}');"
+race(publish_first, f"select public.publish_calendar_rate_revision('{rate_b}',null,'{publish_b}');", "23514")
+assert sql("select count(*) from public.calendar_rate_revisions where status='PUBLISHED';").stdout.strip() == "1"
+assert sql(f"select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_2BR';").stdout.strip() == rate_a
+print("PASS: concurrent rate publication: head-row lock observed, stale competing publication rejected, one active revision")
+race(publish_first, publish_first)
+assert sql("select count(*) from public.calendar_rate_events where event='PUBLISHED';").stdout.strip() == "1"
+print("PASS: concurrent publication retries: lock observed, one publication event, current prices unchanged")

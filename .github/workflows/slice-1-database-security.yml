@@ -6,6 +6,7 @@ on:
       - feature/slice-1-admin-authorization
       - feature/slice-2-reservation-domain
       - feature/slice-3-atomic-confirmation
+      - feature/slice-4-dynamic-pricing
   workflow_dispatch:
 
 permissions:
@@ -41,6 +42,22 @@ jobs:
       - name: Prove concurrent confirmation and owner-block exclusion
         if: hashFiles('supabase/tests/confirmation_concurrency.py') != ''
         run: python3 supabase/tests/confirmation_concurrency.py
+
+      - name: Provision disposable provider UI fixtures
+        if: hashFiles('supabase/tests/provider_ui_fixture.py') != ''
+        run: python3 supabase/tests/provider_ui_fixture.py
+      - uses: actions/setup-node@v4
+        if: hashFiles('supabase/tests/provider_ui_fixture.py') != ''
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify mobile OWNER pricing UI against real Supabase
+        if: hashFiles('supabase/tests/provider_ui_fixture.py') != ''
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build -- --webpack
+          npx playwright test tests/e2e/rates-owner.spec.ts --workers=1
 
   application:
     name: Application regression checks
