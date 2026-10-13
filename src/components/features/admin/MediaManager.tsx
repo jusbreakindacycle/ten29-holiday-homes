@@ -43,7 +43,7 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
     if(cancel.current){await api('ARCHIVE',m.id,m.version);break;}
     setProgress(`${file.name}: preparing upload`); await refresh();
     await new Promise<void>((resolve,reject)=>{
-     rejectUpload.current=reject;const u=new Upload(file,{endpoint:`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,headers:{authorization:`Bearer ${session.access_token}`,'x-upsert':'false'},
+     rejectUpload.current=reject;const u=new Upload(file,{endpoint:`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,headers:{authorization:`Bearer ${session.access_token}`,apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,'x-upsert':'false'},
       metadata:{bucketName:'ten29-originals',objectName:m.original_key,contentType:file.type,cacheControl:'0'},chunkSize:6*1024*1024,uploadDataDuringCreation:true,removeFingerprintOnSuccess:true,
       fingerprint:async()=>`ten29-${m.id}`,retryDelays:[0,1000,3000,5000],
       onProgress:(sent,total)=>setProgress(`${file.name}: ${Math.round(sent/total*100)}% uploaded`),

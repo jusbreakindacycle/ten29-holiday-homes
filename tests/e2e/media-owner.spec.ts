@@ -14,6 +14,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await page.goto('/admin/login');await page.getByLabel('Email').fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);await page.getByLabel('Password').fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);
   await page.getByRole('button',{name:'Sign In',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);await page.goto('/admin/media');
   if(role==='OWNER')await expect(page.getByLabel('Add photos',{exact:true})).toBeEnabled();
+  page.on('response',async r=>{if(r.url().includes('/storage/v1/upload/')&&r.status()>=400){let code='unknown';try{const b=await r.json();code=String(b.error||b.code||'unknown');}catch{}console.log(`Synthetic Storage upload diagnostic: status ${r.status()}, code ${code}`);}});
  }
  async function metadata(page:Page,title:string) {
   const card=page.getByRole('article').filter({has:page.getByRole('button',{name:'Save metadata'})}).first();
