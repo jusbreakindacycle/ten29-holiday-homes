@@ -58,6 +58,23 @@ describe("booking service authorization and lifecycle", () => {
     })).rejects.toThrow("different request");
   });
 
+  it("preserves a two-guest 3BR purchase through persistence and an idempotent retry", async () => {
+    const db = client();
+    const input = {
+      ...manualRequest,
+      package_code: "WHOLE_HOME_3BR" as const,
+      overnight_guest_count: 2,
+    };
+    const request = await createBookingRequest(db, input);
+    const retry = await createBookingRequest(db, input);
+    expect(request.package_code).toBe("WHOLE_HOME_3BR");
+    expect(request.overnight_guest_count).toBe(2);
+    expect(request.status).toBe("NEW");
+    expect(retry.id).toBe(request.id);
+    expect(db._tables.booking_requests).toHaveLength(1);
+    expect(db._tables.booking_requests[0].package_code).toBe("WHOLE_HOME_3BR");
+  });
+
   it("rejects a manual request carrying a website enquiry ID", async () => {
     await expect(createBookingRequest(client(), {
       ...manualRequest,

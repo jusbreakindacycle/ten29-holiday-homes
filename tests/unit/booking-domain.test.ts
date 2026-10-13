@@ -77,6 +77,39 @@ describe("booking package and request domain", () => {
   });
 
   it.each([
+    [1, ["WHOLE_HOME_1BR", "WHOLE_HOME_2BR", "WHOLE_HOME_3BR"]],
+    [2, ["WHOLE_HOME_1BR", "WHOLE_HOME_2BR", "WHOLE_HOME_3BR"]],
+    [3, ["WHOLE_HOME_2BR", "WHOLE_HOME_3BR"]],
+    [4, ["WHOLE_HOME_2BR", "WHOLE_HOME_3BR"]],
+    [5, ["WHOLE_HOME_3BR"]],
+    [6, ["WHOLE_HOME_3BR"]],
+    [7, []],
+    [8, []],
+    [9, []],
+  ] as const)(
+    "validates every package independently of the recommendation for %s guests",
+    (overnight_guest_count, eligibleWithoutFoams) => {
+      for (const package_code of BOOKING_PACKAGE_CODES) {
+        for (const folding_foams_requested of [false, true]) {
+          const eligible = folding_foams_requested
+            ? package_code === "WHOLE_HOME_3BR" && overnight_guest_count <= 8
+            : (eligibleWithoutFoams as readonly string[]).includes(package_code);
+          const result = createBookingRequestSchema.safeParse({
+            source: "PHONE",
+            package_code,
+            check_in_date: "2027-06-10",
+            check_out_date: "2027-06-11",
+            overnight_guest_count,
+            folding_foams_requested,
+          });
+          expect(result.success).toBe(eligible);
+          if (result.success) expect(result.data.package_code).toBe(package_code);
+        }
+      }
+    }
+  );
+
+  it.each([
     { check_in_date: "2027-02-30", check_out_date: "2027-03-01" },
     { check_in_date: "2027-03-02", check_out_date: "2027-03-01" },
   ])("rejects invalid or reversed local-date ranges: $check_in_date to $check_out_date", (dates) => {

@@ -1,6 +1,6 @@
 begin;
 
-select plan(42);
+select plan(43);
 
 insert into auth.users (id, aud, role, email, encrypted_password, email_confirmed_at)
 values
@@ -71,6 +71,15 @@ values
   ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-05', date '2027-04-06', 6, false),
   ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-05', date '2027-04-06', 8, true);
 select is((select count(*)::integer from public.booking_requests where check_in_date = date '2027-04-05'), 4, 'database accepts package caps and 3BR foam occupancy up to 8');
+
+insert into public.booking_requests (
+  source, package_code, check_in_date, check_out_date, overnight_guest_count
+)
+values ('PHONE', 'WHOLE_HOME_3BR', date '2027-04-09', date '2027-04-10', 2);
+select is(
+  (select package_code::text from public.booking_requests where check_in_date = date '2027-04-09'),
+  'WHOLE_HOME_3BR', 'database preserves a larger 3BR purchase for two guests'
+);
 
 select throws_ok(
   $$insert into public.booking_requests (source, package_code, check_in_date, check_out_date, overnight_guest_count)
