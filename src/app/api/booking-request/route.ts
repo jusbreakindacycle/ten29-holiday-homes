@@ -2,10 +2,11 @@ import { cookies } from "next/headers";
 import { after } from "next/server";
 import { acceptGuestBooking, deliverBookingNotifications, GuestBookingError } from "@/services/guest-booking-service";
 import { BOOKING_COOKIE, bookingHash, validBookingSession } from "@/lib/booking-session";
+import { isBookingSameOrigin } from "@/lib/booking-origin";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, max-age=0" };
 export async function POST(request: Request) {
-  if (request.headers.get("origin") !== new URL(request.url).origin || !request.headers.get("content-type")?.startsWith("application/json"))
+  if (!isBookingSameOrigin(request) || request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json")
     return Response.json({ error: "Reload this page before submitting." }, { status: 403, headers });
   try {
     const session = (await cookies()).get(BOOKING_COOKIE)?.value;
