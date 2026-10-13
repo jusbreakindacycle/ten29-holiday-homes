@@ -10,16 +10,9 @@ export async function submitInquiryAction(
 ): Promise<EnquiryActionState> {
   const raw = Object.fromEntries(formData.entries());
 
-  // Honeypot / timing check: silently pretend success so bots gain no signal,
-  // and nothing is written to the database. See docs/16_TEST_STRATEGY.md (FR-INQ-008/009).
-  if (
-    isLikelySpam({
-      website: typeof raw.website === "string" ? raw.website : undefined,
-      form_rendered_at:
-        typeof raw.form_rendered_at === "string" ? Number(raw.form_rendered_at) : undefined,
-    })
-  ) {
-    return { status: "success", referenceCode: "TEN29-PENDING" };
+  // Retained compatibility action: never manufacture success for unsaved submissions.
+  if (isLikelySpam({ website: typeof raw.website === "string" ? raw.website : undefined })) {
+    return { status: "error", message: "Enquiry not saved. Reload or contact TEN29." };
   }
 
   const parsed = inquiryFormSchema.safeParse(raw);

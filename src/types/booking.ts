@@ -195,7 +195,7 @@ export type BookingRequest = {
   overnight_guest_count: number | null;
   folding_foams_requested: boolean;
   status: BookingRequestStatus;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -238,7 +238,7 @@ export type BookingRequestEvent = {
   request_id: string;
   previous_status: BookingRequestStatus | null;
   new_status: BookingRequestStatus;
-  actor_id: string;
+  actor_id: string | null;
   created_at: string;
 };
 

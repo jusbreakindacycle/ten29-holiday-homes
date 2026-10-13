@@ -1,3 +1,4 @@
+import type { IntakeResult } from "./guest-booking";
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
 import type { RateRule, AdjustmentInput, OwnerRateState, PublicPriceEstimate, QuoteBreakdown } from "@/types/pricing";
 import type {
@@ -24,6 +25,10 @@ export interface Database {
   public: {
     Views: Record<string, never>;
     Functions: {
+      accept_website_booking: { Args: { p_payload: Record<string, unknown>; p_session: string; p_key: string; p_abuse: string }; Returns: IntakeResult };
+      claim_booking_notification: { Args: { p_request: string; p_kind: string }; Returns: unknown };
+      finish_booking_notification: { Args: { p_task: string; p_token: string; p_sent: boolean }; Returns: undefined };
+
       save_calendar_rate_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_rules: RateRule[]; p_key: string }; Returns: string };
       publish_calendar_rate_revision: { Args: { p_revision: string; p_base: string | null; p_key: string }; Returns: string };
       read_owner_rate_state: { Args: { p_package: BookingPackageCode; p_offset?: number }; Returns: OwnerRateState };
@@ -76,6 +81,9 @@ export interface Database {
     };
     CompositeTypes: Record<string, never>;
     Tables: {
+      website_booking_intakes: { Row: { request_id: string; estimate: PublicPriceEstimate; receipt: Record<string, unknown>; created_at: string }; Insert: never; Update: never; Relationships: [] };
+      booking_notification_outbox: { Row: { id: string; request_id: string; recipient_kind: string; status: string; attempts: number; first_attempt_at: string | null; next_attempt_at: string }; Insert: never; Update: never; Relationships: [] };
+
       calendar_rate_heads: { Row: { package_code: BookingPackageCode; next_revision: number; published_revision_id: string | null }; Insert: never; Update: never; Relationships: [] };
       calendar_rate_revisions: { Row: { id: string; package_code: BookingPackageCode; revision: number; base_revision_id: string | null; save_key: string; publication_key: string | null; status: "DRAFT" | "PUBLISHED"; created_by: string; created_at: string; published_by: string | null; published_at: string | null }; Insert: never; Update: never; Relationships: [] };
       calendar_rate_rules: { Row: RateRule & { revision_id: string; position: number }; Insert: never; Update: never; Relationships: [] };

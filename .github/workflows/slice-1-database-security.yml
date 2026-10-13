@@ -7,6 +7,7 @@ on:
       - feature/slice-2-reservation-domain
       - feature/slice-3-atomic-confirmation
       - feature/slice-4-dynamic-pricing
+      - feature/slice-5-guest-booking-calendar
   workflow_dispatch:
 
 permissions:
@@ -57,7 +58,7 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
           npm run build -- --webpack
-          npx playwright test tests/e2e/rates-owner.spec.ts --workers=1
+          npx playwright test tests/e2e/rates-owner.spec.ts tests/e2e/guest-booking.spec.ts --workers=1
       - name: Preserve synthetic owner UI verification artifacts
         if: always() && hashFiles('supabase/tests/provider_ui_fixture.py') != ''
         uses: actions/upload-artifact@v4

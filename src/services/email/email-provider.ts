@@ -3,6 +3,7 @@ export interface EmailMessage {
   subject: string;
   html: string;
   text: string;
+  idempotencyKey?: string;
 }
 
 export type EmailResult = { ok: true } | { ok: false; error: string };

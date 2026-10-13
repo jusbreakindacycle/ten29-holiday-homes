@@ -14,7 +14,7 @@ export class ResendEmailProvider implements EmailProvider {
         subject: message.subject,
         html: message.html,
         text: message.text,
-      });
+      }, message.idempotencyKey ? { idempotencyKey: message.idempotencyKey } : undefined);
 
       if (error) {
         return { ok: false, error: error.message ?? "Resend returned an error" };

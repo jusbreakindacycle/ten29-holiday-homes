@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Alert } from "@/components/ui/Alert";
-import { EnquiryForm } from "@/components/features/enquiry/EnquiryForm";
+import { BookingJourney } from "@/components/features/enquiry/BookingJourney";
 import { NON_RESERVATION_NOTICE } from "@/content/fallback-copy";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -23,12 +23,12 @@ export default async function BookPage({
   const params = await searchParams;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
+    <div className="mx-auto max-w-3xl px-3 py-12 sm:px-6">
       <SectionHeading
         as="h1"
         eyebrow="Booking enquiry"
         title="Request your dates"
-        description="Tell TEN29 what you're looking for. This sends an enquiry, not a reservation — TEN29 will reply with verified availability, price, and payment instructions."
+        description="Tell TEN29 what you're looking for. This sends an enquiry, not a reservation — TEN29 will review availability and issue the final quotation before payment terms are agreed."
       />
 
       <div className="mt-8">
@@ -37,13 +37,10 @@ export default async function BookPage({
         </Alert>
       </div>
 
-      <div className="mt-10 rounded-sm border border-border bg-white p-6 sm:p-8 relative">
-        <EnquiryForm
-          source={firstValue(params.source)}
-          utmSource={firstValue(params.utm_source)}
-          utmMedium={firstValue(params.utm_medium)}
-          utmCampaign={firstValue(params.utm_campaign)}
-        />
+      <div className="mt-10 relative">
+        <BookingJourney initial={Object.fromEntries(Object.entries(params).map(([key, value]) => [key, firstValue(value)]))}
+          utm={{ utm_source: firstValue(params.utm_source), utm_medium: firstValue(params.utm_medium), utm_campaign: firstValue(params.utm_campaign) }}/>
+
       </div>
     </div>
   );

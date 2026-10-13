@@ -136,3 +136,27 @@ print("PASS: concurrent rate publication: head-row lock observed, stale competin
 race(publish_first, publish_first)
 assert sql("select count(*) from public.calendar_rate_events where event='PUBLISHED';").stdout.strip() == "1"
 print("PASS: concurrent publication retries: lock observed, one publication event, current prices unchanged")
+
+# Slice 5: real concurrent same-session/key intake, payload substitution, and owner-block race.
+import json
+intake_from, intake_to = sql("select ((now() at time zone 'Asia/Manila')::date+60)::text || ',' || ((now() at time zone 'Asia/Manila')::date+62)::text;").stdout.strip().split(',')
+price = json.loads(sql(f"select public.read_public_calendar_prices('WHOLE_HOME_3BR','{intake_from}','{intake_to}',2,false);").stdout)
+payload = dict(full_name='Concurrent Synthetic Guest', mobile_number='+639171234567', email='', adults=2, children=0, day_visitors=0, vehicles=0,
+    message='', purpose_of_stay='', privacy_consent=True, utm_source='', utm_medium='', utm_campaign='', package_code='WHOLE_HOME_3BR',
+    folding_foams_requested=False, check_in_date=intake_from, check_out_date=intake_to, reviewed_estimate=price)
+def intake_statement(session, key, body=payload):
+    literal = json.dumps(body).replace("'", "''")
+    return f"set local role service_role; select public.accept_website_booking('{literal}'::jsonb,repeat('{session}',64),'{key}',repeat('{session}',64));"
+intake_key = str(uuid.uuid4())
+race(intake_statement('e',intake_key), intake_statement('e',intake_key))
+assert sql(f"select count(*) from public.website_booking_intakes where session_hash=repeat('e',64) and idempotency_key='{intake_key}';").stdout.strip()=='1'
+assert sql("select count(*) from public.inquiries where full_name='Concurrent Synthetic Guest';").stdout.strip()=='1'
+print('PASS: concurrent public intake retries: database lock observed, one linked enquiry/request pair and one owner task')
+conflict_key = str(uuid.uuid4())
+race(intake_statement('f',conflict_key),intake_statement('f',conflict_key,{**payload,'message':'different'}),'23514')
+print('PASS: simultaneous public intake payload substitution: database lock observed, mismatched retry rejected without duplicate')
+block_key = str(uuid.uuid4())
+result = race(f"select public.create_booking_owner_block('{intake_from}','{intake_to}','{block_key}');", intake_statement('a',str(uuid.uuid4())))
+assert 'UNAVAILABLE' in result.stdout, result.stdout
+assert sql("select count(*) from public.website_booking_intakes where session_hash=repeat('a',64);").stdout.strip()=='0'
+print('PASS: owner block versus public intake: occupancy write lock observed, unavailable intake persisted no pair')

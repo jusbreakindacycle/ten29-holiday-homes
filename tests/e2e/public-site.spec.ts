@@ -73,7 +73,9 @@ test.describe("Booking enquiry form", () => {
     await page.locator("#adults").fill("2");
     await page.locator("#privacy_consent").check();
 
-    await page.getByRole("button", { name: /send enquiry/i }).click();
+    // Unconfigured services cannot establish availability or persist requests.
+    await expect(page.getByRole("button", { name: /send enquiry/i })).toBeDisabled();
+    await expect(page.getByText(/Calendar could not load|temporarily unavailable/).first()).toBeVisible();
 
     // Without a configured Supabase project in this environment, submission
     // fails gracefully — the important assertion is that the UI never claims
