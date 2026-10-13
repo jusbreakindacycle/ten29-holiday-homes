@@ -64,6 +64,11 @@ select public.save_calendar_rate_draft('WHOLE_HOME_3BR',(select published_revisi
 jsonb_build_array(jsonb_build_object('kind','RANGE','amount_centavos',11000,'weekday',null,'start_date','{d1}','end_date','{d3}'),
 jsonb_build_object('kind','DATE','amount_centavos',22000,'weekday',null,'start_date','{d2}','end_date','{d3}')), '{uuid.uuid4()}') as rev \gset
 select public.publish_calendar_rate_revision(:'rev',(select base_revision_id from public.calendar_rate_revisions where id=:'rev'),'{uuid.uuid4()}');
+-- An explicitly published empty 2BR revision supplies the missing-rate fixture;
+-- earlier concurrency tests may have published a synthetic 2BR default.
+select public.save_calendar_rate_draft('WHOLE_HOME_2BR',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_2BR'),
+'[]'::jsonb,'{uuid.uuid4()}') as missing_revision \gset
+select public.publish_calendar_rate_revision(:'missing_revision',(select base_revision_id from public.calendar_rate_revisions where id=:'missing_revision'),'{uuid.uuid4()}');
 select public.create_booking_owner_block('{blocked}','{confirmed}','{uuid.uuid4()}');
 insert into public.booking_requests(source,package_code,check_in_date,check_out_date,overnight_guest_count)
 values('PHONE','WHOLE_HOME_1BR','{confirmed}','{checkout}',1) returning id as r \gset
