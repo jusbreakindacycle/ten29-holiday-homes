@@ -12,6 +12,10 @@ function monthBounds(month: string) {
   next.setUTCMonth(next.getUTCMonth() + 1);
   return [first, next.toISOString().slice(0, 10)] as const;
 }
+async function safely<T>(operation: Promise<{ data?: T; error?: string }>): Promise<{ data?: T; error?: string }> {
+  try { return await operation; }
+  catch { return { error: "Could not reach the server. Reload to verify whether the change was saved before retrying." }; }
+}
 export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState; initialMonth: string }) {
   const [state, setState] = useState(initial), [month, setMonth] = useState(initialMonth);
   const initialDraft = initial.history.find((h) => h.status === "DRAFT" && h.base_revision_id === initial.published_revision_id);
@@ -22,6 +26,7 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
   const [price, setPrice] = useState(""), [dirty, setDirty] = useState(false), [choosingEnd, setChoosingEnd] = useState(false);
   const [preview, setPreview] = useState<NightlyPrice[] | null>(null), [message, setMessage] = useState(""), [error, setError] = useState("");
   const [pending, begin] = useTransition(); const dialog = useRef<HTMLDialogElement>(null);
+  const [hasOlder, setHasOlder] = useState(initial.history.length === 30);
   const saveKey = useRef(crypto.randomUUID()), publishKey = useRef(crypto.randomUUID());
   const [first, next] = monthBounds(month), dates = nightDates(first, next);
   const published = previewRateRules(state.package_code, state.published_rules, first, next);
@@ -40,12 +45,12 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
     setRules(nextRules); setDirty(true); setDraftId(null); setPreview(null); setMessage(""); saveKey.current = crypto.randomUUID();
   }
   function acceptState(updated: OwnerRateState) {
-    setState(updated); const draft = updated.history.find((h) => h.status === "DRAFT" && h.base_revision_id === updated.published_revision_id);
+    setState(updated); setHasOlder(updated.history.length === 30); const draft = updated.history.find((h) => h.status === "DRAFT" && h.base_revision_id === updated.published_revision_id);
     setRules(draft?.rules ?? updated.published_rules); setDraftId(draft?.id ?? null); setDirty(false); setPreview(null); setPrice("");
   }
   function changePackage(packageCode: BookingPackageCode) {
     if ((dirty || price.trim()) && !window.confirm("Discard unsaved rate changes?")) return;
-    begin(async () => { setError(""); const result = await loadRateEditor(packageCode); if (result.error) setError(result.error); else acceptState(result.data!); });
+    begin(async () => { setError(""); setMessage(""); const result = await safely(loadRateEditor(packageCode)); if (result.error) setError(result.error); else acceptState(result.data!); });
   }
   function changeMonth(offset: number) {
     const date = new Date(`${first}T00:00:00Z`); date.setUTCMonth(date.getUTCMonth() + offset); setMonth(date.toISOString().slice(0, 7)); setPreview(null);
@@ -121,15 +126,15 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       <p className="mt-4 text-sm">{dirty ? "Unsaved changes" : draftId ? "Saved private draft" : "Published values loaded"}</p>
       <div className="mt-4 flex flex-wrap gap-3">
         <CtaButton disabled={pending || !dirty} onClick={() => begin(async () => {
-          setError(""); const response = await saveRateEditor({ package_code: state.package_code, base_revision_id: state.published_revision_id, rules, idempotency_key: saveKey.current });
-          if (response.error) setError(response.error); else { setDraftId(response.data!); setDirty(false); publishKey.current = crypto.randomUUID(); setMessage("Draft saved. Public rates are unchanged."); const updated = await loadRateEditor(state.package_code); if (updated.data) setState(updated.data); }
+          setError(""); const response = await safely(saveRateEditor({ package_code: state.package_code, base_revision_id: state.published_revision_id, rules, idempotency_key: saveKey.current }));
+          if (response.error) setError(response.error); else { setDraftId(response.data!); setDirty(false); publishKey.current = crypto.randomUUID(); setMessage("Draft saved. Public rates are unchanged."); const updated = await safely(loadRateEditor(state.package_code)); if (updated.data) setState(updated.data); }
         })}>Save Draft</CtaButton>
         <CtaButton variant="secondary" disabled={pending} onClick={() => begin(async () => {
-          setError(""); const response = await previewRateEditor({ rules, selection: { package_code: state.package_code, check_in_date: first, check_out_date: next, overnight_guest_count: 1, folding_foams_requested: false } });
+          setError(""); const response = await safely(previewRateEditor({ rules, selection: { package_code: state.package_code, check_in_date: first, check_out_date: next, overnight_guest_count: 1, folding_foams_requested: false } }));
           if (response.error) setError(response.error); else { setPreview(response.data!); setMessage("Preview ready. No rates published."); }
         })}>Preview</CtaButton>
         <CtaButton disabled={pending || dirty || !!price.trim() || !draftId || !preview} onClick={() => dialog.current?.showModal()}>Publish</CtaButton>
-        <CtaButton variant="ghost" disabled={pending} onClick={() => { if (!dirty || window.confirm("Discard unsaved changes and reload?")) changePackage(state.package_code); }}>Reload</CtaButton>
+        <CtaButton variant="ghost" disabled={pending} onClick={() => changePackage(state.package_code)}>Reload</CtaButton>
       </div>
       {pending && <p role="status" className="mt-3">Working…</p>}
       <p role="status" aria-live="polite" className="mt-3 text-success">{message}</p>
@@ -143,9 +148,10 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
         <p className="mt-2">These rates become public. Previously issued quotations remain unchanged.</p>
         <div className="mt-5 flex flex-wrap gap-3"><CtaButton variant="secondary" onClick={() => dialog.current?.close()}>Cancel</CtaButton>
           <CtaButton disabled={pending} onClick={() => begin(async () => {
-            setError(""); const response = await publishRateEditor({ revision_id: draftId, base_revision_id: state.published_revision_id, idempotency_key: publishKey.current, confirmed: true });
+            setError(""); const response = await safely(publishRateEditor({ revision_id: draftId, base_revision_id: state.published_revision_id, idempotency_key: publishKey.current, confirmed: true }));
             dialog.current?.close(); if (response.error) setError(response.error); else {
-              const updated = await loadRateEditor(state.package_code); if (updated.data) acceptState(updated.data);
+              const updated = await safely(loadRateEditor(state.package_code)); if (updated.data) acceptState(updated.data);
+              if (updated.error) setError("Publication succeeded, but the editor could not refresh. Reload to see current rates.");
               setMessage("Rates published successfully. New calendar views use this revision.");
             }
           })}>Confirm publication</CtaButton></div>
@@ -158,6 +164,13 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
           <small className="block">{h.rules.filter((r) => r.start_date).map((r) => `${r.start_date} through ${addDays(r.end_date!, -1)}`).join(", ") || "Default/weekday applicability"}</small></span>
         <button className="min-h-11 px-3 text-forest underline" onClick={() => { if (!dirty || window.confirm("Discard unsaved changes?")) edited(h.rules); }}>Use revision {h.revision} as draft</button>
       </li>)}</ul>}
+      {hasOlder && <CtaButton variant="secondary" className="mt-4" disabled={pending} onClick={() => begin(async () => {
+        const older = await safely(loadRateEditor(state.package_code, state.history.length));
+        if (older.error) setError(older.error); else {
+          setHasOlder(older.data!.history.length === 30);
+          setState((current) => ({ ...current, history: [...current.history, ...older.data!.history.filter((h) => !current.history.some((existing) => existing.id === h.id))] }));
+        }
+      })}>Load older revisions</CtaButton>}
     </section>
   </section>;
 }

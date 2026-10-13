@@ -37,6 +37,7 @@ select throws_ok($$select public.save_calendar_rate_draft('WHOLE_HOME_1BR',null,
 select is((select count(*)::integer from public.calendar_rate_revisions),1,'invalid rule transactions leave no partial revisions');
 update f set id=public.save_calendar_rate_draft('WHOLE_HOME_1BR',null,jsonb_build_array(pg_temp.rule('DEFAULT',11001)),key) where name='stale';
 select public.publish_calendar_rate_revision(id,null,publish_key) from f where name='one';
+select is((public.read_owner_rate_state('WHOLE_HOME_1BR',1)->'history'->0->>'revision')::integer,1,'owner can page older revisions without losing history');
 select lives_ok($$select public.publish_calendar_rate_revision(id,null,publish_key) from f where name='one'$$,'publication retry is idempotent');
 select is((select count(*)::integer from public.calendar_rate_events where event='PUBLISHED'),1,'publication audit emitted once');
 select throws_ok($$select public.publish_calendar_rate_revision(id,null,publish_key) from f where name='stale'$$,

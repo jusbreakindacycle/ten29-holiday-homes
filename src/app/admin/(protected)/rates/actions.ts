@@ -11,8 +11,8 @@ async function result<T>(operation: () => Promise<T>): Promise<{ data: T; error?
   try { return { data: await operation() }; }
   catch (e) { return { error: e instanceof PricingError || e instanceof z.ZodError ? e.message : "Could not complete this operation. Try again." }; }
 }
-export async function loadRateEditor(packageCode: unknown) {
-  return result(async () => readOwnerRates(await createSupabaseServerClient(), z.enum(BOOKING_PACKAGE_CODES).parse(packageCode)));
+export async function loadRateEditor(packageCode: unknown, offset: unknown = 0) {
+  return result(async () => readOwnerRates(await createSupabaseServerClient(), z.enum(BOOKING_PACKAGE_CODES).parse(packageCode), z.number().int().min(0).max(1000000).parse(offset)));
 }
 export async function saveRateEditor(input: unknown) {
   return result(async () => {

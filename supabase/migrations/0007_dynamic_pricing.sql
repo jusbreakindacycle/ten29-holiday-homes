@@ -181,16 +181,17 @@ begin
   'estimated_total_centavos',case when v_missing then null else v_total end,'estimate_kind','ACCOMMODATION_ONLY','currency','PHP');
 end $$;
 
-create function ten29_private.owner_rate_state(p_package public.booking_package_code) returns jsonb
+create function ten29_private.owner_rate_state(p_package public.booking_package_code,p_offset integer default 0) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
 declare v_head uuid; v_history jsonb;
 begin
  perform ten29_private.require_pricing_owner();
+ if p_offset is null or p_offset<0 or p_offset>1000000 then raise check_violation using message='Invalid history offset'; end if;
  select published_revision_id into v_head from public.calendar_rate_heads where package_code=p_package;
  if not found then raise check_violation using message='Invalid package'; end if;
  select coalesce(jsonb_agg(to_jsonb(v) order by v.revision desc),'[]'::jsonb) into v_history from
   (select id,revision,status,base_revision_id,created_at,published_at,ten29_private.rate_rules_json(id) as rules
-   from public.calendar_rate_revisions where package_code=p_package order by revision desc limit 30) v;
+   from public.calendar_rate_revisions where package_code=p_package order by revision desc limit 30 offset p_offset) v;
  return jsonb_build_object('package_code',p_package,'published_revision_id',v_head,
   'published_rules',ten29_private.rate_rules_json(v_head),'history',v_history);
 end $$;
@@ -228,7 +229,7 @@ begin
  for manual in select value from jsonb_array_elements(p_manual_nights) loop
   if jsonb_typeof(manual)<>'object' or (manual-array['date','amount_centavos','reason'])<>'{}'::jsonb
    or coalesce(manual->>'amount_centavos','') !~ '^[0-9]{1,9}$'
-   or coalesce(char_length(manual->>'reason'),0) not between 1 and 200
+   or coalesce(char_length(btrim(manual->>'reason')),0) not between 1 and 200
    or coalesce(manual->>'date','') !~ '^\d{4}-\d{2}-\d{2}$'
    or (manual->>'date')::date<req.check_in_date or (manual->>'date')::date>=req.check_out_date then
    raise check_violation using message='Manual nightly prices require an in-stay date and owner reason';
@@ -249,8 +250,8 @@ begin
  for adj in select value from jsonb_array_elements(p_adjustments) loop
   if jsonb_typeof(adj)<>'object' or (adj-array['type','description','quantity','unit_amount_centavos','reason'])<>'{}'::jsonb
    or coalesce(adj->>'type','') not in ('CHARGE','DISCOUNT')
-   or coalesce(char_length(adj->>'description'),0) not between 1 and 160
-   or coalesce(char_length(adj->>'reason'),0) not between 1 and 200
+   or coalesce(char_length(btrim(adj->>'description')),0) not between 1 and 160
+   or coalesce(char_length(btrim(adj->>'reason')),0) not between 1 and 200
    or coalesce(adj->>'quantity','') !~ '^[0-9]{1,4}$' or (adj->>'quantity')::integer not between 1 and 1000
    or coalesce(adj->>'unit_amount_centavos','') !~ '^[0-9]{1,9}$' then raise check_violation using message='Invalid owner adjustment'; end if;
   line:=(adj->>'quantity')::bigint*(adj->>'unit_amount_centavos')::bigint;
@@ -320,8 +321,8 @@ create function public.save_calendar_rate_draft(p_package public.booking_package
  language sql security invoker set search_path='' as $$ select ten29_private.save_rates(p_package,p_base,p_rules,p_key); $$;
 create function public.publish_calendar_rate_revision(p_revision uuid,p_base uuid,p_key uuid) returns uuid
  language sql security invoker set search_path='' as $$ select ten29_private.publish_rates(p_revision,p_base,p_key); $$;
-create function public.read_owner_rate_state(p_package public.booking_package_code) returns jsonb
- language sql stable security invoker set search_path='' as $$ select ten29_private.owner_rate_state(p_package); $$;
+create function public.read_owner_rate_state(p_package public.booking_package_code,p_offset integer default 0) returns jsonb
+ language sql stable security invoker set search_path='' as $$ select ten29_private.owner_rate_state(p_package,p_offset); $$;
 create function public.read_public_calendar_prices(p_package public.booking_package_code,p_from date,p_to date,p_guests integer,p_foams boolean) returns jsonb
  language sql stable security invoker set search_path='' as $$ select ten29_private.read_prices(p_package,p_from,p_to,p_guests,p_foams); $$;
 create function public.prepare_itemized_booking_quote(p_request uuid,p_expected_rate uuid,p_deposit bigint,p_adjustments jsonb,p_manual_nights jsonb,
@@ -344,18 +345,18 @@ create policy "Owner reads rate audit" on public.calendar_rate_events for select
 create policy "Owner reads quote breakdown" on public.booking_quote_pricing_snapshots for select to authenticated using(public.is_ten29_owner());
 revoke all on function ten29_private.require_pricing_owner(),ten29_private.validate_rate_rules(jsonb),ten29_private.rate_rules_json(uuid),
  ten29_private.save_rates(public.booking_package_code,uuid,jsonb,uuid),ten29_private.publish_rates(uuid,uuid,uuid),ten29_private.guard_rate_revision(),ten29_private.guard_rate_rule_insert(),
- ten29_private.resolve_rate(uuid,date),ten29_private.read_prices(public.booking_package_code,date,date,integer,boolean),ten29_private.owner_rate_state(public.booking_package_code),
+ ten29_private.resolve_rate(uuid,date),ten29_private.read_prices(public.booking_package_code,date,date,integer,boolean),ten29_private.owner_rate_state(public.booking_package_code,integer),
  ten29_private.prepare_priced_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),ten29_private.issue_priced_quote(uuid),ten29_private.read_quote_breakdown(uuid)
  from public,anon,authenticated;
 grant execute on function ten29_private.save_rates(public.booking_package_code,uuid,jsonb,uuid),ten29_private.publish_rates(uuid,uuid,uuid),
- ten29_private.owner_rate_state(public.booking_package_code),ten29_private.prepare_priced_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),
+ ten29_private.owner_rate_state(public.booking_package_code,integer),ten29_private.prepare_priced_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),
  ten29_private.issue_priced_quote(uuid),ten29_private.read_quote_breakdown(uuid) to authenticated;
 grant execute on function ten29_private.read_prices(public.booking_package_code,date,date,integer,boolean) to anon,authenticated;
 revoke all on function public.save_calendar_rate_draft(public.booking_package_code,uuid,jsonb,uuid),public.publish_calendar_rate_revision(uuid,uuid,uuid),
- public.read_owner_rate_state(public.booking_package_code),public.read_public_calendar_prices(public.booking_package_code,date,date,integer,boolean),
+ public.read_owner_rate_state(public.booking_package_code,integer),public.read_public_calendar_prices(public.booking_package_code,date,date,integer,boolean),
  public.prepare_itemized_booking_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),public.issue_itemized_booking_quote(uuid),public.read_owner_quote_breakdown(uuid)
  from public,anon,authenticated;
 grant execute on function public.save_calendar_rate_draft(public.booking_package_code,uuid,jsonb,uuid),public.publish_calendar_rate_revision(uuid,uuid,uuid),
- public.read_owner_rate_state(public.booking_package_code),public.prepare_itemized_booking_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),
+ public.read_owner_rate_state(public.booking_package_code,integer),public.prepare_itemized_booking_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),
  public.issue_itemized_booking_quote(uuid),public.read_owner_quote_breakdown(uuid) to authenticated;
 grant execute on function public.read_public_calendar_prices(public.booking_package_code,date,date,integer,boolean) to anon,authenticated;

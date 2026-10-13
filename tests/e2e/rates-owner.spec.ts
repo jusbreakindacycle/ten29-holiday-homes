@@ -4,8 +4,8 @@ test.describe("OWNER rate management with isolated Supabase", () => {
   test.describe.configure({ mode: "serial" });
   async function login(page: Page, role = "OWNER") {
     await page.goto("/admin/login");
-    await page.getByLabel("Email", { exact: true }).fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);
-    await page.getByLabel("Password", { exact: true }).fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);
+    await page.getByLabel("Email").fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);
+    await page.getByLabel("Password").fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);
     await page.getByRole("button", { name: "Sign In", exact: true }).click();
     await expect(page).toHaveURL(/\/admin$/);
     await page.goto("/admin/rates");
@@ -112,7 +112,15 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByLabel("Nightly price (PHP)").fill("10.00");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Conflicting rules");
-    await page.getByLabel("Nightly price (PHP)").fill("");
+    await page.getByLabel("Apply price to").selectOption("DEFAULT");
+    await page.getByLabel("Nightly price (PHP)").fill("123.45");
+    await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
+    await page.route("**/admin/rates", (route) => route.request().method() === "POST" ? route.abort() : route.continue());
+    await page.getByRole("button", { name: "Save Draft", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Could not reach the server");
+    await page.unroute("**/admin/rates");
+    await page.getByRole("button", { name: "Save Draft", exact: true }).click();
+    await expect(page.getByText("Draft saved. Public rates are unchanged.")).toBeVisible();
     await page.getByRole("button", { name: "Sign Out", exact: true }).click();
     await login(page, "MANAGER");
     await expect(page.getByRole("alert")).toContainText("OWNER authorization required");

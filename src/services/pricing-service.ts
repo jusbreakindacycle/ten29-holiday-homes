@@ -18,10 +18,11 @@ function fail(error: { code?: string; message?: string } | null): never {
     ? "Conflicting rule or duplicate operation. Reload and review the affected dates."
     : safe.includes(error?.message ?? "") ? error!.message! : "Pricing operation was rejected. Review the inputs and try again.");
 }
-export async function readOwnerRates(client: BookingDbClient, packageCode: BookingPackageCode): Promise<OwnerRateState> {
+export async function readOwnerRates(client: BookingDbClient, packageCode: BookingPackageCode, offset = 0): Promise<OwnerRateState> {
   await requirePricingOwner(client);
   z.enum(BOOKING_PACKAGE_CODES).parse(packageCode);
-  const { data, error } = await client.rpc("read_owner_rate_state", { p_package: packageCode });
+  z.number().int().min(0).max(1000000).parse(offset);
+  const { data, error } = await client.rpc("read_owner_rate_state", { p_package: packageCode, p_offset: offset });
   if (error || !data) fail(error);
   return data;
 }

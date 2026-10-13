@@ -26,7 +26,7 @@ export interface Database {
     Functions: {
       save_calendar_rate_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_rules: RateRule[]; p_key: string }; Returns: string };
       publish_calendar_rate_revision: { Args: { p_revision: string; p_base: string | null; p_key: string }; Returns: string };
-      read_owner_rate_state: { Args: { p_package: BookingPackageCode }; Returns: OwnerRateState };
+      read_owner_rate_state: { Args: { p_package: BookingPackageCode; p_offset?: number }; Returns: OwnerRateState };
       read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
       prepare_itemized_booking_quote: {
         Args: { p_request: string; p_expected_rate: string | null; p_deposit: number | null; p_adjustments: AdjustmentInput[];

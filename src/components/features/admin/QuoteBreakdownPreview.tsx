@@ -19,8 +19,9 @@ export function QuoteBreakdownPreview({ quotes }: { quotes: QuoteChoice[] }) {
         {quotes.map((q) => <option key={q.id} value={q.id}>{q.request_id.slice(0, 8)} · Revision {q.revision} · {q.status}</option>)}
       </select>
       <CtaButton className="mt-3" disabled={pending} onClick={() => start(async () => {
-        setError(""); const response = await loadQuotePreview(id);
-        if (response.error) setError(response.error); else setQuote(response.data!);
+        setError("");
+        try { const response = await loadQuotePreview(id); if (response.error) setError(response.error); else setQuote(response.data!); }
+        catch { setError("Could not reach the server. Try previewing the quotation again."); }
       })}>{pending ? "Loading quotation…" : "Preview quotation"}</CtaButton>
     </>}
     {error && <p role="alert" className="mt-4 text-danger">{error}</p>}
@@ -44,7 +45,7 @@ export function QuoteBreakdownPreview({ quotes }: { quotes: QuoteChoice[] }) {
         </li>)}</ul>}
         <p>Approved additional charges: {quote.additional_charges_centavos === null ? "Unrecorded" : formatPhp(quote.additional_charges_centavos)}</p>
         <p>Approved discounts (reduction): {quote.discounts_centavos === null ? "Unrecorded" : formatPhp(quote.discounts_centavos)}</p>
-        <p className="mt-3 font-semibold">Final quoted accommodation total: {formatPhp(quote.final_total_centavos)}</p>
+        <p className="mt-3 font-semibold">{quote.legacy ? "Historical quoted total (allocation unrecorded)" : "Final quoted accommodation total"}: {formatPhp(quote.final_total_centavos)}</p>
       </div>
       <div><h3 className="text-xl">Payment summary</h3>
         <p>Required booking down payment: {quote.payment.required_down_payment_centavos === null ? "Not approved" : formatPhp(quote.payment.required_down_payment_centavos)}</p>
