@@ -39,7 +39,7 @@ export default async function BookPage({
 
       <div className="mt-10 relative">
         <BookingJourney initial={Object.fromEntries(Object.entries(params).map(([key, value]) => [key, firstValue(value)]))}
-          utm={{ utm_source: firstValue(params.utm_source), utm_medium: firstValue(params.utm_medium), utm_campaign: firstValue(params.utm_campaign) }}/>
+          utm={{ utm_source: firstValue(params.utm_source) || firstValue(params.source), utm_medium: firstValue(params.utm_medium), utm_campaign: firstValue(params.utm_campaign) }}/>
 
       </div>
     </div>

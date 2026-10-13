@@ -116,7 +116,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
     } catch { setMessage("Connection interrupted. Retry with the same details to recover the saved request safely."); }
     finally { setBusy(false); }
   }
-  if (receipt) return <section role="status" className="rounded-sm border border-forest bg-white p-6 space-y-3">
+  if (receipt) return <section role="status" aria-label="Saved booking request" className="rounded-sm border border-forest bg-white p-6 space-y-3">
     <h2 className="font-heading text-2xl text-forest">Request received</h2><p className="break-all">Reference: <strong>{receipt.reference_code}</strong></p>
     <p>{receipt.overnight_guest_count} overnight guests · {BOOKING_PACKAGE_CODES.indexOf(receipt.package_code) + 1} bedrooms · one private house</p>
     <p>{receipt.check_in_date} to {receipt.check_out_date}</p><p>Estimated accommodation: {formatPhp(receipt.estimate.estimated_total_centavos)}</p>

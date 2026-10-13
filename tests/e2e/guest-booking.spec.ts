@@ -16,7 +16,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     expect(r.ok()).toBe(true); return r.json();
   }
   async function choose(page: Page, pack = "WHOLE_HOME_3BR", from = dates[0], to = dates[2]) {
-    await page.goto("/book");
+    await page.goto("/book?source=hero");
     await page.locator("#adults").fill("2");
     await page.getByLabel("Bedroom package", { exact: true }).selectOption(pack);
     await page.locator("#check_in_date").fill(from); await page.locator("#check_out_date").fill(to);
@@ -37,11 +37,12 @@ test.describe("Guest booking against disposable Supabase", () => {
     await choose(page);
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
     await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
-    const status = page.getByRole("status");
+    const status = page.getByRole("status", { name: "Saved booking request" });
     await expect(status).toContainText("Dates are not reserved");
     const reference = (await status.innerText()).match(/TEN29-[A-F0-9]{32}/)![0];
     const enquiries = await rows(request, "inquiries", `reference_code=eq.${reference}&select=*`);
     expect(enquiries).toHaveLength(1);
+    expect(enquiries[0]).toMatchObject({ source: "website", utm_source: "hero" });
     const linked = await rows(request, "booking_requests", `inquiry_id=eq.${enquiries[0].id}&select=*`);
     expect(linked).toHaveLength(1); expect(linked[0]).toMatchObject({ source: "WEBSITE", status: "NEW", package_code: "WHOLE_HOME_3BR", overnight_guest_count: 2, created_by: null });
     const snapshots = await rows(request, "website_booking_intakes", `request_id=eq.${linked[0].id}&select=estimate`);
