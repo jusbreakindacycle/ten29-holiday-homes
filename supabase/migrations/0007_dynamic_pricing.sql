@@ -308,11 +308,11 @@ begin
    'check_in_date',req.check_in_date,'check_out_date',req.check_out_date,'nights',req.check_out_date-req.check_in_date,
    'bedrooms_opened',(select bedrooms_access from public.property_packages where code=req.package_code)),
   'accommodation',jsonb_build_object('nights','[]'::jsonb,'subtotal_centavos',null),'adjustments','[]'::jsonb,
-  'additional_charges_centavos',null,'discounts_centavos',null,'final_total_centavos',q.amount_total*100,
-  'payment',jsonb_build_object('required_down_payment_centavos',q.required_deposit_amount*100,'refundable_security_deposit_centavos',null,'conditions',null)); end if;
+  'additional_charges_centavos',null,'discounts_centavos',null,'final_total_centavos',(q.amount_total*100)::bigint,
+  'payment',jsonb_build_object('required_down_payment_centavos',(q.required_deposit_amount*100)::bigint,'refundable_security_deposit_centavos',null,'conditions',null)); end if;
  return snapshot||jsonb_build_object('quote_id',q.id,'revision',q.revision,'status',q.status,'verified_payments_centavos',paid,
-  'remaining_balance_centavos',case when q.amount_total is null then null else greatest(q.amount_total*100-paid,0) end,
-  'overpayment_centavos',case when q.amount_total is null then null else greatest(paid-q.amount_total*100,0) end);
+  'remaining_balance_centavos',case when q.amount_total is null then null else greatest(q.amount_total*100-paid,0)::bigint end,
+  'overpayment_centavos',case when q.amount_total is null then null else greatest(paid-q.amount_total*100,0)::bigint end);
 end $$;
 
 -- Public invoker wrappers expose only the intended RPC surface, never private helpers.

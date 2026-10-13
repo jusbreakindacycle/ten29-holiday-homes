@@ -52,6 +52,10 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByLabel("Start date", { exact: true }).fill("2034-01-02");
     await page.getByLabel("Nightly price (PHP)").fill("300.03");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
+    await page.getByLabel("Apply price to").selectOption("WEEKDAY");
+    await page.getByLabel(/Day of week/).selectOption(String(new Date("2034-02-06T00:00:00Z").getUTCDay()));
+    await page.getByLabel("Nightly price (PHP)").fill("220.02");
+    await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
     await page.getByRole("button", { name: "Save Draft", exact: true }).click();
     await expect(page.getByText("Draft saved. Public rates are unchanged.")).toBeVisible();
     await page.getByRole("button", { name: "Preview", exact: true }).click();
@@ -62,6 +66,8 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     const current = await (await request.get(priceUrl())).json();
     expect(current.nights.map((n: { amount_centavos: number }) => n.amount_centavos)).toEqual([20002, 30003]);
     expect(current.estimated_total_centavos).toBe(50005);
+    const weekday = await request.get("/api/pricing?package_code=WHOLE_HOME_1BR&check_in_date=2034-02-06&check_out_date=2034-02-07&overnight_guest_count=1&folding_foams_requested=false");
+    expect((await weekday.json()).estimated_total_centavos).toBe(22002);
     const stale = await request.post("/api/pricing/revalidate", { data: { selection: { package_code: "WHOLE_HOME_1BR", check_in_date: "2034-01-01", check_out_date: "2034-01-03", overnight_guest_count: 1, folding_foams_requested: false }, expected_version: before.version } });
     expect(stale.status()).toBe(409); expect((await stale.json()).acknowledgement_required).toBe(true);
     await expect(page.getByRole("region", { name: "Rate revision history" })).toContainText("PUBLISHED");
