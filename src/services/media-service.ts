@@ -13,7 +13,7 @@ export async function requireMediaOwner(client:Client) {
 }
 export async function ownerMediaLibrary(client:Client):Promise<OwnerMedia[]> {
  await requireMediaOwner(client);
- const {data,error}=await client.from('property_media').select('*').order('position').order('created_at',{ascending:false}).limit(200);
+ const {data,error}=await client.from('property_media').select('*').is('cleaned_at',null).order('position').order('created_at',{ascending:false}).limit(200);
  if(error) throw Error('Media library unavailable'); return data??[];
 }
 export async function reserveMedia(client:Client,raw:unknown):Promise<OwnerMedia> {

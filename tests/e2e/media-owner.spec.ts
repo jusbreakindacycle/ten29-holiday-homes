@@ -93,7 +93,9 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   expect((await request.get(`/api/media/${oldId}`)).status()).toBe(200);
   page.once('dialog',d=>d.accept());await card.getByRole('button',{name:'Publish media'}).click();await expect(page.getByRole('status').first()).toContainText('Published');expect((await request.get(`/api/media/${oldId}`)).status()).toBe(404);
   page.once('dialog',d=>d.accept());await old.getByRole('button',{name:'Archive',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('Saved');
-  for(let i=0;i<2;i++){page.once('dialog',d=>d.accept());await old.getByRole('button',{name:'Delete archived files'}).click();await expect(page.getByRole('status').first()).toContainText('Saved');}
+  page.once('dialog',d=>d.accept());await old.getByRole('button',{name:'Delete archived files'}).click();await expect(page.getByRole('status').first()).toContainText('Saved');
+  await expect(old).toHaveCount(0);
+  const repeated=await page.context().request.post('/api/admin/media',{headers:{Origin:new URL(page.url()).origin},data:{action:'CLEANUP',id:oldId,version:1,data:{}}});expect(repeated.status()).toBe(200);
  });
  test('actual synthetic HEIC conversion is either decoded or explicitly private and unsupported',async({page})=>{
   await login(page);const folder=await mkdtemp(path.join(tmpdir(),'ten29-heic-'));const file=path.join(folder,'synthetic.heic');
