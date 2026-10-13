@@ -28,10 +28,17 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
    const {data:{session}}=await client.auth.getSession(); if(!session) throw Error('Sign in again before uploading.');
    for(const file of files.slice(0,10)) {
     if(cancel.current) break;
-    const raw={key:crypto.randomUUID(),mime:file.type,bytes:file.size};
+    if(!reserveMediaSchema.safeParse({key:crypto.randomUUID(),mime:file.type,bytes:file.size}).success) throw Error(`${file.name}: unsupported type or file size. Photos: 20 MiB; videos: 50 MiB.`);
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const scope=`ten29-upload-${session.user.id}-${file.type}-${digest}`;let key=crypto.randomUUID();
+    try {const prior=JSON.parse(sessionStorage.getItem(scope)||'null');if(prior&&Date.now()-prior.at<50*60*1000)key=prior.key;sessionStorage.setItem(scope,JSON.stringify({key,at:Date.now()}));} catch {}
+    const raw={key,mime:file.type,bytes:file.size};
     if(!reserveMediaSchema.safeParse(raw).success) throw Error(`${file.name}: unsupported type or file size. Photos: 20 MiB; videos: 50 MiB.`);
     let m=await api('RESERVE',undefined,undefined,raw);activeId.current=m.id;
+    if(['READY_FOR_REVIEW','PUBLISHED','UNPUBLISHED'].includes(m.state)){try{sessionStorage.removeItem(scope);}catch{}await refresh();continue;}
+    if(m.state!=='UPLOADING'){try{sessionStorage.removeItem(scope);}catch{}throw Error('A previous upload is retained. Retry processing or archive it before uploading again.');}
     m=await api('EDIT',m.id,m.version,{title:file.name.slice(0,120),caption:'',alt:'',category:'Exterior',position:0,rights:false});
+    if(cancel.current){await api('ARCHIVE',m.id,m.version);break;}
     setProgress(`${file.name}: preparing upload`); await refresh();
     await new Promise<void>((resolve,reject)=>{
      rejectUpload.current=reject;const u=new Upload(file,{endpoint:`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,headers:{authorization:`Bearer ${session.access_token}`,'x-upsert':'false'},
@@ -39,12 +46,13 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
       fingerprint:async()=>`ten29-${m.id}`,retryDelays:[0,1000,3000,5000],
       onProgress:(sent,total)=>setProgress(`${file.name}: ${Math.round(sent/total*100)}% uploaded`),
       onError:()=>reject(Error('Upload interrupted. The file remains private. Retry processing if upload completed, or archive and select it again.')),
-      onSuccess:()=>resolve()});active.current=u;u.start();
+      onSuccess:()=>resolve()});active.current=u;
+     void u.findPreviousUploads().then(previous=>{if(cancel.current){reject(Error('Upload cancelled'));return;}if(previous.length)u.resumeFromPreviousUpload(previous[0]);u.start();}).catch(()=>reject(Error('Cannot resume upload. Retry.')));
     });
     active.current=null;
     if(cancel.current) {await api('ARCHIVE',m.id,m.version);break;}
     setProgress(`${file.name}: validating and processing`);
-    await api('PROCESS',m.id,m.version); await refresh();
+    await api('PROCESS',m.id,m.version);try{sessionStorage.removeItem(scope);}catch{}await refresh();
    }
    setMessage(cancel.current?'Upload cancelled.':'Upload processed. Review the private preview before publication.');
   } catch(e) {setMessage(e instanceof Error?e.message:'Upload failed. Retry.');}

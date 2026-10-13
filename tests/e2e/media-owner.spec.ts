@@ -105,4 +105,18 @@ test.describe('OWNER media with actual disposable Storage',()=>{
    else console.log('HEIC compatibility: actual synthetic conversion passed.');
   } finally {await rm(folder,{recursive:true,force:true});}
  });
+ test('interrupted upload retries the same reserved record and cancellation cannot publish',async({page})=>{
+  test.setTimeout(90000);await login(page);const png=await sharp({create:{width:24,height:24,channels:3,background:'yellow'}}).png().toBuffer();
+  const payload={name:'synthetic-retry.png',mimeType:'image/png',buffer:png};
+  await page.route('**/storage/v1/upload/resumable**',route=>route.abort());
+  await page.getByLabel('Add photos',{exact:true}).setInputFiles(payload);await expect(page.getByRole('status').first()).toContainText('Upload interrupted',{timeout:30000});
+  await page.unroute('**/storage/v1/upload/resumable**');await page.getByLabel('Add photos',{exact:true}).setInputFiles(payload);
+  await expect(page.getByText('Upload processed. Review the private preview before publication.')).toBeVisible({timeout:60000});
+  await expect(page.getByRole('heading',{name:'synthetic-retry.png',exact:true})).toHaveCount(1);
+  await page.route('**/storage/v1/upload/resumable**',async route=>{await new Promise(resolve=>setTimeout(resolve,1500));await route.abort();});
+  await page.getByLabel('Add photos',{exact:true}).setInputFiles({name:'synthetic-cancel.png',mimeType:'image/png',buffer:await sharp(png).resize(25,25).png().toBuffer()});
+  await expect(page.getByRole('button',{name:'Cancel upload'})).toBeVisible();await page.getByRole('button',{name:'Cancel upload'}).click();
+  await expect(page.getByRole('status').first()).toContainText(/cancelled|private/,{timeout:15000});
+  await expect(page.getByRole('article').filter({has:page.getByRole('heading',{name:'synthetic-cancel.png',exact:true})}).getByRole('button',{name:'Publish media'})).toHaveCount(0);
+ });
 });
