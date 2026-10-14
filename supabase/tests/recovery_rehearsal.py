@@ -89,9 +89,9 @@ def fingerprints(database):
 
 security = """select md5(string_agg(value,E'\n' order by value)) from (
  select 'policy:' || row_to_json(p)::text value from pg_policies p where schemaname in ('public','ten29_private','storage')
- union all select 'function:' || pg_get_functiondef(p.oid) || pg_get_userbyid(p.proowner) || array(select concat(x.grantee,':',x.privilege_type,':',x.is_grantable) from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x order by x.grantee,x.privilege_type,x.is_grantable)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
+ union all select 'function:' || pg_get_functiondef(p.oid) || pg_get_userbyid(p.proowner) || array(select r.rolname || ':' || has_function_privilege(r.rolname,p.oid,'EXECUTE')::text from pg_roles r order by r.rolname)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
  union all select 'constraint:' || n.nspname || '.' || c.relname || ':' || pg_get_constraintdef(k.oid) from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private')
- union all select 'rls:' || n.nspname || '.' || c.relname || ':' || c.relrowsecurity::text || ':' || pg_get_userbyid(c.relowner) || array(select concat(x.grantee,':',x.privilege_type,':',x.is_grantable) from aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) x order by x.grantee,x.privilege_type,x.is_grantable)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
+ union all select 'rls:' || n.nspname || '.' || c.relname || ':' || c.relrowsecurity::text || ':' || pg_get_userbyid(c.relowner) || array(select r.rolname || ':' || p.privilege || ':' || has_table_privilege(r.rolname,c.oid,p.privilege)::text from pg_roles r cross join unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) as p(privilege) order by r.rolname,p.privilege)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
 ) s;"""
 before = fingerprints('postgres')
 before_security = sql(security)
