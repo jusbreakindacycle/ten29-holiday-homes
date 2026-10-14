@@ -4,6 +4,7 @@
  * See docs/10_TECHNICAL_ARCHITECTURE.md ("Build-without-credentials guarantee").
  */
 
+import { isPrivilegedPublicKey } from './public-key';
 export class MissingEnvError extends Error {
   constructor(name: string) {
     super(`Missing required environment variable: ${name}`);
@@ -27,7 +28,9 @@ export function getSupabaseUrl(): string {
 }
 
 export function getSupabaseAnonKey(): string {
-  return required("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const value = required("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  if (isPrivilegedPublicKey(value)) throw new Error('Privileged credentials cannot be public');
+  return value;
 }
 
 export function getSupabaseServiceRoleKey(): string {

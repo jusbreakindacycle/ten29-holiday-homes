@@ -21,6 +21,10 @@ describe('operational configuration and privacy', () => {
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'same'); vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'same');
     expect(() => getSupabaseServiceRoleKey()).toThrow('must differ');
   });
+  it('detects a privileged key mislabelled as the anonymous public key', () => {
+    const jwt = 'header.' + btoa(JSON.stringify({ role: 'service_role' })) + '.signature';
+    for (const key of [jwt, 'sb_secret_synthetic']) expect(operationalConfigIssues({ NEXT_PUBLIC_SUPABASE_ANON_KEY: key })).toContain('NEXT_PUBLIC_SUPABASE_ANON_KEY: privileged credential is forbidden');
+  });
   it('logs only a fixed event and timestamp', () => {
     const log = vi.spyOn(console, 'warn').mockImplementation(() => {}); operationalLog('notification_finish_failed');
     expect(Object.keys(JSON.parse(log.mock.calls[0][0]))).toEqual(['event', 'at']);

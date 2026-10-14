@@ -17,12 +17,12 @@ export class ResendEmailProvider implements EmailProvider {
       }, message.idempotencyKey ? { idempotencyKey: message.idempotencyKey } : undefined);
 
       if (error) {
-        return { ok: false, error: error.message ?? "Resend returned an error" };
+        return { ok: false, error: "Email provider rejected delivery. Review configuration and retry safely." };
       }
       if (!data?.id) return { ok: false, error: "Email provider did not confirm acceptance." };
       return { ok: true };
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : "Unknown email error" };
+    } catch {
+      return { ok: false, error: "Email delivery unavailable. Review configuration and retry safely." };
     }
   }
 }

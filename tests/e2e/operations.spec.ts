@@ -13,7 +13,9 @@ test('privacy reflects implemented processing and mobile public routes have acce
   for (const route of ['/', '/availability', '/book', '/gallery', '/privacy']) {
     const start = Date.now(); await page.goto(route); timings[route] = Date.now() - start;
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'Mobile', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Close menu', exact: true }).click();
   }
   await expect(page.getByText(/masked references/)).toBeVisible();
   await expect(page.getByText(/No automatic deletion period/)).toBeVisible();

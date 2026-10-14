@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Check out feature branch
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
@@ -63,6 +65,7 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
           npm run build -- --webpack
+          node scripts/verify-release.mjs
           npx playwright test tests/e2e/rates-owner.spec.ts tests/e2e/guest-booking.spec.ts tests/e2e/media-owner.spec.ts tests/e2e/booking-owner.spec.ts tests/e2e/operations.spec.ts --workers=1
       - name: Rehearse isolated database and separate Storage recovery
         run: python3 supabase/tests/recovery_rehearsal.py
@@ -82,6 +85,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -94,4 +99,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Retain the verified supported production Webpack build for this pipeline.
       - run: npm run build -- --webpack
+      - run: node scripts/verify-release.mjs
       - run: npx playwright test --workers=1

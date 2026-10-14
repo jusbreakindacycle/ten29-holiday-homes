@@ -1,3 +1,4 @@
+import { isPrivilegedPublicKey } from './public-key';
 /** Returns names and safe remedies only; never credential values. */
 export function operationalConfigIssues(env: Record<string, string | undefined>): string[] {
   const issues: string[] = [];
@@ -18,6 +19,8 @@ export function operationalConfigIssues(env: Record<string, string | undefined>)
   }
   if (env.NEXT_PUBLIC_SUPABASE_ANON_KEY && env.NEXT_PUBLIC_SUPABASE_ANON_KEY === env.SUPABASE_SERVICE_ROLE_KEY)
     issues.push('Supabase credentials: public and privileged keys must differ');
+  if (isPrivilegedPublicKey(env.NEXT_PUBLIC_SUPABASE_ANON_KEY))
+    issues.push('NEXT_PUBLIC_SUPABASE_ANON_KEY: privileged credential is forbidden');
   for (const [name, value] of Object.entries(env)) {
     if (value && name.startsWith('NEXT_PUBLIC_') && /SERVICE_ROLE|SECRET|PASSWORD|RESEND_API|PRIVATE_KEY/.test(name))
       issues.push(`${name}: credential must never be browser-public`);
