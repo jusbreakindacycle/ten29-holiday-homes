@@ -5,6 +5,7 @@ import {operationSchema} from '@/types/operations';
 import {calendarDate,prepareQuoteSchema} from '@/types/pricing';
 import {prepareItemizedQuote,issueItemizedQuote,readQuoteBreakdown,readPublicPrices} from '@/services/pricing-service';
 import {deliverBookingNotifications} from '@/services/guest-booking-service';
+import {operationalLog} from '@/lib/operational-log';
 export const dynamic='force-dynamic';
 const headers={'Cache-Control':'private, no-store'};
 async function clientForAdmin(){const c=await createSupabaseServerClient();const a=await c.auth.getUser();const m=await c.rpc('is_ten29_admin');if(a.error||!a.data.user||m.error||m.data!==true)throw Error('TEN29 access required');return c;}
@@ -48,5 +49,5 @@ export async function POST(request:Request){
   const p=z.object({action:z.literal('RETRY'),id:z.uuid(),key:z.uuid()}).strict().parse(raw);const r=await c.from('booking_requests').select('id').eq('id',p.id).maybeSingle();if(!r.data||r.error)throw Error('Request unavailable');const audit=await c.rpc('perform_booking_operation',{p_action:'NOTIFY_RETRY',p_id:p.id,p_key:p.key,p_data:{}});if(audit.error)throw Error('Retry unavailable');await deliverBookingNotifications(p.id);data=true;
  }else throw Error('Invalid action');
  return Response.json({data},{headers});
- }catch{return Response.json({error:'Operation was not accepted. Check permissions, current status, payment terms and availability; reload before retrying with the same operation.'},{status:400,headers});}
+ }catch{operationalLog('booking_operation_failed');return Response.json({error:'Operation was not accepted. Check permissions, current status, payment terms and availability; reload before retrying with the same operation.'},{status:400,headers});}
 }

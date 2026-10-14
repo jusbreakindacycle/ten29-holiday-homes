@@ -88,9 +88,9 @@ def fingerprints(database):
 
 security = """select md5(string_agg(value,E'\n' order by value)) from (
  select 'policy:' || row_to_json(p)::text value from pg_policies p where schemaname in ('public','ten29_private','storage')
- union all select 'function:' || pg_get_functiondef(p.oid) || coalesce(p.proacl::text,'') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
+ union all select 'function:' || pg_get_functiondef(p.oid) || pg_get_userbyid(p.proowner) || array(select a::text from unnest(coalesce(p.proacl,acldefault('f',p.proowner))) a order by a::text)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
  union all select 'constraint:' || n.nspname || '.' || c.relname || ':' || pg_get_constraintdef(k.oid) from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private')
- union all select 'rls:' || n.nspname || '.' || c.relname || ':' || c.relrowsecurity::text || ':' || coalesce(c.relacl::text,'') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
+ union all select 'rls:' || n.nspname || '.' || c.relname || ':' || c.relrowsecurity::text || ':' || pg_get_userbyid(c.relowner) || array(select a::text from unnest(coalesce(c.relacl,acldefault('r',c.relowner))) a order by a::text)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
 ) s;"""
 before = fingerprints('postgres')
 before_security = sql(security)
@@ -108,9 +108,17 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
     try:
         # Platform-owned schemas require the existing local platform owner.
         # Never widen postgres/application grants to accommodate the fixture.
-        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error'], backup.read_bytes())
+        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error', '--use-set-session-authorization'], backup.read_bytes())
         assert fingerprints(RESTORED) == before, 'Restored rows differ'
-        assert sql(security, RESTORED) == before_security, 'Restored protections differ'
+        if sql(security, RESTORED) != before_security:
+            # Catalog metadata only: no rows, function bodies, keys or contacts.
+            metadata = """select json_object_agg(name,value) from (
+              select 'function:'||p.oid::regprocedure::text name,json_build_object('owner',pg_get_userbyid(p.proowner),'acl',p.proacl::text,'definition',md5(pg_get_functiondef(p.oid))) value from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
+              union all select 'table:'||n.nspname||'.'||c.relname,json_build_object('owner',pg_get_userbyid(c.relowner),'acl',c.relacl::text,'rls',c.relrowsecurity) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
+            ) s;"""
+            old, new = json.loads(sql(metadata)), json.loads(sql(metadata,RESTORED))
+            print('Restored protection mismatch metadata:', json.dumps({key:{'before':old.get(key),'after':new.get(key)} for key in old.keys() | new.keys() if old.get(key)!=new.get(key)}))
+            raise AssertionError('Restored protections differ')
         assert sql("select count(*) from public.property_occupancies a join public.property_occupancies b on a.id<b.id and a.active and b.active and a.property_id=b.property_id and daterange(a.check_in_date,a.check_out_date,'[)') && daterange(b.check_in_date,b.check_out_date,'[)');", RESTORED) == '0'
         assert sql(f"select original_key from public.property_media where id='{media['id']}';", RESTORED) == media['original_key']
         # Existing suites assume empty fixtures; never delete recovered history

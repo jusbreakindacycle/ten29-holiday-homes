@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { isBookingSameOrigin } from '@/lib/booking-origin';
 import { actionMediaSchema } from '@/lib/media-validation';
 import { ownerMediaLibrary, reserveMedia, changeMedia, processOwnerMedia, cleanupArchivedMedia } from '@/services/media-service';
+import { operationalLog } from '@/lib/operational-log';
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
 export const maxDuration=240;
@@ -22,5 +23,5 @@ export async function POST(request:Request) {
   const p=actionMediaSchema.parse(raw);
   const media=p.action==='PROCESS'?await processOwnerMedia(client,p.id):p.action==='CLEANUP'?await cleanupArchivedMedia(client,p.id):await changeMedia(client,p.id,p.version,p.action,p.data);
   return Response.json({media},{headers});
- } catch(e) { return Response.json({error:e instanceof Error && !('issues' in e)?e.message:'Invalid media input'},{status:400,headers}); }
+ } catch(e) { operationalLog('media_operation_failed'); return Response.json({error:e instanceof Error && !('issues' in e)?e.message:'Invalid media input'},{status:400,headers}); }
 }
