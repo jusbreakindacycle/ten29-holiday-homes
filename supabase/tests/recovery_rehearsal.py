@@ -14,6 +14,7 @@ import urllib.request
 import urllib.error
 import uuid
 import time
+import re
 
 if os.environ.get('CI') != 'true' or os.environ.get('TEN29_PROVIDER_E2E') != 'true':
     raise SystemExit('Disposable provider CI only')
@@ -26,8 +27,6 @@ RESTORED = 'ten29_recovery_' + uuid.uuid4().hex
 def command(args, data=None):
     result = subprocess.run(args, input=data, capture_output=True, timeout=180)
     if result.returncode:
-        if 'pg_prove' in args:
-            print(result.stdout.decode(errors='replace'))
         # Only synthetic fixed local commands run; never dump command/stdin/credentials.
         raise RuntimeError(result.stderr.decode(errors='replace')[-4000:])
     return result.stdout
@@ -125,9 +124,16 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
         assert sql(f"select original_key from public.property_media where id='{media['id']}';", RESTORED) == media['original_key']
         # Existing suites assume empty fixtures; never delete recovered history
         # to satisfy them. Verify live restored records with dedicated checks.
-        command(['docker', 'cp', 'supabase/recovery/restored_integrity.sql', CONTAINER + ':/tmp/ten29-restored-integrity.sql'])
-        output = command(['docker','exec',CONTAINER,'pg_prove','-U','postgres','-d',RESTORED,'/tmp/ten29-restored-integrity.sql'])
-        print(output.decode())
+        # The Supabase database image includes psql and server pgTAP, not the
+        # separate CLI pg_prove runner. Execute actual SQL and validate TAP.
+        output = sql(Path('supabase/recovery/restored_integrity.sql').read_text(), RESTORED)
+        tap = [line for line in output.splitlines() if re.match(r'^(ok |not ok |1\.\.|#)', line)]
+        print('\n'.join(tap))
+        plans = [int(line[3:]) for line in tap if re.fullmatch(r'1\.\.[0-9]+', line)]
+        assertions = [line for line in tap if re.match(r'^(ok|not ok) [0-9]+', line)]
+        assert len(plans) == 1 and plans[0] > 0 and len(assertions) == plans[0], 'Incomplete restored SQL assertions'
+        assert all(line.startswith('ok ') and '# SKIP' not in line.upper() for line in assertions), 'Failed/skipped restored SQL assertion'
+        print(f'Restored PostgreSQL pgTAP assertions: {plans[0]} passed, zero skipped')
         print(f'Database recovery: {len(tables)} table fingerprints and security definitions matched; no active overlaps; restored Storage reference matched recovered bytes')
         print(f'Synthetic backup/restore/validation elapsed seconds: {time.monotonic() - started:.2f}; not a production RTO')
     finally:

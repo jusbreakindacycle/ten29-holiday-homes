@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 test('public liveness reveals no provider configuration and carries defensive headers', async ({ request }) => {
   const result = await request.get('/api/health'); expect(result.status()).toBe(200);
   expect(await result.json()).toEqual({ ok: true }); expect(result.headers()['cache-control']).toContain('no-store');
@@ -54,5 +55,31 @@ test.describe('protected operational visibility on actual disposable provider', 
         await page.screenshot({ path: 'test-results/owner-operations-readiness.png', fullPage: true });
       } else { await expect(page.getByRole('main').getByRole('alert')).toContainText('OWNER access denied'); }
     }
+  });
+  test('revoking membership blocks an already authenticated OWNER session', async ({ page, request }) => {
+    if (process.env.CI !== 'true' || process.env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:54321') throw Error('Disposable CI only');
+    await page.goto('/admin/login'); await page.getByLabel('Email').fill(process.env.TEN29_E2E_OWNER_EMAIL!);
+    await page.getByLabel('Password').fill(process.env.TEN29_E2E_OWNER_PASSWORD!);
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click(); await expect(page).toHaveURL(/\/admin$/);
+    const auth = await request.post('http://127.0.0.1:54321/auth/v1/token?grant_type=password', {
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! },
+      data: { email: process.env.TEN29_E2E_OWNER_EMAIL, password: process.env.TEN29_E2E_OWNER_PASSWORD },
+    });
+    expect(auth.ok()).toBe(true); const identity = await auth.json(); const id = identity.user.id;
+    expect(identity.user.email).toBe('ui-owner@example.invalid'); expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    function sql(statement: string) {
+      return execFileSync('docker', ['exec', '-i', 'supabase_db_ten29-holiday-homes', 'psql', '-X', '-Atq', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: statement, encoding: 'utf8' }).trim();
+    }
+    const created = sql(`select created_at::text from public.ten29_admins where user_id='${id}';`);
+    expect(created).toMatch(/^[0-9:. +\-]+$/);
+    try {
+      sql(`delete from public.ten29_admins where user_id='${id}';`);
+      expect((await page.request.get('/api/admin/operations')).status()).toBe(403);
+      expect((await page.request.get('/api/admin/bookings?from=2030-01-01&to=2030-02-01')).status()).toBe(403);
+      const records = await request.get('http://127.0.0.1:54321/rest/v1/booking_requests?select=id', {
+        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${identity.access_token}` },
+      });
+      expect(records.ok()).toBe(true); expect(await records.json()).toEqual([]);
+    } finally { sql(`insert into public.ten29_admins(user_id,role,created_at) values('${id}','OWNER','${created}'::timestamptz);`); }
   });
 });
