@@ -34,7 +34,7 @@ declare old_event public.booking_operation_events; req public.booking_requests; 
 begin
  if not public.is_ten29_admin() then raise insufficient_privilege using message='TEN29 access required'; end if;
  if p_key is null or p_data is null or jsonb_typeof(p_data)<>'object' or octet_length(p_data::text)>16384
-  or p_action not in ('MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE') then raise check_violation using message='Invalid operation'; end if;
+  or p_action not in ('MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTIFY_RETRY') then raise check_violation using message='Invalid operation'; end if;
  if p_action in ('CANCEL','COMPLETE') and not public.is_ten29_owner() then raise insufficient_privilege using message='OWNER required'; end if;
  payload:=jsonb_build_object('action',p_action,'id',p_id,'data',p_data);
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_key::text,7));
@@ -57,11 +57,14 @@ begin
   insert into public.manual_booking_contacts(request_id,full_name,contact_number,email,notes,created_by)
    values(result,btrim(p_data->>'full_name'),btrim(p_data->>'contact_number'),nullif(btrim(p_data->>'email'),''),coalesce(p_data->>'notes',''),auth.uid());
   event_request:=result;
- elsif p_action in ('STATUS','PAYMENT') then
+ elsif p_action in ('STATUS','PAYMENT','NOTIFY_RETRY') then
   select * into req from public.booking_requests where id=p_id for update;
   if not found then raise check_violation using message='Request not found'; end if;
   event_request:=req.id;
-  if p_action='STATUS' then
+  if p_action='NOTIFY_RETRY' then
+   if p_data<>'{}'::jsonb then raise check_violation using message='Invalid retry'; end if;
+   result:=req.id;
+  elsif p_action='STATUS' then
    if (p_data-array['status','expected_status'])<>'{}' or req.status::text is distinct from p_data->>'expected_status' then
     raise check_violation using message='Request changed; reload'; end if;
    update public.booking_requests set status=(p_data->>'status')::public.booking_request_status where id=req.id;

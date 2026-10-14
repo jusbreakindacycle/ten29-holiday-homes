@@ -17,16 +17,17 @@ type Action=(payload:Record<string,unknown>)=>Promise<unknown>;
 export function BookingOperations({view,id}:{view:'dashboard'|'requests'|'calendar'|'reservations'|'detail'|'manual';id?:string}){
  const [month,setMonth]=useState(()=>today().slice(0,7));const [data,setData]=useState<OpsData|null>(null);
  const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(true);
+ const [rangeFrom,setRangeFrom]=useState(()=>addDays(today(),-180));const [rangeTo,setRangeTo]=useState(()=>addDays(today(),186));
  const [search,setSearch]=useState('');const [source,setSource]=useState('');const [selectedDay,setSelectedDay]=useState('');
  const from=`${month}-01`;const to=addDays(from,32).slice(0,7)+'-01';
- const load=useCallback(async()=>{await Promise.resolve();setLoading(true);try{
-  const windowFrom=view==='calendar'?from:addDays(today(),-180);const windowTo=view==='calendar'?to:addDays(today(),186);
+ const load=useCallback(async()=>{try{
+  const windowFrom=view==='calendar'?from:rangeFrom;const windowTo=view==='calendar'?to:rangeTo;
   const response=await fetch(`/api/admin/bookings?from=${windowFrom}&to=${windowTo}${id?`&id=${id}`:''}`,{cache:'no-store'});
   const body=await response.json();if(!response.ok)throw Error(body.error);setData(body);setError('');
- }catch(e){setError(e instanceof Error?e.message:'Could not load operations');}finally{setLoading(false);}},[view,from,to,id]);
+ }catch(e){setError(e instanceof Error?e.message:'Could not load operations');}finally{setLoading(false);}},[view,from,to,id,rangeFrom,rangeTo]);
  useEffect(()=>{void load();},[load]);
  const act:Action=async(payload)=>{setBusy(true);setError('');setMessage('');try{
-  const keyed=['MANUAL','STATUS','PAYMENT','VERIFY','CONFIRM','BLOCK','CANCEL','COMPLETE'].includes(String(payload.action));
+  const keyed=['MANUAL','STATUS','PAYMENT','VERIFY','CONFIRM','BLOCK','CANCEL','COMPLETE','RETRY'].includes(String(payload.action));
   const p=keyed?{...payload,key:await keyFor(payload)}:payload;
   const response=await fetch('/api/admin/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
   const body=await response.json();if(!response.ok)throw Error(body.error);
@@ -43,7 +44,8 @@ export function BookingOperations({view,id}:{view:'dashboard'|'requests'|'calend
   {message&&<p role="status" className="rounded-sm bg-white p-4">{message}</p>}
   {loading&&<p role="status">Loading protected booking records…</p>}
   {data&&<>
-   {view==='manual'&&<ManualRequest busy={busy} act={act}/>}
+   {(view==='dashboard'||view==='requests'||view==='reservations')&&<div className="grid gap-3 sm:grid-cols-2"><label>Stay window start<input className={input} type="date" value={rangeFrom} onChange={e=>e.target.value&&setRangeFrom(e.target.value)}/></label><label>Stay window end (exclusive)<input className={input} type="date" value={rangeTo} onChange={e=>e.target.value&&setRangeTo(e.target.value)}/></label><p className="text-sm">Choose a window of up to 366 days.</p></div>}
+   {view==='manual'&&<ManualRequest busy={busy||loading} act={act}/>}
    {view==='dashboard'&&<>
     <div className="grid gap-3 sm:grid-cols-3">{['NEW','REVIEWING','QUOTED','AWAITING_DEPOSIT'].map(s=><div className="border border-border bg-white p-4" key={s}><h2>{s.replaceAll('_',' ')}</h2><strong className="text-2xl">{data.requests.filter(r=>r.status===s&&!data.reservations.some(b=>b.request_id===r.id)).length}</strong></div>)}
     <div className="border border-border bg-white p-4">Confirmed reservations: {data.reservations.filter(r=>r.operational_status==='CONFIRMED').length}</div>
@@ -52,29 +54,29 @@ export function BookingOperations({view,id}:{view:'dashboard'|'requests'|'calend
     <ReservationCards data={data} upcoming/>
     <h2 className="font-heading text-xl">Notification attention</h2>
     {data.notifications.filter(t=>t.status!=='SENT').map(t=><p key={t.request_id+t.recipient_kind}><Link className="underline" href={`/admin/requests/${t.request_id}`}>{t.recipient_kind}: {t.status} · {t.attempts} attempts</Link></p>)}
-    <p className="text-sm">Overview covers stays from {addDays(today(),-180)} to {addDays(today(),186)} (up to 1,000 requests). Use the calendar for other dates. Counts describe this window, not lifetime totals.</p>
+    <p className="text-sm">Overview covers stays from {rangeFrom} to {rangeTo} (up to 1,000 requests). Use the calendar for other dates. Counts describe this window, not lifetime totals.</p>
     <h2 className="font-heading text-xl">Unresolved refund/payment review</h2>{data.events.filter(e=>e.refund_review_required).map(e=><p key={e.id}>Cancellation {e.id}: manual review required. No refund automatically issued.</p>)}
    </>}
    {(view==='requests'||view==='dashboard')&&<>
     <div className="grid gap-3 sm:grid-cols-2"><label>Search guest or reference<input className={input} value={search} onChange={e=>setSearch(e.target.value)}/></label><label>Source channel<select className={input} value={source} onChange={e=>setSource(e.target.value)}><option value="">All sources</option>{['WEBSITE','MESSENGER','PHONE','WALK_IN','EXTERNAL_PLATFORM','OTHER'].map(s=><option key={s}>{s}</option>)}</select></label></div>
-    <p className="text-sm">Stay-date window: {addDays(today(),-180)} to {addDays(today(),186)}. Open the calendar to inspect other dates.</p>
+    <p className="text-sm">Stay-date window: {rangeFrom} to {rangeTo}. Open the calendar to inspect other dates.</p>
     {!filtered.length&&<p>No matching booking requests in this date window.</p>}
     <div className="grid gap-3 sm:grid-cols-2">{filtered.map(r=><RequestCard key={r.id} request={r}/>)}</div>
    </>}
    {view==='calendar'&&<>
     <div className="flex flex-wrap items-end gap-3"><button className={button} onClick={()=>setMonth(addDays(from,-1).slice(0,7))}>Previous month</button><label>Calendar month<input className={input} type="month" value={month} onChange={e=>e.target.value&&setMonth(e.target.value)}/></label><button className={button} onClick={()=>setMonth(to.slice(0,7))}>Next month</button></div>
     <p>Unavailable = confirmed reservation or active owner block. Pending requests are review overlays, not holds.</p>
-    <div className="grid grid-cols-7 gap-1" aria-label="Property calendar">{nightDates(from,to).map(day=>{
+    <div className="grid grid-cols-7 gap-1" aria-label="Property calendar">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day=><span className="text-center text-xs" key={day}>{day}</span>)}{Array.from({length:new Date(from+'T00:00:00Z').getUTCDay()},(_,i)=><span aria-hidden="true" key={`pad${i}`}/>)}{nightDates(from,to).map(day=>{
      const blocked=data.occupancies.filter(o=>o.active&&o.check_in_date<=day&&o.check_out_date>day);
      const pending=data.requests.filter(r=>r.check_in_date<=day&&r.check_out_date>day&&!data.reservations.some(s=>s.request_id===r.id)&&!['DECLINED','WITHDRAWN','EXPIRED'].includes(r.status));
-     return <button key={day} aria-label={`${day}, ${blocked.length?'unavailable':'available'}, ${pending.length} pending requests`} aria-pressed={selectedDay===day} className={`min-h-20 min-w-0 break-words rounded-sm border p-1 text-xs ${blocked.length?'border-forest bg-forest text-white':'border-border bg-white'} ${selectedDay===day?'ring-2 ring-gold':''}`} onClick={()=>setSelectedDay(day)}><strong>{day.slice(-2)}</strong><span className="block">{blocked[0]?.kind==='OWNER_BLOCK'?'Owner block':blocked.length?'Confirmed':'Available'}</span>{pending.length>0&&<span className="block">{pending.length} pending</span>}</button>;
+     return <button key={day} aria-label={`${day}, ${blocked.length?'unavailable':'available'}, ${pending.length} pending requests`} aria-pressed={selectedDay===day} className={`min-h-20 min-w-0 break-words rounded-sm border p-1 text-xs ${blocked.length?'border-forest bg-forest text-white':'border-border bg-white'} ${selectedDay===day?'ring-2 ring-gold':''}`} onKeyDown={e=>{const offset=({ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7} as Record<string,number>)[e.key];if(offset){e.preventDefault();const target=addDays(day,offset);if(target.slice(0,7)!==month)setMonth(target.slice(0,7));setSelectedDay(target);setTimeout(()=>document.querySelector<HTMLButtonElement>(`[data-owner-date="${target}"]`)?.focus(),150);}}} data-owner-date={day} onClick={()=>setSelectedDay(day)}><strong>{day.slice(-2)}</strong><span className="block">{blocked[0]?.kind==='OWNER_BLOCK'?'Owner block':blocked.length?'Confirmed':'Available'}</span>{pending.length>0&&<span className="block">{pending.length} pending</span>}</button>;
     })}</div>
     {selectedDay&&<div className="space-y-3"><h2 className="font-heading text-xl">Activity on {selectedDay}</h2>{data.requests.filter(r=>r.check_in_date<=selectedDay&&r.check_out_date>selectedDay).map(r=><RequestCard key={r.id} request={r}/>)}{data.occupancies.filter(o=>o.active&&o.kind==='OWNER_BLOCK'&&o.check_in_date<=selectedDay&&o.check_out_date>selectedDay).map(o=><p key={o.id}>Owner block {o.check_in_date} to {o.check_out_date}{data.owner&&<button disabled={busy} className={button+' ml-2'} onClick={()=>confirm('Release this owner block? The dates become requestable unless another occupancy exists.')&&void act({action:'RELEASE',id:o.id})}>Release block</button>}</p>)}</div>}
     {data.owner&&<form className="grid gap-3 rounded-sm border border-border bg-white p-4 sm:grid-cols-3" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);if(confirm('Block the entire property for this check-in-inclusive, checkout-exclusive interval?'))void act({action:'BLOCK',from:f.get('from'),to:f.get('to')});}}><label>Block start date<input required type="date" name="from" className={input}/></label><label>Block end date<input required type="date" name="to" className={input}/></label><button disabled={busy} className={button}>Create owner block</button></form>}
     <h2 className="font-heading text-xl">Block history</h2>{data.block_events.map(e=><p className="break-all text-sm" key={e.id}>{e.event} · {e.created_at} · actor {e.actor_id}</p>)}
    </>}
    {view==='reservations'&&<ReservationCards data={data}/>}
-   {view==='detail'&&(request?<RequestDetail request={request} data={data} act={act} busy={busy}/>:<p>Request not found or inaccessible.</p>)}
+   {view==='detail'&&(request?<RequestDetail request={request} data={data} act={act} busy={busy||loading}/>:<p>Request not found or inaccessible.</p>)}
   </>}
  </section>;
 }
@@ -103,7 +105,7 @@ function RequestDetail({request:r,data,act,busy}:{request:OpsRequest;data:OpsDat
   <RequestCard request={r}/><div className="rounded-sm bg-white p-4"><p className="break-all">Contact: {r.contact_number} · {r.email||'No email'}</p><p>Opened bedrooms: {r.package_code==='WHOLE_HOME_1BR'?'Room 1 (queen)':r.package_code==='WHOLE_HOME_2BR'?'Rooms 1 and 2 (queen / twin bedding)':'Rooms 1, 2 and 3 (queen / twin bedding / single-size double-deck)'}</p><p>Folding foams: {r.folding_foams_requested?'Requested':'No'} · {nightDates(r.check_in_date,r.check_out_date).length} nights</p><p className="whitespace-pre-wrap">{r.notes}</p>{r.inquiry_id&&<Link className="underline" href={`/admin/inquiries/${r.inquiry_id}`}>Linked enquiry and guest contact details</Link>}</div>
   {!stay&&<div className="flex flex-wrap gap-2">{ALLOWED_BOOKING_REQUEST_TRANSITIONS[r.status].map(s=><button disabled={busy} className={button} key={s} onClick={()=>confirm(`Move request from ${r.status} to ${s}?`)&&void act({action:'STATUS',id:r.id,data:{status:s,expected_status:r.status}})}>{s==='REVIEWING'?'Review request':s==='AWAITING_DEPOSIT'?'Await deposit':s.replaceAll('_',' ')}</button>)}</div>}
   {data.estimates.filter(e=>e.request_id===r.id).map(e=><div className="rounded-sm border border-border bg-white p-4" key={e.request_id}><h2 className="font-heading text-xl">Submitted accommodation estimate</h2><p>{formatPhp(e.estimate.estimated_total_centavos)} · historical informational estimate, not issued quotation</p>{e.estimate.nights.map(n=><p key={n.date}>{n.date}: {formatPhp(n.amount_centavos)}</p>)}<p>No quotation, deposit terms or reservation was automatically created.</p></div>)}
-  {data.owner&&!stay&&<QuotationEditor request={r} act={act} busy={busy} onPreview={setPreview}/>}
+  {data.owner&&!stay&&<QuotationEditor request={r} act={act} busy={busy||loading} onPreview={setPreview}/>}
   <h2 className="font-heading text-xl">Quotation history</h2>{!qs.length&&<p>No quotations issued.</p>}{qs.map(q=><div className="rounded-sm border border-border bg-white p-4" key={q.id}><p className="break-all">Revision {q.revision} · {q.status} · {q.id}</p><p>Total {formatPhp(q.amount_total===null?null:Math.round(q.amount_total*100))} · Required down payment {formatPhp(q.required_deposit_amount===null?null:Math.round(q.required_deposit_amount*100))}</p><p>Expiry {q.valid_until||'No deadline approved'}</p>{data.owner&&<button disabled={busy} className={button} onClick={async()=>{const b=await act({action:'QUOTE_PREVIEW',id:q.id});if(b)setPreview(b as QuoteBreakdown);}}>Preview quotation</button>}{data.owner&&q.status==='DRAFT'&&!stay&&<button disabled={busy} className={button+' ml-2'} onClick={()=>confirm('Issue this immutable owner-approved quotation and payment terms? Future changes require a new revision.')&&void act({action:'QUOTE_ISSUE',id:q.id})}>Issue quotation</button>}</div>)}
   {preview&&<Breakdown value={preview}/>}
   <h2 className="font-heading text-xl">Payment and independent verification</h2><p>Verified received: {formatPhp(verified)}. Recorded unverified payments are excluded. Down payment is applied toward the quotation, never added as a fee.</p>

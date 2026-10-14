@@ -45,7 +45,7 @@ export async function POST(request:Request){
   const p=z.object({action:z.literal('RELEASE'),id:z.uuid()}).strict().parse(raw);const owner=await c.rpc('is_ten29_owner');if(owner.data!==true)throw Error('OWNER required');
   const r=await c.rpc('release_booking_owner_block',{p_block_id:p.id});if(r.error)throw Error('Release rejected');data=true;
  }else if(raw.action==='RETRY'){
-  const p=z.object({action:z.literal('RETRY'),id:z.uuid()}).strict().parse(raw);const r=await c.from('booking_requests').select('id').eq('id',p.id).maybeSingle();if(!r.data||r.error)throw Error('Request unavailable');await deliverBookingNotifications(p.id);data=true;
+  const p=z.object({action:z.literal('RETRY'),id:z.uuid(),key:z.uuid()}).strict().parse(raw);const r=await c.from('booking_requests').select('id').eq('id',p.id).maybeSingle();if(!r.data||r.error)throw Error('Request unavailable');const audit=await c.rpc('perform_booking_operation',{p_action:'NOTIFY_RETRY',p_id:p.id,p_key:p.key,p_data:{}});if(audit.error)throw Error('Retry unavailable');await deliverBookingNotifications(p.id);data=true;
  }else throw Error('Invalid action');
  return Response.json({data},{headers});
  }catch{return Response.json({error:'Operation was not accepted. Check permissions, current status, payment terms and availability; reload before retrying with the same operation.'},{status:400,headers});}
