@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "staging:check": "node scripts/check-staging-env.mjs",
     "test:e2e": "next build && playwright test",
     "test:e2e:dev": "playwright test --config=playwright.dev.config.ts"
   },

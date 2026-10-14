@@ -9,6 +9,7 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   serverExternalPackages: ["sharp"],
   // Next.js 16 blocks cross-origin dev-mode requests (HMR, etc.) by default.
   // 127.0.0.1 is used here (in addition to localhost) because local test
@@ -18,7 +19,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: SECURITY_HEADERS,
+        headers: [
+          ...SECURITY_HEADERS,
+          ...(process.env.TEN29_ENVIRONMENT === "staging"
+            ? [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }]
+            : []),
+        ],
       },
     ];
   },
