@@ -22,9 +22,12 @@ test('privacy reflects implemented processing and mobile public routes have acce
   await expect(page.getByText(/masked references/)).toBeVisible();
   await expect(page.getByText(/No automatic deletion period/)).toBeVisible();
   expect(await page.locator('body').innerText()).not.toContain('twelve months');
-  await page.goto('/book'); await expect(page.getByLabel('Bedroom package', { exact: true })).toHaveAccessibleName('Bedroom package');
-  await page.getByLabel('Bedroom package', { exact: true }).focus();
-  await expect(page.getByLabel('Bedroom package', { exact: true })).toBeFocused();
+  await page.goto('/book');
+  const packageSelect = page.getByLabel('Bedroom package', { exact: true });
+  await expect(packageSelect).toHaveAccessibleName('Bedroom package');
+  await expect(packageSelect).toBeEnabled();
+  await packageSelect.focus();
+  await expect(packageSelect).toBeFocused();
   await testInfo.attach('synthetic-route-navigation-timings', { body: JSON.stringify(timings), contentType: 'application/json' });
   console.log('Synthetic local production-server navigation milliseconds:', JSON.stringify(timings));
 });

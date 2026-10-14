@@ -59,7 +59,21 @@ test.describe("Booking enquiry form", () => {
   test("submitting a complete form never claims the stay is confirmed", async ({ page }) => {
     await page.goto("/book");
 
-    await page.locator("#full_name").fill("Playwright Test Guest");
+    const fullName = page.locator("#full_name");
+    const sessionError = page.getByText("Secure request session could not start. Retry or contact TEN29.", { exact: true });
+    await expect.poll(async () => await fullName.isEnabled() || await sessionError.isVisible()).toBe(true);
+    if (await sessionError.isVisible()) {
+      // An app-only CI job has no isolated Supabase service credential. The
+      // request submit action must remain disabled when it cannot mint its
+      // signed anti-replay session; provider-backed intake is covered in the
+      // disposable Supabase job.
+      await expect(fullName).toBeVisible();
+      await expect(page.getByRole("button", { name: /send enquiry/i })).toBeDisabled();
+      await expect(sessionError).toBeVisible();
+      return;
+    }
+
+    await fullName.fill("Playwright Test Guest");
     await page.locator("#mobile_number").fill("+639171234567");
 
     const checkIn = new Date();
