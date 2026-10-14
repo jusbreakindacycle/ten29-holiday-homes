@@ -12,6 +12,7 @@ on:
       - feature/slice-7-owner-booking-operations
       - feature/slice-8-production-readiness
       - feature/slice-9-owner-policy-integration
+      - feature/slice-10-controlled-staging
   workflow_dispatch:
 
 permissions:
