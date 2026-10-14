@@ -54,7 +54,7 @@ export function EnquiryForm({
       ) : null}
 
       <fieldset className="space-y-5">
-        <legend className="text-sm font-semibold uppercase tracking-wide text-gold">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-forest">
           Your details
         </legend>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -103,7 +103,7 @@ export function EnquiryForm({
       </fieldset>
 
       <fieldset className="space-y-5 border-t border-border pt-6">
-        <legend className="text-sm font-semibold uppercase tracking-wide text-gold">
+        <legend className="text-sm font-semibold uppercase tracking-wide text-forest">
           Your stay
         </legend>
         <div className="grid gap-5 sm:grid-cols-2">

@@ -24,6 +24,8 @@ export function getSupabaseUrl(): string {
   if (process.env.TEN29_PROVIDER_E2E === 'true' && url.origin !== 'http://127.0.0.1:54321')
     throw new Error('Disposable provider tests require the isolated localhost endpoint');
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid Supabase endpoint');
+  if (process.env.NODE_ENV === 'production' && process.env.TEN29_PROVIDER_E2E !== 'true' && url.protocol !== 'https:')
+    throw new Error('Production Supabase endpoint requires HTTPS');
   return value;
 }
 

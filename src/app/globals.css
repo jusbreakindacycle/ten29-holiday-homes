@@ -8,10 +8,10 @@
   --ten29-ivory: #f8f5ec;
   --ten29-sand: #ece4d4;
   --ten29-ink: #17241f;
-  --ten29-muted: #66736d;
+  --ten29-muted: #58645e;
   --ten29-white: #ffffff;
   --ten29-success: #2f6b4f;
-  --ten29-warning: #a6631b;
+  --ten29-warning: #995b19;
   --ten29-danger: #9b3b33;
   --ten29-border: #d9d2be;
 
@@ -52,8 +52,9 @@ h3,
 }
 
 :focus-visible {
-  outline: 3px solid var(--ten29-gold);
+  outline: 3px solid var(--ten29-forest);
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--ten29-ivory);
 }
 
 @media (prefers-reduced-motion: reduce) {

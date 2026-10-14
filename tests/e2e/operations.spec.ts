@@ -15,7 +15,8 @@ test('privacy reflects implemented processing and mobile public routes have acce
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole('button', { name: 'Open menu', exact: true }).click();
     await expect(page.getByRole('navigation', { name: 'Mobile', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Close menu', exact: true }).click();
+    await page.getByRole('button', { name: 'Close menu', exact: true }).press('Escape');
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toBeFocused();
   }
   await expect(page.getByText(/masked references/)).toBeVisible();
   await expect(page.getByText(/No automatic deletion period/)).toBeVisible();
@@ -28,6 +29,14 @@ test('privacy reflects implemented processing and mobile public routes have acce
 });
 test.describe('protected operational visibility on actual disposable provider', () => {
   test.skip(process.env.TEN29_PROVIDER_E2E !== 'true', 'Disposable provider required');
+  test('public account signup is disabled while guest intake remains independent of Auth', async ({ request }) => {
+    const result = await request.post(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/signup`, {
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! },
+      data: { email: 'unauthorized-signup@example.invalid', password: 'Synthetic-only-password-42!' },
+    });
+    expect(result.status()).toBe(422);
+    expect((await result.json()).error_code).toBe('signup_disabled');
+  });
   test('OWNER sees aggregate readiness while manager cannot read diagnostics', async ({ page }) => {
     for (const role of ['OWNER', 'MANAGER']) {
       await page.context().clearCookies(); await page.goto('/admin/login');
@@ -43,7 +52,7 @@ test.describe('protected operational visibility on actual disposable provider', 
         const data = await response.json(); expect(data.notifications).toHaveProperty('delivery_review');
         expect(JSON.stringify(data)).not.toMatch(/original_key|contact_number|lease_token|guest_name|access_token/);
         await page.screenshot({ path: 'test-results/owner-operations-readiness.png', fullPage: true });
-      } else { await expect(page.getByRole('alert')).toContainText('OWNER access denied'); }
+      } else { await expect(page.getByRole('main').getByRole('alert')).toContainText('OWNER access denied'); }
     }
   });
 });

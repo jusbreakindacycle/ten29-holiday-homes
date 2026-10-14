@@ -16,6 +16,10 @@ const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 if (JSON.stringify(lock.packages[''].dependencies) !== JSON.stringify(pkg.dependencies)) fail('Dependency lock differs from package manifest');
 const privateValues = ['SUPABASE_SERVICE_ROLE_KEY', 'RESEND_API_KEY'].map(name => process.env[name]).filter(value => value && value.length > 16);
+const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+let privileged = publicKey.startsWith('sb_secret_');
+try { privileged ||= JSON.parse(Buffer.from(publicKey.split('.')[1], 'base64url').toString()).role === 'service_role'; } catch { /* Opaque publishable keys are supported. */ }
+if (privileged) fail('Privileged Supabase credential configured as browser-public');
 let files = 0, bytes = 0;
 function inspect(directory) {
   for (const item of readdirSync(directory, { withFileTypes: true })) {

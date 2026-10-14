@@ -13,6 +13,7 @@ import tempfile
 import urllib.request
 import urllib.error
 import uuid
+import time
 
 if os.environ.get('CI') != 'true' or os.environ.get('TEN29_PROVIDER_E2E') != 'true':
     raise SystemExit('Disposable provider CI only')
@@ -99,6 +100,7 @@ for table in ['public.inquiries','public.website_booking_intakes','public.manual
     assert int(before[table].split(':')[0]) > 0, 'Missing representative fixture: ' + table
 
 with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
+    started = time.monotonic()
     backup = Path(temp) / 'database.backup'
     backup.write_bytes(command(['docker', 'exec', CONTAINER, 'pg_dump', '-U', 'postgres', '-d', 'postgres', '-Fc']))
     backup.chmod(0o600)
@@ -115,6 +117,7 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
         output = command(['docker','exec',CONTAINER,'pg_prove','-U','postgres','-d',RESTORED,'/tmp/ten29-restored-integrity.sql'])
         print(output.decode())
         print(f'Database recovery: {len(tables)} table fingerprints and security definitions matched; no active overlaps; restored Storage reference matched recovered bytes')
+        print(f'Synthetic backup/restore/validation elapsed seconds: {time.monotonic() - started:.2f}; not a production RTO')
     finally:
         # Fresh DB is never routed to Auth, Storage, email or application traffic.
         sql(f'drop database {RESTORED} with (force);')

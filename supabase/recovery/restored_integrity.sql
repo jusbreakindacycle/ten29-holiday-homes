@@ -12,6 +12,10 @@ select ok(exists(select 1 from public.booking_operation_events where action='CAN
 select ok(exists(select 1 from public.booking_operation_events where action='COMPLETE'),'restored completion history');
 select ok(exists(select 1 from public.media_audit_events),'restored media audits');
 select ok(exists(select 1 from public.booking_notification_outbox),'restored notification tasks');
+select throws_ok($$update public.booking_quotes set amount_total=amount_total+1 where id=(select id from public.booking_quotes where status='ISSUED' limit 1)$$,'23514',null,'restored issued quotation snapshot cannot mutate');
+select throws_ok($$update public.booking_deposits set amount=amount+1 where id=(select id from public.booking_deposits limit 1)$$,'23514',null,'restored original payment cannot mutate');
+select throws_ok($$delete from public.booking_deposit_verifications where id=(select id from public.booking_deposit_verifications limit 1)$$,'23514',null,'restored verification history cannot delete');
+select throws_ok($$update public.booking_reservations set overnight_guest_count=1 where id=(select id from public.booking_reservations limit 1)$$,'23514',null,'restored reservation snapshot cannot mutate');
 select is((select count(*)::int from public.property_occupancies a join public.property_occupancies b on a.id<b.id and a.active and b.active and a.property_id=b.property_id and daterange(a.check_in_date,a.check_out_date,'[)') && daterange(b.check_in_date,b.check_out_date,'[)')),0,'no restored active overlap');
 select ok(not exists(select 1 from pg_constraint where connamespace='public'::regnamespace and contype in ('f','c') and not convalidated),'restored validated foreign keys and checks');
 select ok(exists(select 1 from pg_constraint where conname='no_overlapping_active_property_stays' and contype='x'),'restored property exclusion');

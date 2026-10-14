@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
@@ -9,11 +9,15 @@ import { CtaLink } from "@/components/ui/CtaButton";
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
 
   return (
-    <div className="md:hidden">
+    <div className="md:hidden" onKeyDown={(event) => {
+      if (event.key === 'Escape' && open) { setOpen(false); toggle.current?.focus(); }
+    }}>
       <button
+        ref={toggle}
         type="button"
         aria-expanded={open}
         aria-controls="mobile-nav"
