@@ -43,6 +43,7 @@ create unique index reschedule_request_once on public.booking_policy_events(rese
 create unique index security_refund_authorize_once on public.booking_policy_events(reservation_id) where type='SECURITY_REFUND_AUTHORIZE';
 create unique index cancellation_review_once on public.booking_policy_events(reservation_id) where type='CANCELLATION_REVIEW';
 create unique index quote_authorize_once on public.booking_policy_events(quote_id) where type='QUOTE_AUTHORIZE';
+create unique index reschedule_review_once on public.booking_policy_events(reservation_id) where type='RESCHEDULE_REVIEW';
 alter table public.booking_policy_events enable row level security;
 revoke all on public.booking_policy_events from public,anon,authenticated,service_role;
 grant select on public.booking_policy_events to authenticated;
@@ -308,7 +309,7 @@ begin
  if p_from is null or p_to is null or p_to<=p_from or p_to-p_from>366 then raise check_violation using message='Price window must be between 1 and 366 nights'; end if;
  select max_guests,bedrooms_access into v_cap,v_rooms from public.property_packages where code=p_package;
  if v_cap is null or p_guests is null or p_guests<1 or p_guests>8 or p_foams is null
-  or p_guests>case p_package when 'WHOLE_HOME_1BR' then 3 when 'WHOLE_HOME_2BR' then 5 else 8 end
+  or p_guests>(case p_package when 'WHOLE_HOME_1BR' then 3 when 'WHOLE_HOME_2BR' then 5 else 8 end)
   or (p_guests>v_cap and not p_foams) then raise check_violation using message='Ineligible package occupancy'; end if;
  select published_revision_id into v_revision from public.calendar_rate_heads where package_code=p_package;
  select jsonb_agg(jsonb_build_object('date',d,'package_code',p_package,'amount_centavos',r.amount_centavos,
@@ -790,3 +791,78 @@ begin
   return new;
 end;
 $$;
+
+create or replace function public.owner_media_action(p_action text, p_id uuid, p_version integer, p_data jsonb)
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
+declare m public.property_media; new_id uuid; key_id uuid; old public.property_media;
+begin
+ if not public.is_ten29_owner() then raise exception 'OWNER required' using errcode='42501'; end if;
+ perform pg_advisory_xact_lock(421296);
+ if p_data is null or jsonb_typeof(p_data)<>'object' then raise check_violation; end if;
+ if p_action='RESERVE' and (p_data-array['key','mime','bytes'])<>'{}'::jsonb then raise check_violation using message='Only property photo/video uploads are supported'; end if;
+ if p_action='RESERVE' then
+  key_id := (p_data->>'key')::uuid;
+  select * into m from public.property_media where upload_key=key_id;
+  if found then
+   if m.uploaded_by<>auth.uid() or m.bytes<>(p_data->>'bytes')::bigint or m.mime<>p_data->>'mime' then raise exception 'Upload key conflict'; end if;
+   return to_jsonb(m);
+  end if;
+  if (select count(*) from public.property_media where cleaned_at is null)>=(select file_count from public.media_limits where id=1)
+   or (select coalesce(sum(quota_bytes),0) from public.property_media where cleaned_at is null)+105906176 >(select library_bytes from public.media_limits where id=1)
+   then raise exception 'Media quota reached'; end if;
+  if p_data->>'mime' not in ('image/jpeg','image/png','image/webp','image/heic','image/heif','video/mp4','video/quicktime') then raise exception 'Unsupported type'; end if;
+  if (p_data->>'bytes')::bigint > (select case when p_data->>'mime' like 'image/%' then photo_bytes else video_bytes end from public.media_limits where id=1) then raise exception 'File too large'; end if;
+  new_id:=gen_random_uuid();
+  insert into public.property_media(id,kind,mime,bytes,original_key,upload_key,uploaded_by)
+   values(new_id,case when p_data->>'mime' like 'image/%' then 'PHOTO' else 'VIDEO' end,p_data->>'mime',(p_data->>'bytes')::bigint,new_id::text||'/original',key_id,auth.uid()) returning * into m;
+ else
+  select * into m from public.property_media where id=p_id for update;
+  if not found then raise exception 'Media not found'; end if;
+  if m.version<>p_version then raise exception 'Stale media revision'; end if;
+  if p_action='EDIT' then
+   if m.state in ('PUBLISHED','ARCHIVED') then raise exception 'Unpublish before editing'; end if;
+   if p_data->>'category' not in ('Exterior','Entrance','Living Area','Kitchen & Dining','Room 1','Room 2','Room 3','Bathrooms','Lanai / Outdoor','Parking','Amenities','Property Tour Videos') then raise exception 'Category requires separate approval'; end if;
+   update public.property_media set title=p_data->>'title',caption=p_data->>'caption',alt=p_data->>'alt',category=p_data->>'category',
+    position=(p_data->>'position')::integer,rights_acknowledged=(p_data->>'rights')::boolean,public_claim_id=p_data->>'public_claim_id',version=version+1 where id=m.id returning * into m;
+  elsif p_action='PUBLISH' then
+   if m.state not in ('READY_FOR_REVIEW','UNPUBLISHED') or m.rendition_key is null or not m.rights_acknowledged or m.alt='' then raise exception 'Media is not ready for publication'; end if;
+   if not exists(select 1 from storage.objects where bucket_id='ten29-renditions' and name=m.rendition_key)
+    or (m.kind='VIDEO' and not exists(select 1 from storage.objects where bucket_id='ten29-renditions' and name=m.poster_key)) then raise exception 'Rendition missing'; end if;
+   -- Optional replacement is an atomic visibility swap after validation.
+   if p_data->>'replace' is not null then
+    select * into old from public.property_media where id=(p_data->>'replace')::uuid for update;
+    if old.id is null or old.state<>'PUBLISHED' or old.id=m.id then raise exception 'Invalid replacement'; end if;
+    update public.property_media set state='UNPUBLISHED',featured=false,version=version+1 where id=old.id;
+    insert into public.media_audit_events(media_id,actor,event,version) values(old.id,auth.uid(),'REPLACED',old.version+1);
+   end if;
+   update public.property_media set state='PUBLISHED',published_by=auth.uid(),published_at=now(),version=version+1 where id=m.id returning * into m;
+  elsif p_action in ('UNPUBLISH','ARCHIVE') then
+   if p_action='UNPUBLISH' and m.state<>'PUBLISHED' then raise exception 'Not published'; end if;
+   update public.property_media set state=case when p_action='ARCHIVE' then 'ARCHIVED' else 'UNPUBLISHED' end,featured=false,version=version+1 where id=m.id returning * into m;
+  elsif p_action='COVER' then
+   if m.kind<>'PHOTO' or m.state<>'PUBLISHED' then raise exception 'Cover must be a published photo'; end if;
+   insert into public.media_audit_events(media_id,actor,event,version) select id,auth.uid(),'COVER_CLEARED',version+1 from public.property_media where featured and id<>m.id;
+   update public.property_media set featured=false,version=version+1 where featured and id<>m.id;
+   update public.property_media set featured=true,version=version+1 where id=m.id returning * into m;
+  else raise exception 'Invalid media action'; end if;
+ end if;
+ insert into public.media_audit_events(media_id,actor,event,version) values(m.id,auth.uid(),p_action,m.version);
+ return to_jsonb(m);
+end $$;
+
+-- Defense in depth for text ingress. No rejected text is logged or hashed here.
+-- This detects explicit document references; it cannot classify a renamed image.
+create function ten29_private.guard_nonstored_rules() returns trigger
+language plpgsql set search_path='' as $$
+begin
+ if to_jsonb(new)::text ~* 'house[[:space:]_-]*rules' then
+  raise check_violation using message='House Rules contents and copies must remain outside TEN29';
+ end if;
+ return new;
+end $$;
+revoke all on function ten29_private.guard_nonstored_rules() from public,anon,authenticated,service_role;
+create trigger nonstored_rules_inquiries before insert or update on public.inquiries for each row execute function ten29_private.guard_nonstored_rules();
+create trigger nonstored_rules_contacts before insert on public.manual_booking_contacts for each row execute function ten29_private.guard_nonstored_rules();
+create trigger nonstored_rules_notes before insert on public.booking_operation_events for each row execute function ten29_private.guard_nonstored_rules();
+create trigger nonstored_rules_quote before insert on public.booking_quote_pricing_snapshots for each row execute function ten29_private.guard_nonstored_rules();
+create trigger nonstored_rules_media before insert or update on public.property_media for each row execute function ten29_private.guard_nonstored_rules();

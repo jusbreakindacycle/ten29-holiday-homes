@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import {referencesHouseRules} from './nonstored-rules';
 export const MEDIA_CATEGORIES = ['Exterior','Entrance','Living Area','Kitchen & Dining','Room 1','Room 2','Room 3','Bathrooms','Lanai / Outdoor','Parking','Amenities','Property Tour Videos'] as const;
 export const MEDIA_MIMES = ['image/jpeg','image/png','image/webp','image/heic','image/heif','video/mp4','video/quicktime'] as const;
 export const reserveMediaSchema = z.object({ key: z.uuid(), mime: z.enum(MEDIA_MIMES), bytes: z.number().int().positive().max(50*1024*1024) }).strict().refine(p => !p.mime.startsWith('image/') || p.bytes<=20*1024*1024, 'Photos must be at most 20 MiB');
-export const editMediaSchema = z.object({ title: z.string().trim().max(120), caption: z.string().trim().max(500), alt: z.string().trim().max(250), category: z.enum(MEDIA_CATEGORIES), position: z.number().int().min(0).max(10000), rights: z.boolean(), public_claim_id: z.string().max(80).nullable().default(null) }).strict();
+export const editMediaSchema = z.object({ title: z.string().trim().max(120), caption: z.string().trim().max(500), alt: z.string().trim().max(250), category: z.enum(MEDIA_CATEGORIES), position: z.number().int().min(0).max(10000), rights: z.boolean(), public_claim_id: z.string().max(80).nullable().default(null) }).strict().refine(p=>![p.title,p.caption,p.alt].some(referencesHouseRules),'House Rules must remain outside TEN29.');
 export const actionMediaSchema = z.object({ action: z.enum(['EDIT','PUBLISH','UNPUBLISH','ARCHIVE','COVER','PROCESS','CLEANUP']), id: z.uuid(), version: z.number().int().positive(), data: z.record(z.string(),z.unknown()).default({}) }).strict();
 /** Check bytes, not the filename; a real decoder is still mandatory after this check. */
 export function mediaSignature(bytes: Uint8Array): string | null {

@@ -15,7 +15,7 @@ export function occupancy(adults: number, olderChildren: number, youngChildren: 
   const policy = PACKAGE_POLICY[code];
   return { countable, actual, exempt: youngChildren, included: policy.included,
     extraRequested: Math.max(0, countable - policy.included), ownerReview: actual > 8,
-    eligible: Number.isInteger(actual) && adults >= 1 && olderChildren >= 0 && youngChildren >= 0 && countable <= policy.maximum && actual <= OCCUPANT_INPUT_BOUND };
+    eligible: [adults,olderChildren,youngChildren].every(Number.isInteger) && adults >= 1 && olderChildren >= 0 && youngChildren >= 0 && countable <= policy.maximum && actual <= OCCUPANT_INPUT_BOUND };
 }
 export function paymentProposal(total: number, checkIn: string, today: string) {
   if (!Number.isSafeInteger(total) || total < 0) throw Error('Invalid centavo amount');

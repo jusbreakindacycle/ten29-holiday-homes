@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Upload } from 'tus-js-client';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { MEDIA_CATEGORIES, reserveMediaSchema } from '@/lib/media-validation';
+import {referencesHouseRules} from '@/lib/nonstored-rules';
 import type { OwnerMedia } from '@/types/media';
 const button='min-h-11 rounded-lg border border-forest/25 px-4 py-2 text-sm font-medium disabled:opacity-50';
 const subscribe=()=>()=>{};
@@ -25,6 +26,8 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
  }
  async function uploadFiles(files:File[]) {
   if(!files.length)return;
+  // Before preview URLs, hashes, retry storage, RPC or Storage writes.
+  if(files.some(file=>referencesHouseRules(file.name))){setMessage('House Rules must never be uploaded to TEN29. Choose only property photos and videos.');return;}
   if(files.length>10){setSelected([]);setMessage('Choose up to 10 photos per upload batch. No files were uploaded.');return;}
   setBusy(true);setMessage('');cancel.current=false;setSelected(files.slice(0,10).map(file=>({name:file.name,preview:['image/jpeg','image/png','image/webp'].includes(file.type)?URL.createObjectURL(file):null})));
   const client=createSupabaseBrowserClient();

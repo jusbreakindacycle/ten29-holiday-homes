@@ -18,11 +18,18 @@ export function OwnerPolicyOperations({request:r,data,act,busy}:{request:OpsRequ
  const authorized=events.find(e=>e.type==='SECURITY_REFUND_AUTHORIZE');
  const deducted=Number(authorized?.data.deduction_centavos??0);
  const rules=events.filter(e=>e.type==='RULES').at(-1)?.data.status??'NOT_SENT';
+ const quote=data.quotes.filter(q=>q.request_id===r.id&&q.status==='ISSUED').sort((a,b)=>b.revision-a.revision)[0];
+ const verified=data.deposits.filter(d=>d.request_id===r.id&&d.decision==='VERIFIED').reduce((n,d)=>n+Math.round(d.amount*100),0);
+ const due=new Date(Date.parse(r.check_in_date)-7*86400000).toISOString().slice(0,10);
+ const manila=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const outstanding=quote?.amount_total===null||!quote?null:Math.max(0,Math.round(quote.amount_total*100)-verified);
  const policy=(type:string,fields:Record<string,unknown>,id=stay?.id??r.id)=>act({action:'POLICY',id,data:{type,...fields}});
  function money(f:FormData,name:string){return phpToCentavos(String(f.get(name)||'0'));}
  function submit(e:React.FormEvent<HTMLFormElement>,type:string,build:(f:FormData)=>Record<string,unknown>){e.preventDefault();try{void policy(type,build(new FormData(e.currentTarget)));}catch{alert('Review exact PHP amounts.');}}
  return <section aria-label="Owner booking policy" className="space-y-4 rounded-sm border border-forest bg-white p-4">
  <h2 className="font-heading text-xl">Owner booking policy</h2>
+ {quote&&<p>Final quoted accommodation: {formatPhp(quote.amount_total===null?null:Math.round(quote.amount_total*100))} · Reservation down payment: {formatPhp(quote.required_deposit_amount===null?null:Math.round(quote.required_deposit_amount*100))} · Verified accommodation received: {formatPhp(verified)} · Outstanding accommodation: {formatPhp(outstanding)}</p>}
+ {quote&&r.policy_version!=='LEGACY'&&<p>Balance due {due}. {outstanding!==null&&outstanding>0&&manila>due?'OWNER attention: balance overdue. No automatic cancellation or financial action.':'See authorized quotation schedule for required amounts.'}</p>}
  {r.policy_version==='LEGACY'||!r.policy_version?<p>Legacy counting and quotation terms retained; age bands are not inferred.</p>:<>
  <p>Policy {r.policy_version} · Included {PACKAGE_POLICY[r.package_code].included} · Countable {r.countable_guest_count} · Free young children {r.exempt_children_count} · Actual occupants {r.overnight_guest_count}</p>
  <p>Extra requested: {r.extra_guests_requested} · OWNER approved: {String(approve?.data.count??'Pending')} · PHP 400 per approved extra guest per night.</p>

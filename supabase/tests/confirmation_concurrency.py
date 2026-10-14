@@ -198,3 +198,29 @@ print('PASS: cancellation versus replacement confirmation: PostgreSQL lock obser
 race(cancel,cancel)
 assert sql(f"select count(*) from public.property_occupancy_events e join public.property_occupancies o on o.id=e.occupancy_id where o.reservation_id='{reservation}' and e.event='RELEASED';").stdout.strip()=='1'
 print('PASS: simultaneous cancellation retries: PostgreSQL lock observed, one immutable cancellation and occupancy release')
+
+# Slice 9 policy-backed confirmation: actual headcount and approval snapshots.
+def policy_ready(package, guests, start, end):
+    request = str(uuid.uuid4())
+    included = {'WHOLE_HOME_1BR':2,'WHOLE_HOME_2BR':4,'WHOLE_HOME_3BR':6}[package]
+    output = sql(rf"""begin; {AUTH}
+insert into public.booking_requests(id,source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review)
+values('{request}','PHONE','{package}','{start}','{end}',{guests+1},true,'TEN29-20261015-v1',{guests},0,1,{guests},{guests-included},false);
+select public.perform_booking_policy_operation('{request}','{uuid.uuid4()}','{{"type":"EXTRA_APPROVE","count":{guests-included},"occupancy_reviewed":true}}');
+update public.booking_requests set status='REVIEWING' where id='{request}';
+select public.prepare_itemized_booking_quote('{request}',null,null,'[]','[{{"date":"{start}","amount_centavos":10000,"reason":"Synthetic concurrency"}}]',null,null,null,'{uuid.uuid4()}') as q \gset
+select public.perform_booking_policy_operation(:'q','{uuid.uuid4()}','{{"type":"QUOTE_AUTHORIZE","basis_approved":true,"terms_communicated":true,"boundary_reviewed":true}}');
+select public.issue_itemized_booking_quote(:'q');
+update public.booking_requests set status='AWAITING_DEPOSIT' where id='{request}';
+select public.perform_booking_operation('PAYMENT','{request}','{uuid.uuid4()}','{{"amount_centavos":42000,"payment_method":"GCASH","masked_reference":""}}') as d \gset
+select public.decide_booking_deposit(:'d','VERIFIED',true,'{uuid.uuid4()}');
+select 'QUOTE=' || :'q'; commit;""").stdout
+    quote = next(line[6:] for line in output.splitlines() if line.startswith('QUOTE='))
+    return request, quote, str(uuid.uuid4())
+policy_a=policy_ready('WHOLE_HOME_1BR',3,'2047-07-01','2047-07-02')
+policy_b=policy_ready('WHOLE_HOME_2BR',5,'2047-07-01','2047-07-02')
+race(confirm(policy_a),confirm(policy_b),'23P01')
+assert sql(f"select count(*) from public.booking_reservations where request_id in ('{policy_a[0]}','{policy_b[0]}');").stdout.strip()=='1'
+print('PASS: current-policy 1BR/2BR extra-guest confirmations: actual PostgreSQL lock, one winner, loser rollback')
+race(confirm(policy_a),confirm(policy_a))
+print('PASS: current-policy confirmation retries: actual PostgreSQL lock, one financial snapshot')
