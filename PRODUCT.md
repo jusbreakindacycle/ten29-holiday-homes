@@ -360,6 +360,24 @@ Migrations are forward-only, transactional where supported, backed up, staged an
 | TEN-OPS-03 | From 3 PM / before noon, Asia/Manila; no inferred arrival/fee restrictions | Slice 5 calendar shows owner-confirmed Manila operating hours; no inferred arrival fees/restrictions |
 | TEN-MEDIA-04 | Actual owner assets, private upload staging, tested Android/iOS formats and publication | Future media slice; not implemented/tested in reconciliation |
 
+### Supervised owner UAT acceptance sequence
+
+Actual-owner UAT: **PENDING**. Run only with synthetic guest/payment records in an isolated environment and actual-owner-authorized media. Automated developer tests are not owner sign-off. Record identity/date/results in this acceptance section when actually executed.
+
+1. Sign in with the authorized OWNER and review dashboard/navigation.
+2. Publish a test-approved package rate, edit one date, and check the guest price; then restore test data.
+3. Submit a synthetic guest request, recover a lost response and inspect the linked enquiry/request.
+4. Create a Messenger manual request with a smaller group buying 3BR; review source and private contacts.
+5. Prepare an itemized quote, explicitly approve a private charge/discount, preview and issue a revision; verify older snapshots remain unchanged.
+6. Record a controlled synthetic payment as unverified; demonstrate denied confirmation, independently verify the fixture, then confirm and inspect all-package blocked dates.
+7. Create/release an owner block, cancel with manual refund-review acknowledgement, and complete an eligible past synthetic stay; inspect immutable history.
+8. Upload an owner-authorized photograph and supported video, preview, publish and unpublish; verify later public requests are denied.
+9. Inspect notification pending/failure/acceptance status, recover a simulated expired worker and respect deduplication review limits.
+10. Review Operations signals, retry a controlled processing failure/cleanup, and inspect the recovery rehearsal without exposing backup contents.
+11. Verify manager denial, nonmember denial, account recovery contacts, session revocation and owner-held provider control.
+
+Physical-device media cases: **NOT EXECUTED**, Slice 6 acceptance **PENDING**. On Android Chrome and iPhone Safari separately, select photos/videos from native gallery; check actual HEIC and MOV/HEVC, Live Photo selection behavior (no assumed motion support), Android MP4, upload interruption and retry, processing failure/retry, playback/poster/controls, publish/unpublish and mobile navigation. Record model/OS/browser, input codec, duration/size, visible progress/errors and publication checks. Chromium viewport tests do not satisfy this boundary. Screen-reader/assistive-device testing and formal contrast/a11y review remain pending; automated core labels/focus/layout are evidence only, not certification.
+
 ## 12. Non-functional requirements
 
 - **Security/privacy:** least-privilege RLS, rate limiting, CSRF/session checks, guest consent, no service-role secrets in browser, cryptographically unguessable object identifiers, safe logs, auditable owner actions and account revocation.
@@ -619,23 +637,7 @@ Use an owner-controlled managed Node 22 container/VM running the supported Next.
 | Relevant business/HOA/legal operating requirements | PENDING: no permit or compliance guarantee |
 | Production launch | BLOCKED: no actual-owner launch authorization, production infrastructure or UAT acceptance |
 
-#### Supervised owner UAT acceptance sequence
-
-Actual-owner UAT: **PENDING**. Run only with synthetic guest/payment records in an isolated environment and actual-owner-authorized media. Automated developer tests are not owner sign-off. Record identity/date/results in this acceptance section when actually executed.
-
-1. Sign in with the authorized OWNER and review dashboard/navigation.
-2. Publish a test-approved package rate, edit one date, and check the guest price; then restore test data.
-3. Submit a synthetic guest request, recover a lost response and inspect the linked enquiry/request.
-4. Create a Messenger manual request with a smaller group buying 3BR; review source and private contacts.
-5. Prepare an itemized quote, explicitly approve a private charge/discount, preview and issue a revision; verify older snapshots remain unchanged.
-6. Record a controlled synthetic payment as unverified; demonstrate denied confirmation, independently verify the fixture, then confirm and inspect all-package blocked dates.
-7. Create/release an owner block, cancel with manual refund-review acknowledgement, and complete an eligible past synthetic stay; inspect immutable history.
-8. Upload an owner-authorized photograph and supported video, preview, publish and unpublish; verify later public requests are denied.
-9. Inspect notification pending/failure/acceptance status, recover a simulated expired worker and respect deduplication review limits.
-10. Review Operations signals, retry a controlled processing failure/cleanup, and inspect the recovery rehearsal without exposing backup contents.
-11. Verify manager denial, nonmember denial, account recovery contacts, session revocation and owner-held provider control.
-
-Physical-device media cases: **NOT EXECUTED**, Slice 6 acceptance **PENDING**. On Android Chrome and iPhone Safari separately, select photos/videos from native gallery; check actual HEIC and MOV/HEVC, Live Photo selection behavior (no assumed motion support), Android MP4, upload interruption and retry, processing failure/retry, playback/poster/controls, publish/unpublish and mobile navigation. Record model/OS/browser, input codec, duration/size, visible progress/errors and publication checks. Chromium viewport tests do not satisfy this boundary. Screen-reader/assistive-device testing and formal contrast/a11y review remain pending; automated core labels/focus/layout are evidence only, not certification.
+Owner UAT and physical-device acceptance cases are maintained in section 11; neither is actual-owner sign-off.
 
 The security/content loop also disables public and anonymous Auth signup in the disposable configuration (hosted settings still require explicit production verification), rejects privileged keys mislabelled as public, adds a server-only credential-module boundary, and makes production request-session cookies Secure independently of the canonical URL setting. Small public section-label contrast, muted/warning tokens, two-color focus visibility and mobile-menu Escape/focus return are corrected; five core text/background pairs have executable contrast checks. FAQ, Terms, homepage and rate-calendar guidance now describe the implemented workflow, including payment before final protected confirmation rather than a circular dates-confirmed-before-payment instruction.
 
@@ -643,7 +645,30 @@ Media cleanup previously listed only 100 rendition directories and could mark cl
 
 #### Slice 8 execution evidence
 
-Validation pending on this implementation revision. Do not label automated engineering VERIFIED until the disposable recovery drill, existing regression suites and new operational tests succeed. Production infrastructure remains INCOMPLETE, commercial approvals INCOMPLETE, owner UAT PENDING, physical-device media PENDING, and overall launch NOT APPROVED. Actual backup scheduling, complete offsite library recovery, fresh hosted project/bootstrap recovery, production load/performance and operational alert routing remain unverified gates even after local automated checks pass.
+Verified execution: commit `fc051d1be8a0a5e99eb28a264201653c1ca88f5b`, [GitHub Actions run 38549038159](https://github.com/jusbreakindacycle/ten29-holiday-homes/actions/runs/38549038159), both jobs successful. The following are executed results, not future acceptance promises:
+
+| Validation | Actual result |
+|---|---|
+| `npm run lint`; `npm run typecheck` | Exit 0 each |
+| `npm run test -- --maxWorkers=1 --pool=threads` | Exit 0; 225 tests in 22 files passed |
+| `npm run build -- --webpack` | Exit 0 in application and disposable-provider jobs |
+| `npm audit --omit=dev --audit-level=high` | Exit 0; zero production-dependency vulnerabilities reported |
+| Public `npx playwright test --workers=1` | Exit 0; 10 passed; 29 provider-dependent cases skipped here, not counted as passes |
+| Provider-backed pricing/intake/media/booking/operations Playwright | Exit 0; 31 passed, zero skipped; includes two shared public checks |
+| Ordered migration replay and `supabase test db` | Exit 0; 323 pgTAP assertions across 7 suites |
+| `python3 supabase/tests/confirmation_concurrency.py` | Exit 0; 13 actual PostgreSQL locking/concurrency scenarios passed |
+| `python3 supabase/tests/recovery_rehearsal.py` | Exit 0; 31 table fingerprints and security definitions matched; 29 restored pgTAP assertions passed, zero skipped; no active overlap; separate synthetic Storage byte recovery and reference verified |
+| `node scripts/verify-release.mjs` | Exit 0; migrations 0001-0010 unchanged, lockfile/configuration checks and 70 browser artifacts scanned; provider service credential value checked without exposure |
+
+The synthetic backup/restore/validation took 4.82 seconds; this is not a production RTO or scale benchmark. Restored roles were already present in the disposable cluster, and the pgTAP test harness was installed only in the restored clone after comparison. Temporary backups were removed and not uploaded. Public-job credential-value checks had zero configured values, so that job is source/accessor validation only; the provider job additionally checked its disposable service credential. No production credentials were inspected.
+
+Real-provider tests also prove an existing OWNER session loses operational/API access and direct booking reads after tenant membership revocation; restoring the synthetic membership afterward does not alter financial history. Notification tests prove expired-lease recovery, stale-token denial, stable retries and refusal to resend beyond the deduplication review window. No real Resend delivery occurred. A legacy email path previously invented a fallback owner inbox: missing destination now fails closed, records a safe notification failure and preserves the enquiry. Actual-owner sender/destination and provider delivery remain pending.
+
+Automated accessibility evidence includes core text contrast, labels, focus return, defensive headers and mobile layout; route navigation timings are synthetic local production-server observations only. Physical phones, assistive-device review, formal WCAG certification, production Core Web Vitals, load and database query-plan/scale acceptance are NOT EXECUTED.
+
+**Automated engineering readiness: PARTIALLY VERIFIED.** Executed application, database, concurrency, Storage and recovery suites pass, but full `npm audit` exits 1 with five inherited high-severity development dependency findings rooted in `braces` <=3.0.3 ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)) via micromatch/fast-glob/Next lint tooling. No compatible patched version was available at inspection; npm suggests an incompatible Next 14 lint downgrade, which was rejected. These are not deployed runtime dependencies, and no critical/high runtime booking, pricing or RLS defect was found in the executed regressions, but the unresolved tooling advisory prevents an unqualified security-clear claim. Keep CI inputs trusted and obtain a compatible upstream fix/review before closing this risk.
+
+Production infrastructure remains INCOMPLETE, commercial approvals INCOMPLETE, actual-owner UAT PENDING, physical-device media acceptance PENDING (Slice 6 remains PARTIALLY VERIFIED), and overall launch NOT APPROVED. Actual backup scheduling, complete offsite library recovery, fresh hosted project/bootstrap recovery, production worker/alert routing, secure processing-host resource acceptance and actual email delivery remain unverified gates. No production deployment, hosted migration, paid provisioning, customer communication or next slice was performed.
 
 ## 18. Sources within existing repository
 
