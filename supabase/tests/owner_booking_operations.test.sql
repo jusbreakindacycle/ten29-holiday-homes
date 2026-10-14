@@ -79,8 +79,21 @@ select is((public.read_booking_operations('2000-01-01','2000-02-01',(select requ
 select is((select count(*)::int from public.booking_quotes where status='ISSUED'),2,'all issued quote history retained');
 select lives_ok($$select public.perform_booking_operation('NOTE',request,gen_random_uuid(),'{"text":"Synthetic private operational note"}') from f$$,'private operational note is append-only');
 select lives_ok($$select public.perform_booking_operation('NOTIFY_RETRY',request,gen_random_uuid(),'{}') from f$$,'notification retry intent has actor audit');
+select throws_ok($$select public.perform_booking_operation(null,null,gen_random_uuid(),'{}')$$,'23514','Invalid operation','null action rejected explicitly');
+update f set payload=payload||'{"check_in_date":"2038-04-01","check_out_date":"2038-04-03"}',key=gen_random_uuid();
+update f set request=public.perform_booking_operation('MANUAL',null,key,payload);
+select public.perform_booking_operation('STATUS',request,gen_random_uuid(),'{"status":"REVIEWING","expected_status":"NEW"}') from f;
+insert into public.booking_quotes(request_id,revision,amount_total,required_deposit_amount) select request,1,100,25 from f;
+update f set quote=(select id from public.booking_quotes where request_id=f.request);
+select public.issue_booking_quote(quote) from f;
+select public.perform_booking_operation('STATUS',request,gen_random_uuid(),'{"status":"AWAITING_DEPOSIT","expected_status":"QUOTED"}') from f;
+select public.perform_booking_operation('PAYMENT',request,gen_random_uuid(),'{"amount_centavos":2500,"payment_method":"Synthetic","masked_reference":"***1234"}') from f;
+select public.perform_booking_operation('STATUS',request,gen_random_uuid(),'{"status":"DECLINED","expected_status":"AWAITING_DEPOSIT"}') from f;
+select is((select count(*)::int from public.booking_operation_events where action='STATUS' and refund_review_required),1,'closing a request with recorded money creates durable owner review obligation');
+
 reset role;
-select is(public.may_deliver_booking_request_notification((select request from f)),false,'completed stay cannot send delayed pending acknowledgement');
+select is(public.may_deliver_booking_request_notification((select request_id from public.booking_reservations where check_in_date='2000-01-01')),false,'completed stay cannot send delayed pending acknowledgement');
+select is(public.may_deliver_booking_request_notification((select request from f)),false,'declined request cannot send delayed pending acknowledgement');
 select ok(has_function_privilege('service_role','public.may_deliver_booking_request_notification(uuid)','EXECUTE'),'notification worker has only scoped eligibility read');
 select ok(not has_function_privilege('authenticated','public.may_deliver_booking_request_notification(uuid)','EXECUTE'),'admins cannot invoke worker eligibility RPC directly');
 set local role anon;

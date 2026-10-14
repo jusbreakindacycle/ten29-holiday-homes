@@ -30,10 +30,10 @@ create trigger operations_immutable before update or delete on public.booking_op
 create function ten29_private.booking_operation(p_action text,p_id uuid,p_key uuid,p_data jsonb) returns uuid
  language plpgsql security definer set search_path='' as $$
 declare old_event public.booking_operation_events; req public.booking_requests; stay public.booking_reservations;
- result uuid; payload jsonb; event_request uuid; event_reservation uuid; occ uuid;
+ result uuid; payload jsonb; event_request uuid; event_reservation uuid; occ uuid; payment_review boolean:=false;
 begin
  if not public.is_ten29_admin() then raise insufficient_privilege using message='TEN29 access required'; end if;
- if p_key is null or p_data is null or jsonb_typeof(p_data)<>'object' or octet_length(p_data::text)>16384
+ if p_action is null or p_key is null or p_data is null or jsonb_typeof(p_data)<>'object' or octet_length(p_data::text)>16384
   or p_action not in ('MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTIFY_RETRY','NOTE') then raise check_violation using message='Invalid operation'; end if;
  if p_action in ('CANCEL','COMPLETE') and not public.is_ten29_owner() then raise insufficient_privilege using message='OWNER required'; end if;
  payload:=jsonb_build_object('action',p_action,'id',p_id,'data',p_data);
@@ -71,6 +71,7 @@ begin
    if (p_data-array['status','expected_status'])<>'{}' or req.status::text is distinct from p_data->>'expected_status' then
     raise check_violation using message='Request changed; reload'; end if;
    update public.booking_requests set status=(p_data->>'status')::public.booking_request_status where id=req.id;
+   payment_review:=(p_data->>'status') in ('DECLINED','WITHDRAWN','EXPIRED') and exists(select 1 from public.booking_deposits d left join public.booking_deposit_verifications v on v.deposit_id=d.id where d.request_id=req.id and coalesce(v.decision,'RECORDED_UNVERIFIED')<>'REJECTED');
    result:=req.id;
   else
    if exists(select 1 from public.booking_reservations where request_id=req.id) then raise check_violation using message='Confirmed payment history cannot be extended through deposit intake'; end if;
@@ -105,7 +106,7 @@ begin
  insert into public.booking_operation_events(key,request_id,reservation_id,action,input,result_id,reason,refund_review_required,actor_id)
  values(p_key,event_request,event_reservation,p_action,
  -- PII lives only in the protected contact record; bind retry payload with digest.
- jsonb_build_object('digest',encode(pg_catalog.sha256(pg_catalog.convert_to(payload::text,'UTF8')),'hex')),result,coalesce(p_data->>'reason',p_data->>'text',''),p_action='CANCEL',auth.uid());
+ jsonb_build_object('digest',encode(pg_catalog.sha256(pg_catalog.convert_to(payload::text,'UTF8')),'hex')),result,coalesce(p_data->>'reason',p_data->>'text',''),p_action='CANCEL' or payment_review,auth.uid());
  return result;
 end $$;
 -- Compare canonical payload digest without retaining duplicate private contact data.
