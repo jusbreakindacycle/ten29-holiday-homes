@@ -324,6 +324,8 @@ begin
   'estimated_total_centavos',case when v_missing then null else v_total end,'estimate_kind','ACCOMMODATION_ONLY','currency','PHP');
 end $$;
 
+-- Temporarily regain membership only to replace the existing least-privilege-owned intake.
+grant ten29_intake_writer to postgres;
 create or replace function ten29_private.accept_website_booking(p_payload jsonb,p_session text,p_key uuid,p_abuse text) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare
@@ -403,6 +405,8 @@ begin
   insert into public.website_booking_intakes(request_id,session_hash,idempotency_key,payload_hash,estimate,receipt) values(v_request,p_session,p_key,encode(sha256(convert_to(p_payload::text,'UTF8')),'hex'),v_price,v_receipt);
   return v_receipt || jsonb_build_object('request_id',v_request);
 end; $$;
+
+revoke ten29_intake_writer from postgres;
 
 create or replace function ten29_private.booking_operation(p_action text,p_id uuid,p_key uuid,p_data jsonb) returns uuid
  language plpgsql security definer set search_path='' as $$
