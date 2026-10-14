@@ -50,6 +50,9 @@ test.describe('OWNER media with actual disposable Storage',()=>{
    await page.getByLabel('Add video',{exact:true}).setInputFiles({name:path.basename(file),mimeType:mov?'video/quicktime':'video/mp4',buffer:await readFile(file)});
    await expect(page.getByText('Upload processed. Review the private preview before publication.')).toBeVisible({timeout:90000});
    const card=await metadata(page,mov?'Synthetic HEVC':'Synthetic MP4');page.once('dialog',d=>d.accept());await card.getByRole('button',{name:'Publish media'}).click();await expect(page.getByRole('status').first()).toContainText('Published');
+   // Publication feedback precedes the versioned card reload. Wait for the
+   // final published card so playback is not interrupted by its replacement.
+   await expect(card.getByRole('button',{name:'Unpublish',exact:true})).toBeEnabled();
    const video=card.locator('video');await video.evaluate(async(v:HTMLVideoElement)=>{v.muted=true;await v.play();v.pause();});
    const src=await video.getAttribute('src');const id=src!.split('/')[3].split('?')[0];
    const range=await request.get(`/api/media/${id}`,{headers:{Range:'bytes=0-127'}});expect(range.status()).toBe(206);expect(range.headers()['content-type']).toBe('video/mp4');
