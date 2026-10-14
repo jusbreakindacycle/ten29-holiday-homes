@@ -29,6 +29,7 @@ export const guestBookingSchema = z.object({
 });
 export type GuestBookingInput = z.infer<typeof guestBookingSchema>;
 export type BookingReceipt = { outcome: "SAVED"; reference_code: string; package_code: GuestBookingInput["package_code"];
+  countable_guest_count?:number; exempt_children_count?:number;
   overnight_guest_count: number; folding_foams_requested: boolean; check_in_date: string; check_out_date: string;
   estimate: PublicPriceEstimate; notification_status: "PENDING" };
 export type IntakeResult = (BookingReceipt & { request_id: string }) | { outcome: "PRICE_CHANGED"; estimate: PublicPriceEstimate }

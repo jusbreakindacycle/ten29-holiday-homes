@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {OWNER_POLICY_VERSION, occupancy, PACKAGE_POLICY} from "@/types/owner-policy";
+import {referencesHouseRules} from '@/lib/nonstored-rules';
 import { BOOKING_PACKAGE_CODES, recommendBookingPackage, type BookingPackageCode } from "@/types/booking";
 import { addDays, calendarDate, formatPhp, nightDates, type PublicPriceEstimate } from "@/types/pricing";
 import { manilaToday, type BookingReceipt } from "@/types/guest-booking";
@@ -102,6 +103,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
       website: String(f.get("website") || ""), reviewed_estimate: reviewed };
     const { reviewed_estimate: _estimate, ...identity } = payload;
     void _estimate;
+    if(referencesHouseRules(JSON.stringify(identity))){setMessage('House Rules must remain outside TEN29. Please remove the document contents or reference before submitting.');return;}
     // Session storage retains only a digest, retry key and non-contact estimate.
     // Refresh/lost-response retries use the exact original reviewed snapshot.
     setBusy(true);
@@ -128,6 +130,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   if (receipt) return <section role="status" aria-label="Saved booking request" className="rounded-sm border border-forest bg-white p-6 space-y-3">
     <h2 className="font-heading text-2xl text-forest">Request received</h2><p className="break-all">Reference: <strong>{receipt.reference_code}</strong></p>
     <p>{receipt.overnight_guest_count} overnight guests · {BOOKING_PACKAGE_CODES.indexOf(receipt.package_code) + 1} bedrooms · one private house</p>
+    {receipt.countable_guest_count!==undefined&&<p>Countable guests: {receipt.countable_guest_count} · Exempt young children: {receipt.exempt_children_count} · Actual overnight people: {receipt.overnight_guest_count}</p>}
     <p>{receipt.check_in_date} to {receipt.check_out_date}</p><p>Estimated accommodation: {formatPhp(receipt.estimate.estimated_total_centavos)}</p>
     <p>Your request is safely saved. A notification task was recorded; this acknowledgement does not verify email delivery.</p>
     <p className="font-semibold">Dates are not reserved. The owner will review availability and final pricing.</p>

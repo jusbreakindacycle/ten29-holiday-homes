@@ -404,6 +404,7 @@ begin
   if nullif(p_payload->>'email','') is not null then insert into public.booking_notification_outbox(request_id,recipient_kind) values(v_request,'GUEST'); end if;
   v_receipt := jsonb_build_object('outcome','SAVED','reference_code',v_ref,'package_code',v_package,'overnight_guest_count',v_actual,
     'folding_foams_requested',(p_payload->>'folding_foams_requested')::boolean,'check_in_date',v_from,'check_out_date',v_to,'estimate',v_price,'notification_status','PENDING');
+  if v_current then v_receipt:=v_receipt||jsonb_build_object('countable_guest_count',v_guests,'exempt_children_count',v_young); end if;
   insert into public.website_booking_intakes(request_id,session_hash,idempotency_key,payload_hash,estimate,receipt) values(v_request,p_session,p_key,encode(sha256(convert_to(p_payload::text,'UTF8')),'hex'),v_price,v_receipt);
   return v_receipt || jsonb_build_object('request_id',v_request);
 end; $$;
@@ -549,7 +550,7 @@ begin
   subtotal:=subtotal+amount; items:=items||jsonb_build_array(night);
  end loop;
  if req.policy_version<>'LEGACY' then
-  if exists(select 1 from jsonb_array_elements(p_adjustments) a where lower(coalesce(a->>'description','')||' '||coalesce(a->>'reason','')) ~ '(extra|additional|foam|linen|towel|dental|slipper|guest)') then
+  if exists(select 1 from jsonb_array_elements(p_adjustments) a where a->>'type'='CHARGE' and lower(coalesce(a->>'description','')||' '||coalesce(a->>'reason','')) ~ '(extra|additional|foam|linen|towel|dental|slipper|guest)') then
    raise check_violation using message='Use the authoritative extra-guest approval path'; end if;
   select * into approval from public.booking_policy_events where request_id=req.id and type='EXTRA_APPROVE' order by created_at desc,id desc limit 1;
   if (req.extra_guests_requested>0 or req.occupancy_owner_review) and (approval.id is null or (approval.data->>'count')::integer<>req.extra_guests_requested) then raise check_violation using message='OWNER occupancy approval required'; end if;
@@ -871,4 +872,5 @@ create trigger nonstored_rules_inquiries before insert or update on public.inqui
 create trigger nonstored_rules_contacts before insert on public.manual_booking_contacts for each row execute function ten29_private.guard_nonstored_rules();
 create trigger nonstored_rules_notes before insert on public.booking_operation_events for each row execute function ten29_private.guard_nonstored_rules();
 create trigger nonstored_rules_quote before insert on public.booking_quote_pricing_snapshots for each row execute function ten29_private.guard_nonstored_rules();
+create trigger nonstored_rules_quote_items before insert or update on public.booking_quotes for each row execute function ten29_private.guard_nonstored_rules();
 create trigger nonstored_rules_media before insert or update on public.property_media for each row execute function ten29_private.guard_nonstored_rules();

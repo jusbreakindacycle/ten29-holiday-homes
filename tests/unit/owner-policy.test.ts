@@ -2,6 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {OWNER_POLICY_VERSION,occupancy,PACKAGE_POLICY,paymentProposal,policyOperationSchema} from '@/types/owner-policy';
 import {createBookingRequestSchema,recommendBookingPackage} from '@/types/booking';
 import {calculateQuotation} from '@/lib/pricing';
+import {referencesHouseRules} from '@/lib/nonstored-rules';
 const base={source:'PHONE' as const,check_in_date:'2030-01-01',check_out_date:'2030-01-03',policy_version:OWNER_POLICY_VERSION,folding_foams_requested:true};
 describe('owner policy age bands and authoritative approvals',()=>{
  it.each([['WHOLE_HOME_1BR',3],['WHOLE_HOME_2BR',5],['WHOLE_HOME_3BR',8]] as const)('permits %s requested extras within policy maximum', (package_code,adults_count)=>{
@@ -41,5 +42,10 @@ describe('owner policy age bands and authoritative approvals',()=>{
  });
  it('rejects any House Rules content field rather than retaining it',()=>{
   expect(policyOperationSchema.safeParse({action:'POLICY',id:crypto.randomUUID(),key:crypto.randomUUID(),data:{type:'RULES',status:'SENT_EXTERNALLY',genuinely_evidenced:true,contents:'Forbidden'}}).success).toBe(false);
+ });
+ it('rejects labelled document references before client retry hashes are retained',()=>{
+  expect(referencesHouseRules('house_rules.png')).toBe(true);
+  expect(referencesHouseRules('House Rules document')).toBe(true);
+  expect(referencesHouseRules('SENT_EXTERNALLY')).toBe(false);
  });
 });

@@ -38,6 +38,7 @@ export const publishRateSchema = z.object({
 }).strict();
 export const priceWindowSchema = z.object({
   package_code: z.enum(BOOKING_PACKAGE_CODES), check_in_date: calendarDate, check_out_date: calendarDate,
+  // Pricing selection uses countable guests; actual age-band headcount is stored on the request.
   overnight_guest_count: z.number().int().min(1).max(8), folding_foams_requested: z.boolean(),
 }).strict().superRefine((value, context) => {
   const span = nightDates(value.check_in_date, value.check_out_date);
