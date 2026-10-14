@@ -88,7 +88,7 @@ begin
   if q.status<>'DRAFT' or req.policy_version='LEGACY' or p_data->>'basis_approved' is distinct from 'true'
    or p_data->>'terms_communicated' is distinct from 'true' or p_data->>'boundary_reviewed' is distinct from 'true' then raise check_violation; end if;
  elsif t='SECURITY_RECORD' then
-  allowed:=array['type','amount_centavos','method'];
+  allowed:=array['type','amount_centavos','method','occurred_at'];
   if exists(select 1 from public.booking_policy_events where reservation_id=stay.id and type='SECURITY_REFUND_AUTHORIZE') then raise check_violation; end if;
   if coalesce(p_data->>'method','') not in ('BANK_TRANSFER','GCASH') or coalesce(p_data->>'amount_centavos','') !~ '^[0-9]{1,12}$'
    or (p_data->>'amount_centavos')::bigint<=0 then raise check_violation; end if;
@@ -110,7 +110,7 @@ begin
     or not exists(select 1 from public.booking_policy_events where reservation_id=stay.id and type='INSPECTION') then raise check_violation; end if;
    if (p_data->>'deduction_centavos')::bigint+(p_data->>'refund_centavos')::bigint<>total then raise check_violation; end if;
   else
-   allowed:=array['type','amount_centavos','independent'];
+   allowed:=array['type','amount_centavos','independent','occurred_at'];
    select (data->>'refund_centavos')::bigint into refund from public.booking_policy_events where reservation_id=stay.id and type='SECURITY_REFUND_AUTHORIZE';
    select coalesce(sum((data->>'amount_centavos')::bigint),0) into sent from public.booking_policy_events where reservation_id=stay.id and type=t;
    if refund is null or p_data->>'independent' is distinct from 'true' or coalesce(p_data->>'amount_centavos','') !~ '^[0-9]{1,12}$'
@@ -135,7 +135,7 @@ begin
   allowed:=array['type','decision'];
   if coalesce(p_data->>'decision','') not in ('DECLINED','REQUIRES_OWNER_FINANCIAL_DECISION') or not exists(select 1 from public.booking_policy_events where reservation_id=stay.id and type='RESCHEDULE_REQUEST') then raise check_violation; end if;
  elsif t='CANCELLATION_REVIEW' then
-  allowed:=array['type','classification','refund_centavos','forfeit_centavos','credit_centavos','credit_start','credit_end','processing_centavos','basis','final'];
+  allowed:=array['type','request_date','classification','refund_centavos','forfeit_centavos','credit_centavos','credit_start','credit_end','processing_centavos','basis','final'];
   if not exists(select 1 from public.booking_operation_events where reservation_id=stay.id and action='CANCEL')
    or p_data->>'final' is distinct from 'true' or coalesce(p_data->>'classification','') not in ('NORMAL','SAME_DAY','NO_SHOW','OWNER_EXCEPTION')
    or coalesce(p_data->>'basis','') not in ('VERIFIED_ACCOMMODATION','OWNER_EXCEPTION') then raise check_violation; end if;
@@ -145,12 +145,14 @@ begin
   if (p_data->>'refund_centavos')::bigint+(p_data->>'forfeit_centavos')::bigint+(p_data->>'credit_centavos')::bigint+(p_data->>'processing_centavos')::bigint<>total then raise check_violation; end if;
   if (p_data->>'credit_centavos')::bigint>0 and ((p_data->>'credit_start')::date is null or (p_data->>'credit_end')::date is null or (p_data->>'credit_end')::date<=(p_data->>'credit_start')::date) then raise check_violation; end if;
  elsif t='ACCOMMODATION_REFUND_SENT' then
-  allowed:=array['type','amount_centavos','independent'];
+  allowed:=array['type','amount_centavos','independent','occurred_at'];
   select (data->>'refund_centavos')::bigint into refund from public.booking_policy_events where reservation_id=stay.id and type='CANCELLATION_REVIEW';
   select coalesce(sum((data->>'amount_centavos')::bigint),0) into sent from public.booking_policy_events where reservation_id=stay.id and type=t;
   if refund is null or coalesce(p_data->>'amount_centavos','') !~ '^[0-9]{1,12}$' or p_data->>'independent' is distinct from 'true'
    or (p_data->>'amount_centavos')::bigint<=0 or sent+(p_data->>'amount_centavos')::bigint>refund then raise check_violation; end if;
  else raise check_violation using message='Unsupported policy operation'; end if;
+ if p_data ? 'occurred_at' and (jsonb_typeof(p_data->'occurred_at')<>'string' or (p_data->>'occurred_at')::timestamptz>clock_timestamp()) then raise check_violation using message='Actual payment date must not be in the future'; end if;
+ if p_data ? 'request_date' and (jsonb_typeof(p_data->'request_date')<>'string' or (p_data->>'request_date')::date>(clock_timestamp() at time zone 'Asia/Manila')::date) then raise check_violation; end if;
  if (p_data-allowed)<>'{}'::jsonb then raise check_violation using message='Unexpected policy fields'; end if;
  insert into public.booking_policy_events(key,request_id,reservation_id,quote_id,type,data,actor_id)
  values(p_key,req.id,stay.id,case when t='QUOTE_AUTHORIZE' then q.id end,t,p_data-'type',auth.uid()) returning id into result;

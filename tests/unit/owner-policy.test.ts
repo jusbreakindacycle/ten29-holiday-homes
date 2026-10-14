@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {OWNER_POLICY_VERSION,occupancy,PACKAGE_POLICY,paymentProposal,policyOperationSchema} from '@/types/owner-policy';
 import {createBookingRequestSchema,recommendBookingPackage} from '@/types/booking';
+import {calculateQuotation} from '@/lib/pricing';
 const base={source:'PHONE' as const,check_in_date:'2030-01-01',check_out_date:'2030-01-03',policy_version:OWNER_POLICY_VERSION,folding_foams_requested:true};
 describe('owner policy age bands and authoritative approvals',()=>{
  it.each([['WHOLE_HOME_1BR',3],['WHOLE_HOME_2BR',5],['WHOLE_HOME_3BR',8]] as const)('permits %s requested extras within policy maximum', (package_code,adults_count)=>{
@@ -10,6 +11,11 @@ describe('owner policy age bands and authoritative approvals',()=>{
  it('records actual occupants without billing exempt young children',()=>{
   expect(occupancy(7,0,1,'WHOLE_HOME_3BR')).toMatchObject({countable:7,actual:8,exempt:1,extraRequested:1,eligible:true});
   expect(occupancy(2,0,1,'WHOLE_HOME_1BR').extraRequested).toBe(0);
+ });
+ it('reads approved extra-guest snapshots with their full nightly multiplier',()=>{
+  const nights=[{date:'2030-01-01',package_code:'WHOLE_HOME_3BR' as const,amount_centavos:10005,source:'OWNER_MANUAL',rate_revision_id:null},
+   {date:'2030-01-02',package_code:'WHOLE_HOME_3BR' as const,amount_centavos:10005,source:'OWNER_MANUAL',rate_revision_id:null}];
+  expect(calculateQuotation(nights,[{type:'CHARGE',description:'OWNER-approved additional guests',quantity:1,unit_amount_centavos:40000,nights:2,reason:'OWNER approval',status:'APPROVED',approved_by:'owner',approved_at:'2030-01-01',line_total_centavos:80000}]).final_total_centavos).toBe(100010);
  });
  it('flags large actual occupancy and enforces an abuse bound',()=>{
   expect(occupancy(8,0,8,'WHOLE_HOME_3BR')).toMatchObject({eligible:true,ownerReview:true,actual:16});

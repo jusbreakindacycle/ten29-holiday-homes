@@ -27,18 +27,19 @@ export function paymentProposal(total: number, checkIn: string, today: string) {
 }
 const money = z.number().int().min(0).max(999999999999);
 const reason = z.enum(['PROPERTY_DAMAGE','EXCESS_CLEANING','OWNER_EXCEPTION']);
+const occurred = z.string().datetime({offset:true}).optional();
 export const policyOperationSchema = z.object({ action: z.literal('POLICY'), id: z.uuid(), key: z.uuid(), data: z.discriminatedUnion('type', [
   z.object({type:z.literal('EXTRA_APPROVE'),count:z.number().int().min(0).max(2),occupancy_reviewed:z.literal(true)}).strict(),
   z.object({type:z.literal('QUOTE_AUTHORIZE'),basis_approved:z.literal(true),terms_communicated:z.literal(true),boundary_reviewed:z.literal(true)}).strict(),
-  z.object({type:z.literal('SECURITY_RECORD'),amount_centavos:money.refine(n=>n>0),method:z.enum(['BANK_TRANSFER','GCASH'])}).strict(),
+  z.object({type:z.literal('SECURITY_RECORD'),amount_centavos:money.refine(n=>n>0),method:z.enum(['BANK_TRANSFER','GCASH']),occurred_at:occurred}).strict(),
   z.object({type:z.literal('SECURITY_VERIFY'),event_id:z.uuid(),independent:z.literal(true)}).strict(),
   z.object({type:z.literal('INSPECTION'),status:z.enum(['PASSED','DEDUCTIONS_REVIEW'])}).strict(),
   z.object({type:z.literal('SECURITY_REFUND_AUTHORIZE'),deduction_centavos:money,reason,refund_centavos:money}).strict(),
-  z.object({type:z.literal('SECURITY_REFUND_SENT'),amount_centavos:money.refine(n=>n>0),independent:z.literal(true)}).strict(),
+  z.object({type:z.literal('SECURITY_REFUND_SENT'),amount_centavos:money.refine(n=>n>0),independent:z.literal(true),occurred_at:occurred}).strict(),
   z.object({type:z.literal('RULES'),status:z.enum(['NOT_SENT','SENT_EXTERNALLY','ACKNOWLEDGED_BY_GUEST','NEEDS_FOLLOW_UP']),genuinely_evidenced:z.literal(true)}).strict(),
   z.object({type:z.literal('RESCHEDULE_REQUEST'),check_in_date:z.iso.date(),check_out_date:z.iso.date()}).strict(),
   z.object({type:z.literal('RESCHEDULE_REVIEW'),decision:z.enum(['DECLINED','REQUIRES_OWNER_FINANCIAL_DECISION'])}).strict(),
-  z.object({type:z.literal('CANCELLATION_REVIEW'),classification:z.enum(['NORMAL','SAME_DAY','NO_SHOW','OWNER_EXCEPTION']),refund_centavos:money,forfeit_centavos:money,credit_centavos:money,credit_start:z.iso.date().nullable(),credit_end:z.iso.date().nullable(),processing_centavos:money,basis:z.enum(['VERIFIED_ACCOMMODATION','OWNER_EXCEPTION']),final:z.literal(true)}).strict(),
-  z.object({type:z.literal('ACCOMMODATION_REFUND_SENT'),amount_centavos:money.refine(n=>n>0),independent:z.literal(true)}).strict(),
+  z.object({type:z.literal('CANCELLATION_REVIEW'),request_date:z.iso.date().optional(),classification:z.enum(['NORMAL','SAME_DAY','NO_SHOW','OWNER_EXCEPTION']),refund_centavos:money,forfeit_centavos:money,credit_centavos:money,credit_start:z.iso.date().nullable(),credit_end:z.iso.date().nullable(),processing_centavos:money,basis:z.enum(['VERIFIED_ACCOMMODATION','OWNER_EXCEPTION']),final:z.literal(true)}).strict(),
+  z.object({type:z.literal('ACCOMMODATION_REFUND_SENT'),amount_centavos:money.refine(n=>n>0),independent:z.literal(true),occurred_at:occurred}).strict(),
 ]) }).strict();
 export type PolicyEvent = {id:string;request_id:string;reservation_id:string|null;quote_id:string|null;type:string;data:Record<string,unknown>;actor_id:string;created_at:string};

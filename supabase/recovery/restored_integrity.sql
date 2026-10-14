@@ -13,6 +13,13 @@ select ok(exists(select 1 from public.booking_operation_events where action='CAN
 select ok(exists(select 1 from public.booking_operation_events where action='COMPLETE'),'restored completion history');
 select ok(exists(select 1 from public.media_audit_events),'restored media audits');
 select ok(exists(select 1 from public.booking_notification_outbox),'restored notification tasks');
+select ok(exists(select 1 from public.booking_policy_events),'restored OWNER policy audit events');
+select ok(exists(select 1 from public.booking_quote_pricing_snapshots where breakdown->'policy'->>'version'='TEN29-20261015-v1'),'restored current-policy immutable quotation');
+select ok(not exists(select 1 from public.booking_requests where policy_version<>'LEGACY' and (overnight_guest_count<>countable_guest_count+exempt_children_count or countable_guest_count<>adults_count+older_children_count)),'restored actual and countable age bands match');
+select ok(not exists(select 1 from public.booking_policy_events where type='RULES' and data-array['status']<>'{}'::jsonb),'restored delivery events contain only status');
+select ok(not has_table_privilege('authenticated','public.booking_policy_events','INSERT'),'direct policy-event writes denied after recovery');
+select ok(not has_function_privilege('anon','public.perform_booking_policy_operation(uuid,uuid,jsonb)','EXECUTE'),'anonymous policy approvals denied after recovery');
+select throws_ok($$delete from public.booking_policy_events where id=(select id from public.booking_policy_events limit 1)$$,'23514',null,'restored policy history immutable');
 select throws_ok($$update public.booking_quotes set amount_total=amount_total+1 where id=(select id from public.booking_quotes where status='ISSUED' limit 1)$$,'23514',null,'restored issued quotation snapshot cannot mutate');
 select throws_ok($$update public.booking_deposits set amount=amount+1 where id=(select id from public.booking_deposits limit 1)$$,'23514',null,'restored original payment cannot mutate');
 select throws_ok($$delete from public.booking_deposit_verifications where id=(select id from public.booking_deposit_verifications limit 1)$$,'23514',null,'restored verification history cannot delete');

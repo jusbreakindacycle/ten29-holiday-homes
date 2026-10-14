@@ -19,6 +19,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const [young, setYoung] = useState(Number(initial.young_children) || 0);
   const [pkg, setPkg] = useState<BookingPackageCode>(BOOKING_PACKAGE_CODES.includes(initial.package_code as BookingPackageCode) ? initial.package_code as BookingPackageCode : "WHOLE_HOME_1BR");
   const [foams, setFoams] = useState(initial.folding_foams_requested === "true");
+  const [explicitExtra, setExplicitExtra] = useState(initial.folding_foams_requested === "true");
   const [start, setStart] = useState(calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : "");
   const [end, setEnd] = useState(calendarDate.safeParse(initial.check_out_date).success ? initial.check_out_date! : "");
   const [month, setMonth] = useState((calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : manilaToday()).slice(0, 7));
@@ -46,10 +47,11 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   function changeCount(a: number, c: number) {
     setAdults(a); setChildren(c); resetEstimate(); setMonthData(null);
     const r = recommendBookingPackage(a + c);
-    if (r && a + c > PACKAGE_POLICY[pkg].maximum) {
-      setPkg(r.packageCode); setMessage(`Your previous package cannot accommodate this group. Selected ${BOOKING_PACKAGE_CODES.indexOf(r.packageCode) + 1} bedrooms.`);
+    const changePackage = r && (a + c > PACKAGE_POLICY[pkg].maximum || (!explicitExtra && a + c > PACKAGE_POLICY[pkg].included && BOOKING_PACKAGE_CODES.indexOf(pkg) < BOOKING_PACKAGE_CODES.indexOf(r.packageCode)));
+    if (changePackage && r) {
+      setPkg(r.packageCode); setMessage(`Recommended package selected for this count; an eligible extra-guest arrangement may be explicitly requested. Selected ${BOOKING_PACKAGE_CODES.indexOf(r.packageCode) + 1} bedrooms.`);
     }
-    if (a + c > PACKAGE_POLICY[pkg].included) setFoams(true);
+    setFoams(a + c > PACKAGE_POLICY[changePackage && r ? r.packageCode : pkg].included);
   }
   useEffect(() => {
     if (availabilityOnly) return;
@@ -149,7 +151,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         {counts.ownerReview&&<p>Actual occupancy requires OWNER review. This input bound does not establish physical accommodation safety.</p>}
         <p aria-live="polite"><strong>{guests} overnight guests in total.</strong> All overnight people are included in the eight-person maximum; no child discounts or extra fees are assumed.</p>
         {!recommendation && <p role="alert">Choose between 1 and 8 countable guests.</p>}
-        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setFoams(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
+        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setExplicitExtra(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setFoams(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
           {BOOKING_PACKAGE_CODES.map((code, i) => <option key={code} value={code} disabled={!recommendation || guests > PACKAGE_POLICY[code].maximum}>{i + 1} bedroom{ i ? "s" : ""} · Whole private house</option>)}
         </select></div>
         <p>Rooms {Array.from({ length: rooms }, (_, i) => i + 1).join(", ")} opened.{rooms < 3 ? " Other bedrooms remain locked." : " All three bedrooms opened."}</p>

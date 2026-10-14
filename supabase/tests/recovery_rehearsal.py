@@ -97,7 +97,7 @@ before = fingerprints('postgres')
 before_security = sql(security)
 for table in ['public.inquiries','public.website_booking_intakes','public.manual_booking_contacts','public.booking_quotes',
               'public.booking_deposit_verifications','public.booking_reservations','public.property_occupancies',
-              'public.calendar_rate_revisions','public.booking_operation_events','public.media_audit_events']:
+              'public.calendar_rate_revisions','public.booking_operation_events','public.booking_policy_events','public.media_audit_events']:
     assert int(before[table].split(':')[0]) > 0, 'Missing representative fixture: ' + table
 
 with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:

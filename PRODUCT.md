@@ -649,13 +649,13 @@ Use an owner-controlled managed Node 22 container/VM running the supported Next.
 
 | Decision | Status and evidence |
 |---|---|
-| Whole private house, 3 packages, upgrades, 2/4/6 standard capacity, 8 maximum with 3BR foams | APPROVED: direct owner decisions, section 2 |
+| Whole private house, 3 packages and upgrades | APPROVED: direct owner evidence; Slice 9 countable limits 3/5/8 with included 2/4/6 supersede previous semantics |
 | Check-in from 3 PM, checkout before noon, Asia/Manila | APPROVED: direct owner decisions |
 | Current package nightly prices | PENDING: actual OWNER publication, synthetic CI prices are not commercial approval |
-| Extra-guest/foam fees, child policy, day visitors | PENDING: no assumed charge; every overnight person counts toward physical limit |
+| Extra guests and young children | APPROVED: PHP 400/approved extra guest/night; children aged 3 and below are commercially exempt and actually counted. Physical safety remains OWNER review; visitor charges/allowances remain pending |
 | Room 2 exact bedding count; both bathrooms' shower claim; additional amenities | PENDING: preserve approved wording and claim gate |
-| Down payment amount/percentage, channels, verification delegation, balance due and late payments | PENDING: per-quote OWNER terms are not a global policy |
-| Security deposit, cancellation/refund/rescheduling, payment instructions | PENDING: no automatic refund or invented policy |
+| Down payment, channels and balance | APPROVED: 30%/70%, seven-day balance deadline, full payment for short notice, bank transfer/GCash, OWNER independent verification. Calculation basis/boundary authorized per quote; no automatic late-payment cancellation |
+| Security, cancellation and rescheduling | Package-specific security obligations and stated policy approved in Slice 9. Ambiguous balance refunds, late credit start/fee basis and payment account instructions still require explicit OWNER decisions |
 | Actual media rights, identifiable-person permissions | PENDING: actual-owner evidence per asset |
 | Storage/egress/processing budgets, upload/retention limits | PENDING: technical bounds are not cost authorization |
 | Official domain/email, final contacts and owner accounts/hosting ownership | PENDING: approval and actual account-control verification required |
