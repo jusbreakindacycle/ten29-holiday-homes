@@ -87,14 +87,14 @@ tables = sql("select schemaname || '.' || tablename from pg_tables where scheman
 def fingerprints(database):
     return {table: sql(f"select count(*) || ':' || md5(coalesce(string_agg(row_to_json(t)::text,E'\\n' order by row_to_json(t)::text),'')) from {table} t;", database) for table in tables}
 
-security = """select md5(string_agg(value,E'\n' order by value)) from (
- select 'policy:' || row_to_json(p)::text value from pg_policies p where schemaname in ('public','ten29_private','storage')
- union all select 'function:' || pg_get_functiondef(p.oid) || pg_get_userbyid(p.proowner) || array(select r.rolname || ':' || has_function_privilege(r.rolname,p.oid,'EXECUTE')::text from pg_roles r order by r.rolname)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
- union all select 'constraint:' || n.nspname || '.' || c.relname || ':' || pg_get_constraintdef(k.oid) from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private')
- union all select 'rls:' || n.nspname || '.' || c.relname || ':' || c.relrowsecurity::text || ':' || pg_get_userbyid(c.relowner) || array(select r.rolname || ':' || p.privilege || ':' || has_table_privilege(r.rolname,c.oid,p.privilege)::text from pg_roles r cross join unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) as p(privilege) order by r.rolname,p.privilege)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
+security = """select json_object_agg(name,md5(value)) from (
+ select 'policy:' || schemaname || '.' || tablename || '.' || policyname name,row_to_json(p)::text value from pg_policies p where schemaname in ('public','ten29_private','storage')
+ union all select 'function:' || p.oid::regprocedure::text,pg_get_functiondef(p.oid) || pg_get_userbyid(p.proowner) || array(select r.rolname || ':' || has_function_privilege(r.rolname,p.oid,'EXECUTE')::text from pg_roles r order by r.rolname)::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
+ union all select 'constraint:' || n.nspname || '.' || c.relname || '.' || k.conname,pg_get_constraintdef(k.oid) from pg_constraint k join pg_class c on c.oid=k.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private')
+ union all select 'rls:' || n.nspname || '.' || c.relname,c.relrowsecurity::text || ':' || pg_get_userbyid(c.relowner) || array(select r.rolname || ':' || p.privilege || ':' || has_table_privilege(r.rolname,c.oid,p.privilege)::text from pg_roles r cross join unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) as p(privilege) order by r.rolname,p.privilege)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','ten29_private') and c.relkind='r'
 ) s;"""
 before = fingerprints('postgres')
-before_security = sql(security)
+before_security = json.loads(sql(security))
 for table in ['public.inquiries','public.website_booking_intakes','public.manual_booking_contacts','public.booking_quotes',
               'public.booking_deposit_verifications','public.booking_reservations','public.property_occupancies',
               'public.calendar_rate_revisions','public.booking_operation_events','public.booking_policy_events','public.media_audit_events']:
@@ -111,7 +111,11 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
         # Never widen postgres/application grants to accommodate the fixture.
         command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error'], backup.read_bytes())
         assert fingerprints(RESTORED) == before, 'Restored rows differ'
-        if sql(security, RESTORED) != before_security:
+        restored_security = json.loads(sql(security, RESTORED))
+        if restored_security != before_security:
+            old_fingerprints, new_fingerprints = before_security, restored_security
+            changed = {key:{'before':old_fingerprints.get(key),'after':new_fingerprints.get(key)} for key in old_fingerprints.keys() | new_fingerprints.keys() if old_fingerprints.get(key)!=new_fingerprints.get(key)}
+            print('Changed protection fingerprints:', json.dumps(changed))
             # Catalog metadata only: no rows, function bodies, keys or contacts.
             metadata = """select json_object_agg(name,value) from (
               select 'function:'||p.oid::regprocedure::text name,json_build_object('owner',pg_get_userbyid(p.proowner),'acl',p.proacl::text,'definition',md5(pg_get_functiondef(p.oid)),'effective_execute',array(select r.rolname||':'||has_function_privilege(r.rolname,p.oid,'EXECUTE')::text from pg_roles r order by r.rolname)) value from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','ten29_private') and p.prokind='f'
