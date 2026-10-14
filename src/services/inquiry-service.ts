@@ -3,7 +3,7 @@ import { isValidStatusTransition } from "@/types/inquiry";
 import { generateInquiryReference } from "@/lib/reference-code";
 import type { InquiryFormValues } from "@/lib/validation/inquiry-schema";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { getEmailProvider } from "@/services/email";
+import { getEmailProvider, type EmailResult } from "@/services/email";
 import { buildGuestAcknowledgementEmail, buildOwnerNotificationEmail } from "@/services/email/templates";
 
 /**
@@ -92,7 +92,9 @@ export async function createInquiry(input: InquiryFormValues, client: DbClient):
 export async function attemptOwnerNotification(inquiry: Inquiry, client: DbClient): Promise<Inquiry> {
   await writeAuditEvent(client, inquiry.id, "NOTIFICATION_ATTEMPTED", null, null);
 
-  const result = await getEmailProvider().send(buildOwnerNotificationEmail(inquiry));
+  let result: EmailResult;
+  try { result = await getEmailProvider().send(buildOwnerNotificationEmail(inquiry)); }
+  catch { result = { ok: false, error: 'Owner notification unavailable. Review email configuration and retry.' }; }
   const notificationStatus = result.ok ? "SENT" : "FAILED";
   const notificationError = result.ok ? null : result.error;
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeSupabaseClient } from "./helpers/fakeSupabaseClient";
 import {
   createInquiry,
@@ -69,7 +69,16 @@ describe("createInquiry", () => {
 });
 
 describe("persist-before-notify (FR-INQ-011)", () => {
-  beforeEach(() => mockSend.mockReset());
+  beforeEach(() => { mockSend.mockReset(); vi.stubEnv('INQUIRY_NOTIFICATION_TO', 'synthetic-owner@example.invalid'); });
+  afterEach(() => vi.unstubAllEnvs());
+  it('missing owner destination never sends guest details to an invented address', async () => {
+    vi.stubEnv('INQUIRY_NOTIFICATION_TO', '');
+    const client = createFakeSupabaseClient();
+    const inquiry = await createInquiry(validInput(), client as any);
+    const result = await attemptOwnerNotification(inquiry, client as any);
+    expect(result.notification_status).toBe('FAILED'); expect(mockSend).not.toHaveBeenCalled();
+    expect(result.notification_error).not.toContain('SUPABASE');
+  });
 
   it("stores the inquiry even before the email provider is ever called", async () => {
     const client = createFakeSupabaseClient() as unknown as FakeClient;

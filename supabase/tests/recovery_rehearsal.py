@@ -32,7 +32,7 @@ def command(args, data=None):
 
 def sql(statement, database='postgres'):
     return command(['docker', 'exec', '-i', CONTAINER, 'psql', '-X', '-Atq', '-v', 'ON_ERROR_STOP=1',
-                    '-U', 'postgres', '-d', database], statement.encode()).decode().strip()
+                    '-U', 'postgres', '-d', database], ('set search_path=public,extensions;\n' + statement).encode()).decode().strip()
 
 owner = sql("select id from auth.users where email='ui-owner@example.invalid';")
 uuid.UUID(owner)
@@ -108,7 +108,7 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
     try:
         # Platform-owned schemas require the existing local platform owner.
         # Never widen postgres/application grants to accommodate the fixture.
-        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error', '--use-set-session-authorization'], backup.read_bytes())
+        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error'], backup.read_bytes())
         assert fingerprints(RESTORED) == before, 'Restored rows differ'
         if sql(security, RESTORED) != before_security:
             # Catalog metadata only: no rows, function bodies, keys or contacts.
