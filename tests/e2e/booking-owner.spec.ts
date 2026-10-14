@@ -18,11 +18,13 @@ test.describe('Owner booking operations against disposable Supabase',()=>{
   await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Final quoted total: PHP 205.02');
   await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Refundable security deposit: PHP 5.00');
   await page.getByRole('button',{name:'Issue quotation',exact:true}).click();await expect(page.getByText(/Revision 1 · ISSUED/)).toBeVisible();
-  await page.getByRole('button',{name:'Await deposit',exact:true}).click();await expect(page.getByText('Request: AWAITING_DEPOSIT',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Await deposit',exact:true}).click();await expect(page.getByText('Request: AWAITING DEPOSIT',{exact:true})).toBeVisible();
   await page.getByLabel('Recorded payment (PHP)').fill('25.00');await page.getByLabel('Payment method',{exact:true}).fill('Synthetic cash');await page.getByLabel('Masked reference').fill('***1234');await page.getByRole('button',{name:'Record unverified payment',exact:true}).click();
   await expect(page.getByText(/PHP 25.00 · RECORDED_UNVERIFIED/)).toBeVisible();
   await page.getByRole('button',{name:'Confirm Reservation',exact:true}).click();await expect(page.getByRole('main').getByRole('alert')).toContainText('Operation was not accepted');
   await page.getByRole('button',{name:'Verify actual receipt',exact:true}).click();await expect(page.getByText(/PHP 25.00 · VERIFIED/)).toBeVisible();
+  await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('revision 1 · ISSUED');
+  await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Verified received: PHP 25.00 · Remaining accommodation balance: PHP 180.02');
  }
  test('guest website request reaches owner quotation, real independent verification and atomic confirmation',async({page,request})=>{
   await page.setViewportSize({width:390,height:844});await page.goto('/book');await page.locator('#adults').fill('2');await page.getByLabel('Bedroom package',{exact:true}).selectOption('WHOLE_HOME_3BR');await page.locator('#check_in_date').fill(start);await page.locator('#check_out_date').fill(end);
