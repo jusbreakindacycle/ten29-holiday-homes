@@ -22,7 +22,7 @@ export function BookingOperations({view,id}:{view:'dashboard'|'requests'|'calend
  const [rangeFrom,setRangeFrom]=useState(()=>addDays(today(),-180));const [rangeTo,setRangeTo]=useState(()=>addDays(today(),186));
  const [search,setSearch]=useState('');const [source,setSource]=useState('');const [selectedDay,setSelectedDay]=useState('');
  const from=`${month}-01`;const to=addDays(from,32).slice(0,7)+'-01';
- const changeMonth=(next:string)=>{setLoading(true);setMonth(next);};
+ const changeMonth=(next:string)=>{setSelectedDay('');setLoading(true);setMonth(next);};
  const load=useCallback(async(signal?:AbortSignal)=>{const generation=++latestLoad.current;setLoading(true);try{
   const windowFrom=view==='calendar'?from:rangeFrom;const windowTo=view==='calendar'?to:rangeTo;
   const response=await fetch(`/api/admin/bookings?from=${windowFrom}&to=${windowTo}${id?`&id=${id}`:''}`,{cache:'no-store',signal});
