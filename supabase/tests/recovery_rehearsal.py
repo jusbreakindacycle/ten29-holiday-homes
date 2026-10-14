@@ -26,6 +26,8 @@ RESTORED = 'ten29_recovery_' + uuid.uuid4().hex
 def command(args, data=None):
     result = subprocess.run(args, input=data, capture_output=True, timeout=180)
     if result.returncode:
+        if 'pg_prove' in args:
+            print(result.stdout.decode(errors='replace'))
         # Only synthetic fixed local commands run; never dump command/stdin/credentials.
         raise RuntimeError(result.stderr.decode(errors='replace')[-4000:])
     return result.stdout

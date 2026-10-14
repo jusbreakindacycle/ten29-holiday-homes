@@ -74,8 +74,9 @@ describe("persist-before-notify (FR-INQ-011)", () => {
   it('missing owner destination never sends guest details to an invented address', async () => {
     vi.stubEnv('INQUIRY_NOTIFICATION_TO', '');
     const client = createFakeSupabaseClient();
-    const inquiry = await createInquiry(validInput(), client as any);
-    const result = await attemptOwnerNotification(inquiry, client as any);
+    const fixture = client as unknown as Parameters<typeof createInquiry>[1];
+    const inquiry = await createInquiry(validInput(), fixture);
+    const result = await attemptOwnerNotification(inquiry, fixture);
     expect(result.notification_status).toBe('FAILED'); expect(mockSend).not.toHaveBeenCalled();
     expect(result.notification_error).not.toContain('SUPABASE');
   });
