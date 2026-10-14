@@ -19,7 +19,7 @@ export async function POST(request:Request){
  try{const c=await clientForAdmin();const reader=request.body?.getReader();if(!reader)throw Error('Missing input');const chunks:Uint8Array[]=[];let size=0;
  while(true){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>32768){await reader.cancel();throw Error('Input too large');}chunks.push(r.value);}
  const raw=JSON.parse(Buffer.concat(chunks).toString('utf8'));let data:unknown;
- if(['MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE'].includes(raw.action)){
+ if(['MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTE'].includes(raw.action)){
   const p=operationSchema.parse(raw);const r=await c.rpc('perform_booking_operation',{p_action:p.action,p_id:p.id,p_key:p.key,p_data:p.data});if(r.error)throw Error('Operation rejected');data=r.data;
  }else if(raw.action==='QUOTE_DRAFT'){
   const p=z.object({action:z.literal('QUOTE_DRAFT'),data:prepareQuoteSchema,approved:z.literal(true)}).strict().parse(raw);data=await prepareItemizedQuote(c,p.data);

@@ -13,6 +13,7 @@ export const manualRequestSchema = z.object({
 });
 const lifecycle=z.object({reason:z.string().trim().min(1).max(500),refund_review_acknowledged:z.boolean()}).strict();
 export const operationSchema=z.discriminatedUnion('action',[
+ z.object({action:z.literal('NOTE'),id:z.uuid(),key:z.uuid(),data:z.object({text:z.string().trim().min(1).max(500)}).strict()}).strict(),
  z.object({action:z.literal('MANUAL'),id:z.null(),key:z.uuid(),data:manualRequestSchema}).strict(),
  z.object({action:z.literal('STATUS'),id:z.uuid(),key:z.uuid(),data:z.object({status:z.enum(BOOKING_REQUEST_STATUSES),expected_status:z.enum(BOOKING_REQUEST_STATUSES)}).strict()}).strict(),
  z.object({action:z.literal('PAYMENT'),id:z.uuid(),key:z.uuid(),data:z.object({amount_centavos:centavos.refine(n=>n>0),payment_method:z.string().max(40),masked_reference:z.string().max(80).refine(s=>!/[0-9]{5,}/.test(s))}).strict()}).strict(),

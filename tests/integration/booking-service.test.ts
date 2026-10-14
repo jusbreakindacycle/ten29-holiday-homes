@@ -206,3 +206,21 @@ describe("append-only quote and deposit records", () => {
     expect(db._tables.booking_deposits).toHaveLength(0);
   });
 });
+
+
+describe('complete financial retry binding',()=>{
+ it('rejects reuse of quote key with changed financial terms',async()=>{
+  const db=client();const r=await createBookingRequest(db,manualRequest);
+  const input={request_id:r.id,revision:1,amount_total:100,required_deposit_amount:25,idempotency_key:QUOTE_KEY};
+  await createBookingQuoteDraft(db,input);
+  await expect(createBookingQuoteDraft(db,{...input,amount_total:101})).rejects.toThrow('different quote');
+  await expect(createBookingQuoteDraft(db,{...input,required_deposit_amount:30})).rejects.toThrow('different quote');
+ });
+ it('rejects reuse of payment key with changed method or masked reference',async()=>{
+  const db=client();const r=await createBookingRequest(db,manualRequest);db._tables.booking_requests[0].status='AWAITING_DEPOSIT';
+  const input={request_id:r.id,amount:25,payment_method:'cash',external_reference_masked:'***1234',idempotency_key:DEPOSIT_KEY};
+  await recordUnverifiedBookingDeposit(db,input);
+  await expect(recordUnverifiedBookingDeposit(db,{...input,payment_method:'other'})).rejects.toThrow('different deposit');
+  await expect(recordUnverifiedBookingDeposit(db,{...input,external_reference_masked:'***5678'})).rejects.toThrow('different deposit');
+ });
+});

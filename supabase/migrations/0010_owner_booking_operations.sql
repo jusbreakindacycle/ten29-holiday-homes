@@ -34,7 +34,7 @@ declare old_event public.booking_operation_events; req public.booking_requests; 
 begin
  if not public.is_ten29_admin() then raise insufficient_privilege using message='TEN29 access required'; end if;
  if p_key is null or p_data is null or jsonb_typeof(p_data)<>'object' or octet_length(p_data::text)>16384
-  or p_action not in ('MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTIFY_RETRY') then raise check_violation using message='Invalid operation'; end if;
+  or p_action not in ('MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTIFY_RETRY','NOTE') then raise check_violation using message='Invalid operation'; end if;
  if p_action in ('CANCEL','COMPLETE') and not public.is_ten29_owner() then raise insufficient_privilege using message='OWNER required'; end if;
  payload:=jsonb_build_object('action',p_action,'id',p_id,'data',p_data);
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_key::text,7));
@@ -57,11 +57,14 @@ begin
   insert into public.manual_booking_contacts(request_id,full_name,contact_number,email,notes,created_by)
    values(result,btrim(p_data->>'full_name'),btrim(p_data->>'contact_number'),nullif(btrim(p_data->>'email'),''),coalesce(p_data->>'notes',''),auth.uid());
   event_request:=result;
- elsif p_action in ('STATUS','PAYMENT','NOTIFY_RETRY') then
+ elsif p_action in ('STATUS','PAYMENT','NOTIFY_RETRY','NOTE') then
   select * into req from public.booking_requests where id=p_id for update;
   if not found then raise check_violation using message='Request not found'; end if;
   event_request:=req.id;
-  if p_action='NOTIFY_RETRY' then
+  if p_action='NOTE' then
+   if (p_data-array['text'])<>'{}'::jsonb or coalesce(char_length(btrim(p_data->>'text')),0) not between 1 and 500 then raise check_violation using message='Invalid operational note'; end if;
+   result:=req.id;
+  elsif p_action='NOTIFY_RETRY' then
    if p_data<>'{}'::jsonb then raise check_violation using message='Invalid retry'; end if;
    result:=req.id;
   elsif p_action='STATUS' then
@@ -102,7 +105,7 @@ begin
  insert into public.booking_operation_events(key,request_id,reservation_id,action,input,result_id,reason,refund_review_required,actor_id)
  values(p_key,event_request,event_reservation,p_action,
  -- PII lives only in the protected contact record; bind retry payload with digest.
- jsonb_build_object('digest',encode(pg_catalog.sha256(pg_catalog.convert_to(payload::text,'UTF8')),'hex')),result,coalesce(p_data->>'reason',''),p_action='CANCEL',auth.uid());
+ jsonb_build_object('digest',encode(pg_catalog.sha256(pg_catalog.convert_to(payload::text,'UTF8')),'hex')),result,coalesce(p_data->>'reason',p_data->>'text',''),p_action='CANCEL',auth.uid());
  return result;
 end $$;
 -- Compare canonical payload digest without retaining duplicate private contact data.
