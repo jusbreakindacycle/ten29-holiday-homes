@@ -126,6 +126,10 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
         # to satisfy them. Verify live restored records with dedicated checks.
         # The Supabase database image includes psql and server pgTAP, not the
         # separate CLI pg_prove runner. Execute actual SQL and validate TAP.
+        # Supabase CLI installs its test extension transiently; it is absent
+        # from the source backup. Add the harness only after integrity checks.
+        command(['docker', 'exec', '-i', CONTAINER, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', 'supabase_admin', '-d', RESTORED],
+                b'create extension if not exists pgtap with schema extensions;')
         output = sql(Path('supabase/recovery/restored_integrity.sql').read_text(), RESTORED)
         tap = [line for line in output.splitlines() if re.match(r'^(ok |not ok |1\.\.|#)', line)]
         print('\n'.join(tap))
