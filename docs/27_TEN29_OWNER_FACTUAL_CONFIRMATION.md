@@ -231,63 +231,7 @@ These are steward-approved planning recommendations only — **not yet publicly 
 
 ## 8. House rules
 
-### Occupancy and visitors
-
-- Registered guests and approved visitors only
-- Lead guest responsible for the group
-- Minors supervised by adults
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Occupancy and visitors (as a group) | ☐ | ☐ | ☐ | | |
-
-### Noise and neighbors
-
-- Quiet hours observed
-- Loud outdoor speakers and disruptive behavior prohibited
-- Videoke not initially included
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Noise and neighbors (as a group) | ☐ | ☐ | ☐ | | |
-
-### Property use
-
-- Parties, commercial shoots, ticketed events, and large celebrations require a separate written agreement
-- Indoor smoking and vaping prohibited
-- Illegal substances and unlawful activity prohibited
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Property use (as a group) | ☐ | ☐ | ☐ | | |
-
-### Pets
-
-- No pets during initial operations
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Pets | ☐ | ☐ | ☐ | | |
-
-### Security
-
-- Exterior CCTV may cover entrances and parking only
-- No cameras in bedrooms, bathrooms, or private indoor areas
-- Lead guest may be required to provide a valid government-issued ID at the appropriate booking stage
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Security (as a group) | ☐ | ☐ | ☐ | | |
-
-### Damage and cleaning
-
-- Damage and excessive-cleaning deductions require evidence and explanation
-
-| | Approve | Revise | Reject | Final owner rule | Owner initials |
-|---|---|---|---|---|---|
-| Damage and cleaning | ☐ | ☐ | ☐ | | |
-
----
+Historical rule contents removed on 2026-10-15 under the actual OWNER non-storage instruction. Only external delivery status may be recorded by the application.
 
 ## 9. Business authority and compliance
 

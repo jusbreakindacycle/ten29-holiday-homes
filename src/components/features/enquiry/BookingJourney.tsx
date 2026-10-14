@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import {OWNER_POLICY_VERSION, occupancy, PACKAGE_POLICY} from "@/types/owner-policy";
 import { BOOKING_PACKAGE_CODES, recommendBookingPackage, type BookingPackageCode } from "@/types/booking";
 import { addDays, calendarDate, formatPhp, nightDates, type PublicPriceEstimate } from "@/types/pricing";
 import { manilaToday, type BookingReceipt } from "@/types/guest-booking";
@@ -15,6 +16,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
 }) {
   const [adults, setAdults] = useState(Number(initial.adults) || 1);
   const [children, setChildren] = useState(Number(initial.children) || 0);
+  const [young, setYoung] = useState(Number(initial.young_children) || 0);
   const [pkg, setPkg] = useState<BookingPackageCode>(BOOKING_PACKAGE_CODES.includes(initial.package_code as BookingPackageCode) ? initial.package_code as BookingPackageCode : "WHOLE_HOME_1BR");
   const [foams, setFoams] = useState(initial.folding_foams_requested === "true");
   const [start, setStart] = useState(calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : "");
@@ -37,16 +39,17 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
   const guests = adults + children;
   const recommendation = recommendBookingPackage(guests);
   const rooms = BOOKING_PACKAGE_CODES.indexOf(pkg) + 1;
-  const eligible = !!recommendation && rooms >= BOOKING_PACKAGE_CODES.indexOf(recommendation.packageCode) + 1 && (guests <= 6 || foams);
+  const counts = occupancy(adults, children, young, pkg);
+  const eligible = !!recommendation && counts.eligible && (counts.extraRequested === 0 || foams);
   const nights = nightDates(start, end);
   function resetEstimate() { setStay(null); setReviewed(null); setChanged(false); setMessage(""); }
   function changeCount(a: number, c: number) {
     setAdults(a); setChildren(c); resetEstimate(); setMonthData(null);
     const r = recommendBookingPackage(a + c);
-    if (r && BOOKING_PACKAGE_CODES.indexOf(pkg) < BOOKING_PACKAGE_CODES.indexOf(r.packageCode)) {
+    if (r && a + c > PACKAGE_POLICY[pkg].maximum) {
       setPkg(r.packageCode); setMessage(`Your previous package cannot accommodate this group. Selected ${BOOKING_PACKAGE_CODES.indexOf(r.packageCode) + 1} bedrooms.`);
     }
-    if (r?.foldingFoamsRequested) setFoams(true);
+    if (a + c > PACKAGE_POLICY[pkg].included) setFoams(true);
   }
   useEffect(() => {
     if (availabilityOnly) return;
@@ -90,7 +93,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
     if (!reviewed || !stay || !eligible || changed) { setMessage("Review the current dates and estimate before submitting."); return; }
     const f = new FormData(event.currentTarget);
     const payload = { full_name: String(f.get("full_name") || ""), mobile_number: String(f.get("mobile_number") || ""), email: String(f.get("email") || ""),
-      adults, children, day_visitors: Number(f.get("day_visitors") || 0), vehicles: Number(f.get("vehicles") || 0),
+      adults, children, young_children:young, policy_version:OWNER_POLICY_VERSION, day_visitors: Number(f.get("day_visitors") || 0), vehicles: Number(f.get("vehicles") || 0),
       package_code: pkg, folding_foams_requested: foams, check_in_date: start, check_out_date: end,
       privacy_consent: f.get("privacy_consent") === "on", message: String(f.get("message") || ""), purpose_of_stay: String(f.get("purpose_of_stay") || ""),
       utm_source: utm.utm_source || "", utm_medium: utm.utm_medium || "", utm_campaign: utm.utm_campaign || "",
@@ -138,16 +141,20 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         <p>Every package gives your group exclusive use of the whole house and approved common areas.</p>
         <div className="grid grid-cols-2 gap-3">
           <label htmlFor="adults">Adults staying overnight<input id="adults" type="number" min="1" max="8" required value={adults} onChange={e => changeCount(Number(e.target.value), children)} className={INPUT_CLASSES}/></label>
-          <label htmlFor="children">Children staying overnight<input id="children" type="number" min="0" max="7" value={children} onChange={e => changeCount(adults, Number(e.target.value))} className={INPUT_CLASSES}/></label>
+          <label htmlFor="children">Children older than 3<input id="children" type="number" min="0" max="7" value={children} onChange={e => changeCount(adults, Number(e.target.value))} className={INPUT_CLASSES}/></label>
+          <label htmlFor="young_children">Children aged 3 and below<input id="young_children" type="number" min="0" max="31" value={young} onChange={e=>{setYoung(Number(e.target.value));resetEstimate();}} className={INPUT_CLASSES}/></label>
         </div>
+        <p>Countable guests: {counts.countable} - Exempt young children: {young} - Actual overnight people: {counts.actual}</p>
+        <p>Included guests: {counts.included} ? Additional guests needing OWNER approval: {counts.extraRequested}. Extra arrangements are subject to availability and OWNER approval.</p>
+        {counts.ownerReview&&<p>Actual occupancy requires OWNER review. This input bound does not establish physical accommodation safety.</p>}
         <p aria-live="polite"><strong>{guests} overnight guests in total.</strong> All overnight people are included in the eight-person maximum; no child discounts or extra fees are assumed.</p>
-        {!recommendation && <p role="alert">Choose between 1 and 8 overnight guests.</p>}
-        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setFoams(guests > 6); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
-          {BOOKING_PACKAGE_CODES.map((code, i) => <option key={code} value={code} disabled={!recommendation || i < BOOKING_PACKAGE_CODES.indexOf(recommendation.packageCode)}>{i + 1} bedroom{ i ? "s" : ""} · Whole private house</option>)}
+        {!recommendation && <p role="alert">Choose between 1 and 8 countable guests.</p>}
+        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setFoams(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
+          {BOOKING_PACKAGE_CODES.map((code, i) => <option key={code} value={code} disabled={!recommendation || guests > PACKAGE_POLICY[code].maximum}>{i + 1} bedroom{ i ? "s" : ""} · Whole private house</option>)}
         </select></div>
         <p>Rooms {Array.from({ length: rooms }, (_, i) => i + 1).join(", ")} opened.{rooms < 3 ? " Other bedrooms remain locked." : " All three bedrooms opened."}</p>
         <p className="text-sm text-muted">Room 1: queen-size bed.{rooms > 1 ? " Room 2: twin-size bedding." : ""}{rooms > 2 ? " Room 3: single-size double-deck bed." : ""}</p>
-        {pkg === "WHOLE_HOME_3BR" && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={guests > 6} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Additional folding foams (up to two). Required for 7–8 guests. No automatic fee.</label>}
+        {counts.extraRequested > 0 && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={counts.extraRequested > 0} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Additional folding foams / extra guests requested. OWNER approval required; no automatic fee.</label>}
       </section>
       <section className="rounded-sm border border-border bg-white p-2 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">Choose your requested dates</h2>
@@ -186,7 +193,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
         <p className="text-sm">This is an accommodation estimate, not an owner-issued quotation or payment obligation. No additional charges are automatically included.</p>
         {changed && <button type="button" className={button} onClick={() => { setChanged(false); setMessage("Updated estimate acknowledged. You can now submit your request."); }}>I acknowledge the updated estimate</button>}
       </section>}
-      {availabilityOnly ? <Link className={`${button} inline-block`} href={`/book?${new URLSearchParams({ adults: String(adults), children: String(children), package_code: pkg, folding_foams_requested: String(foams), check_in_date: start, check_out_date: end })}`}>Continue to Request to Book</Link> : <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
+      {availabilityOnly ? <Link className={`${button} inline-block`} href={`/book?${new URLSearchParams({ adults: String(adults), children: String(children), young_children:String(young), package_code: pkg, folding_foams_requested: String(foams), check_in_date: start, check_out_date: end })}`}>Continue to Request to Book</Link> : <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">Your details</h2>
         <label htmlFor="full_name">Full name<input id="full_name" name="full_name" required autoComplete="name" minLength={2} maxLength={120} className={INPUT_CLASSES}/></label>
         <label htmlFor="mobile_number">Mobile number<input id="mobile_number" name="mobile_number" required type="tel" autoComplete="tel" minLength={7} maxLength={20} className={INPUT_CLASSES}/></label>
@@ -195,6 +202,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
           <label htmlFor="vehicles">Vehicles (information only)<input id="vehicles" name="vehicles" type="number" min={0} defaultValue={0} className={INPUT_CLASSES}/></label></div>
         <p className="text-sm">Visitor arrangements and parking needs are subject to owner review. No visitor charges or vehicle-capacity promise is assumed.</p>
         <label htmlFor="purpose_of_stay">Purpose of stay<input id="purpose_of_stay" name="purpose_of_stay" maxLength={200} className={INPUT_CLASSES}/></label>
+        <p>Applicable terms and final payment instructions are communicated directly by TEN29 before money is collected. Do not paste House Rules into this form.</p>
         <label htmlFor="message">Message or requests<textarea id="message" name="message" rows={3} maxLength={1000} className={INPUT_CLASSES}/></label>
         <label className="flex gap-3 min-h-11" htmlFor="privacy_consent"><input id="privacy_consent" name="privacy_consent" type="checkbox" required className="mt-1 h-5 w-5 shrink-0"/><span>I agree to the <Link href="/privacy" className="underline">privacy notice</Link> and understand this is a request, not a confirmed reservation.</span></label>
         {sessionError && <div role="alert"><p>{sessionError}</p><button type="button" className={button} onClick={() => setSessionRetry(v => v + 1)}>Retry secure session</button></div>}

@@ -36,9 +36,8 @@ test.describe("Public site — critical path", () => {
 
   test("policies page never silently fabricates house rules", async ({ page }) => {
     await page.goto("/policies");
-    // House rules are PROPOSED_PENDING_APPROVAL in the current claim registry,
-    // so the public page must show the pending-state message, not a rules list.
-    await expect(page.getByText(/pending publication|being reviewed/i).first()).toBeVisible();
+    // Full rules remain outside the application; public copy points to direct communication.
+    await expect(page.getByText(/communicated directly by TEN29/i).first()).toBeVisible();
   });
 
   test("404 page is custom-branded, not the framework default", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OWNER_POLICY_VERSION } from "./owner-policy";
 import { BOOKING_PACKAGE_CODES, createBookingRequestSchema } from "./booking";
 import { calendarDate, nightDates, type PublicPriceEstimate } from "./pricing";
 
@@ -10,6 +11,7 @@ export const guestBookingSchema = z.object({
   idempotency_key: z.string().uuid(), full_name: z.string().trim().min(2).max(120),
   mobile_number: z.string().trim().regex(/^[+0-9()\-\s]{7,20}$/), email: z.union([z.literal(""), z.string().trim().email().max(254)]),
   adults: z.number().int().min(1).max(8), children: z.number().int().min(0).max(7),
+  young_children: z.number().int().min(0).max(31).optional(), policy_version: z.literal(OWNER_POLICY_VERSION).optional(),
   day_visitors: z.number().int().min(0).max(32767), vehicles: z.number().int().min(0).max(32767),
   package_code: z.enum(BOOKING_PACKAGE_CODES), folding_foams_requested: z.boolean(),
   check_in_date: calendarDate, check_out_date: calendarDate, privacy_consent: z.literal(true),
@@ -18,8 +20,10 @@ export const guestBookingSchema = z.object({
   website: z.string().max(200), reviewed_estimate: z.record(z.string(), z.unknown()),
 }).strict().superRefine((v, ctx) => {
   if (!createBookingRequestSchema.safeParse({ source: "PHONE", package_code: v.package_code, check_in_date: v.check_in_date,
-    check_out_date: v.check_out_date, overnight_guest_count: v.adults + v.children, folding_foams_requested: v.folding_foams_requested }).success)
+    check_out_date: v.check_out_date, overnight_guest_count: v.adults + v.children + (v.young_children ?? 0),
+    ...(v.policy_version ? {policy_version:v.policy_version, adults_count:v.adults,older_children_count:v.children,exempt_children_count:v.young_children} : {}), folding_foams_requested: v.folding_foams_requested }).success)
     ctx.addIssue({ code: "custom", message: "Check the overnight count, bedroom package and additional bedding." });
+  if (v.young_children !== undefined && !v.policy_version) ctx.addIssue({code:"custom",message:"Age-band counts require policy identity."});
   if (v.check_in_date < manilaToday() || nightDates(v.check_in_date, v.check_out_date).length > 366)
     ctx.addIssue({ code: "custom", message: "Choose valid future dates, up to 366 nights." });
 });

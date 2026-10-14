@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OWNER_POLICY_VERSION, occupancy } from "./owner-policy";
 
 export const BOOKING_PACKAGE_CODES = [
   "WHOLE_HOME_1BR",
@@ -90,7 +91,11 @@ export const createBookingRequestSchema = z
     package_code: z.enum(BOOKING_PACKAGE_CODES),
     check_in_date: localDate,
     check_out_date: localDate,
-    overnight_guest_count: z.number().int().min(1).max(8),
+    overnight_guest_count: z.number().int().min(1).max(32),
+    policy_version: z.literal(OWNER_POLICY_VERSION).optional(),
+    adults_count: z.number().int().min(1).max(8).optional(),
+    older_children_count: z.number().int().min(0).max(7).optional(),
+    exempt_children_count: z.number().int().min(0).max(31).optional(),
     folding_foams_requested: z.boolean().default(false),
     idempotency_key: z.string().uuid().optional(),
   })
@@ -117,6 +122,12 @@ export const createBookingRequestSchema = z
         message: "Manual booking requests must not attach an unrelated website enquiry.",
       });
     }
+    if (value.policy_version) {
+      const o = occupancy(value.adults_count ?? 0, value.older_children_count ?? -1, value.exempt_children_count ?? -1, value.package_code);
+      if (!o.eligible || o.actual !== value.overnight_guest_count || (o.extraRequested > 0 && !value.folding_foams_requested)) context.addIssue({code:"custom",message:"Review countable guests, actual occupants and extra-guest request."});
+      return;
+    }
+    if (value.adults_count !== undefined || value.older_children_count !== undefined || value.exempt_children_count !== undefined) context.addIssue({code:"custom",message:"Explicit policy identity required."});
     const maximumGuests = value.package_code === "WHOLE_HOME_1BR"
       ? 2
       : value.package_code === "WHOLE_HOME_2BR"
@@ -193,6 +204,13 @@ export type BookingRequest = {
   check_in_date: string;
   check_out_date: string;
   overnight_guest_count: number | null;
+  policy_version?: string;
+  adults_count?: number | null;
+  older_children_count?: number | null;
+  exempt_children_count?: number | null;
+  countable_guest_count?: number | null;
+  extra_guests_requested?: number | null;
+  occupancy_owner_review?: boolean | null;
   folding_foams_requested: boolean;
   status: BookingRequestStatus;
   created_by: string | null;

@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { OWNER_POLICY_VERSION, type PolicyEvent } from './owner-policy';
 import { createBookingRequestSchema, BOOKING_REQUEST_STATUSES, type BookingRequest, type BookingQuote, type BookingReservation, type BookingDeposit } from './booking';
 import { calendarDate, centavos, type PublicPriceEstimate } from './pricing';
 export const manualRequestSchema = z.object({
  source:z.enum(['MESSENGER','PHONE','WALK_IN','EXTERNAL_PLATFORM','OTHER']),
  package_code:z.enum(['WHOLE_HOME_1BR','WHOLE_HOME_2BR','WHOLE_HOME_3BR']),
- check_in_date:calendarDate,check_out_date:calendarDate,overnight_guest_count:z.number().int().min(1).max(8),folding_foams_requested:z.boolean(),
+ check_in_date:calendarDate,check_out_date:calendarDate,overnight_guest_count:z.number().int().min(1).max(32),folding_foams_requested:z.boolean(),
+ policy_version:z.literal(OWNER_POLICY_VERSION).optional(),adults_count:z.number().int().min(1).max(8).optional(),older_children_count:z.number().int().min(0).max(7).optional(),exempt_children_count:z.number().int().min(0).max(31).optional(),
  full_name:z.string().trim().min(1).max(120),contact_number:z.string().trim().min(5).max(40),
  email:z.union([z.email().max(254),z.literal('')]),notes:z.string().max(2000),
 }).strict().superRefine((p,c)=>{const {full_name,contact_number,email,notes,...selection}=p;void full_name;void contact_number;void email;void notes;
@@ -21,11 +23,11 @@ export const operationSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('COMPLETE'),id:z.uuid(),key:z.uuid(),data:lifecycle}).strict(),
 ]);
 export type OpsRequest=BookingRequest & {reference:string;full_name:string|null;contact_number:string|null;email:string|null;notes:string|null};
-export type OpsData={owner:boolean;requests:OpsRequest[];quotes:BookingQuote[];
+export type OpsData={policy_events?:PolicyEvent[];owner:boolean;requests:OpsRequest[];quotes:BookingQuote[];
  deposits:(BookingDeposit&{decision:'VERIFIED'|'REJECTED'|null;decided_by:string|null;decided_at:string|null})[];
  reservations:(BookingReservation&{operational_status:'CONFIRMED'|'CANCELLED'|'COMPLETED'})[];
  occupancies:{id:string;check_in_date:string;check_out_date:string;kind:string;active:boolean;reservation_id:string|null}[];
- events:{id:string;action:string;reason:string;actor_id:string;created_at:string;refund_review_required:boolean}[];
+ events:{id:string;reservation_id?:string|null;action:string;reason:string;actor_id:string;created_at:string;refund_review_required:boolean}[];
  request_events:{id:string;new_status:string;actor_id:string|null;created_at:string}[];
  reservation_events:{id:string;new_status:string;actor_id:string;created_at:string}[];
  block_events:{id:string;event:string;actor_id:string;created_at:string}[];

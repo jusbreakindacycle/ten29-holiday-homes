@@ -27,6 +27,7 @@ export interface Database {
   public: {
     Views: Record<string, never>;
     Functions: {
+      perform_booking_policy_operation:{Args:{p_id:string;p_key:string;p_data:Record<string,unknown>};Returns:string};
       may_deliver_booking_request_notification:{Args:{p_request:string};Returns:boolean};
       perform_booking_operation: {Args:{p_action:string;p_id:string|null;p_key:string;p_data:Record<string,unknown>};Returns:string};
       read_booking_operations: {Args:{p_from:string;p_to:string;p_request:string|null};Returns:OpsData};
@@ -243,6 +244,7 @@ export interface Database {
           check_in_date: string;
           check_out_date: string;
           overnight_guest_count: number;
+          policy_version?:string;adults_count?:number;older_children_count?:number;exempt_children_count?:number;countable_guest_count?:number;extra_guests_requested?:number;occupancy_owner_review?:boolean;
           folding_foams_requested?: boolean;
           status?: BookingRequestStatus;
           created_by?: string;

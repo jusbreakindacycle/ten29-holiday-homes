@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BOOKING_PACKAGE_CODES, createBookingRequestSchema, type BookingPackageCode } from "./booking";
+import { BOOKING_PACKAGE_CODES, type BookingPackageCode } from "./booking";
 
 export const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((v) => {
   const d = new Date(`${v}T00:00:00Z`);
@@ -42,8 +42,9 @@ export const priceWindowSchema = z.object({
 }).strict().superRefine((value, context) => {
   const span = nightDates(value.check_in_date, value.check_out_date);
   if (span.length === 0 || span.length > 366) context.addIssue({ code: "custom", message: "Choose between 1 and 366 nights." });
-  const result = createBookingRequestSchema.safeParse({ ...value, source: "PHONE" });
-  if (!result.success) context.addIssue({ code: "custom", message: "Guest count is not eligible for the selected package and bedding." });
+  const included = value.package_code === "WHOLE_HOME_1BR" ? 2 : value.package_code === "WHOLE_HOME_2BR" ? 4 : 6;
+  const maximum = value.package_code === "WHOLE_HOME_1BR" ? 3 : value.package_code === "WHOLE_HOME_2BR" ? 5 : 8;
+  if (value.overnight_guest_count > maximum || (value.overnight_guest_count > included && !value.folding_foams_requested)) context.addIssue({code:"custom",message:"Review package eligibility and extra-guest request."});
 });
 export type PriceWindow = z.infer<typeof priceWindowSchema>;
 export type NightlyPrice = { date: string; package_code: BookingPackageCode; amount_centavos: number | null; source: string; rate_revision_id: string | null; reason?: string; approved_by?: string; approved_at?: string };
@@ -72,12 +73,13 @@ export const prepareQuoteSchema = z.object({
   idempotency_key: z.string().uuid(),
 }).strict();
 export type QuoteBreakdown = {
+  policy?: {version:string;countable:number;exempt_children:number;actual_occupants:number;extra_approved:number;extra_rate_centavos:number;extra_nights:number;extra_total_centavos:number};
   legacy?: boolean; quote_id: string; revision: number; status: "DRAFT" | "ISSUED"; currency: string;
   booking: { reference: string; request_id?: string; guest_count: number | null; package_code: BookingPackageCode; bedrooms_opened: number; check_in_date: string; check_out_date: string; nights: number };
   accommodation: { nights: NightlyPrice[]; subtotal_centavos: number | null }; adjustments: QuoteAdjustment[];
   additional_charges_centavos: number | null; discounts_centavos: number | null;
   final_total_centavos: number | null; verified_payments_centavos: number; remaining_balance_centavos: number | null; overpayment_centavos: number | null;
-  payment: { required_down_payment_centavos: number | null; refundable_security_deposit_centavos: number | null; conditions: string | null };
+  payment: { mode?:string; basis?:string; balance_due_date?:string; remaining_required_centavos?:number; boundary_review_required?:boolean; required_down_payment_centavos: number | null; refundable_security_deposit_centavos: number | null; conditions: string | null };
 };
 
 // Date-only ordinals: no local clock or elapsed-stay fee calculations.

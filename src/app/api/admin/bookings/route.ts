@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {policyOperationSchema} from '@/types/owner-policy';
 import {createSupabaseServerClient} from '@/lib/supabase/server';
 import {isBookingSameOrigin} from '@/lib/booking-origin';
 import {operationSchema} from '@/types/operations';
@@ -20,7 +21,10 @@ export async function POST(request:Request){
  try{const c=await clientForAdmin();const reader=request.body?.getReader();if(!reader)throw Error('Missing input');const chunks:Uint8Array[]=[];let size=0;
  while(true){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>32768){await reader.cancel();throw Error('Input too large');}chunks.push(r.value);}
  const raw=JSON.parse(Buffer.concat(chunks).toString('utf8'));let data:unknown;
- if(['MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTE'].includes(raw.action)){
+ if(raw.action==='POLICY'){
+  const p=policyOperationSchema.parse(raw);const owner=await c.rpc('is_ten29_owner');if(owner.error||owner.data!==true)throw Error('OWNER required');
+  const r=await c.rpc('perform_booking_policy_operation',{p_id:p.id,p_key:p.key,p_data:p.data});if(r.error)throw Error('Policy operation rejected');data=r.data;
+ }else if(['MANUAL','STATUS','PAYMENT','CANCEL','COMPLETE','NOTE'].includes(raw.action)){
   const p=operationSchema.parse(raw);const r=await c.rpc('perform_booking_operation',{p_action:p.action,p_id:p.id,p_key:p.key,p_data:p.data});if(r.error)throw Error('Operation rejected');data=r.data;
  }else if(raw.action==='QUOTE_DRAFT'){
   const p=z.object({action:z.literal('QUOTE_DRAFT'),data:prepareQuoteSchema,approved:z.literal(true)}).strict().parse(raw);data=await prepareItemizedQuote(c,p.data);
@@ -30,7 +34,7 @@ export async function POST(request:Request){
  }else if(raw.action==='ESTIMATE'){
   const p=z.object({action:z.literal('ESTIMATE'),id:z.uuid()}).strict().parse(raw);
   const r=await c.from('booking_requests').select('*').eq('id',p.id).single();if(r.error||!r.data)throw Error('Request unavailable');const b=r.data;
-  data=await readPublicPrices(c,{package_code:b.package_code,check_in_date:b.check_in_date,check_out_date:b.check_out_date,overnight_guest_count:b.overnight_guest_count!,folding_foams_requested:b.folding_foams_requested});
+  data=await readPublicPrices(c,{package_code:b.package_code,check_in_date:b.check_in_date,check_out_date:b.check_out_date,overnight_guest_count:b.countable_guest_count??b.overnight_guest_count!,folding_foams_requested:b.folding_foams_requested});
  }else if(raw.action==='VERIFY'){
   const p=z.object({action:z.literal('VERIFY'),id:z.uuid(),key:z.uuid(),decision:z.enum(['VERIFIED','REJECTED']),independent:z.boolean()}).strict().parse(raw);
   const owner=await c.rpc('is_ten29_owner');if(owner.data!==true)throw Error('OWNER required');

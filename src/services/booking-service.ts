@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {occupancy} from "@/types/owner-policy";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createBookingQuoteDraftSchema,
@@ -119,7 +120,11 @@ function sameRequest(existing: BookingRequest, input: CreateBookingRequestInput)
     && existing.check_in_date === input.check_in_date
     && existing.check_out_date === input.check_out_date
     && existing.overnight_guest_count === input.overnight_guest_count
-    && existing.folding_foams_requested === input.folding_foams_requested;
+    && existing.folding_foams_requested === input.folding_foams_requested
+    && (existing.policy_version ?? 'LEGACY') === (input.policy_version ?? 'LEGACY')
+    && (existing.adults_count ?? null) === (input.adults_count ?? null)
+    && (existing.older_children_count ?? null) === (input.older_children_count ?? null)
+    && (existing.exempt_children_count ?? null) === (input.exempt_children_count ?? null);
 }
 
 export async function createBookingRequest(
@@ -170,6 +175,8 @@ export async function createBookingRequest(
       check_out_date: input.check_out_date,
       overnight_guest_count: input.overnight_guest_count,
       folding_foams_requested: input.folding_foams_requested,
+      ...(input.policy_version ? {policy_version:input.policy_version,adults_count:input.adults_count,older_children_count:input.older_children_count,exempt_children_count:input.exempt_children_count,
+        countable_guest_count:input.adults_count!+input.older_children_count!,extra_guests_requested:occupancy(input.adults_count!,input.older_children_count!,input.exempt_children_count!,input.package_code).extraRequested,occupancy_owner_review:input.overnight_guest_count>8} : {}),
     })
     .select("*")
     .single();
