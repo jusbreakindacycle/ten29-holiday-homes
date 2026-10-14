@@ -27,6 +27,7 @@ export interface Database {
   public: {
     Views: Record<string, never>;
     Functions: {
+      may_deliver_booking_request_notification:{Args:{p_request:string};Returns:boolean};
       perform_booking_operation: {Args:{p_action:string;p_id:string|null;p_key:string;p_data:Record<string,unknown>};Returns:string};
       read_booking_operations: {Args:{p_from:string;p_to:string;p_request:string|null};Returns:OpsData};
       owner_media_action: { Args: { p_action: string; p_id: string | null; p_version: number | null; p_data: Record<string, unknown> }; Returns: OwnerMedia };

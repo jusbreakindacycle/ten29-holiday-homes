@@ -32,10 +32,15 @@ describe("atomic intake service", () => {
   it("provider failure records FAILED separately and reuses a stable task key", async () => {
     vi.stubEnv("RESEND_API_KEY", "synthetic-only"); vi.stubEnv("INQUIRY_FROM_EMAIL", "from@example.invalid"); vi.stubEnv("INQUIRY_NOTIFICATION_TO", "owner@example.invalid");
     send.mockResolvedValue({ ok: false, error: "private provider error" });
-    const rpc = vi.fn().mockResolvedValueOnce({ data: { task: { id: raw.idempotency_key, lease_token: raw.idempotency_key }, inquiry: {}, receipt: { ...raw, overnight_guest_count: 2, estimate: { estimated_total_centavos: null } } }, error: null }).mockResolvedValue({ data: null, error: null });
+    const rpc = vi.fn().mockResolvedValueOnce({data:true,error:null}).mockResolvedValueOnce({ data: { task: { id: raw.idempotency_key, lease_token: raw.idempotency_key }, inquiry: {}, receipt: { ...raw, overnight_guest_count: 2, estimate: { estimated_total_centavos: null } } }, error: null }).mockResolvedValue({ data: null, error: null });
     await deliverBookingNotifications(raw.idempotency_key,{ rpc } as unknown as Client);
     expect(send.mock.calls[0][0].idempotencyKey).toBe(`booking-notification/${raw.idempotency_key}`);
     expect(rpc).toHaveBeenCalledWith("finish_booking_notification", expect.objectContaining({ p_sent: false }));
     expect(rpc.mock.calls.every(([name]) => !/delete|accept_website/.test(name))).toBe(true);
+  });
+  it("pauses delayed request acknowledgement after confirmation or closure",async()=>{
+    vi.stubEnv("RESEND_API_KEY","synthetic-only");vi.stubEnv("INQUIRY_FROM_EMAIL","from@example.invalid");vi.stubEnv("INQUIRY_NOTIFICATION_TO","owner@example.invalid");
+    const rpc=vi.fn().mockResolvedValue({data:false,error:null});await deliverBookingNotifications(raw.idempotency_key,{rpc} as unknown as Client);
+    expect(rpc).toHaveBeenCalledTimes(1);expect(send).not.toHaveBeenCalled();
   });
 });

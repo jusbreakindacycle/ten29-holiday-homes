@@ -146,3 +146,15 @@ revoke all on function ten29_private.booking_operation(text,uuid,uuid,jsonb),ten
  public.perform_booking_operation(text,uuid,uuid,jsonb),public.read_booking_operations(date,date,uuid) from public,anon,authenticated;
 grant execute on function ten29_private.booking_operation(text,uuid,uuid,jsonb),ten29_private.read_booking_operations(date,date,uuid),
  public.perform_booking_operation(text,uuid,uuid,jsonb),public.read_booking_operations(date,date,uuid) to authenticated;
+
+-- Delayed request acknowledgements must not describe a confirmed or closed stay
+-- as a pending enquiry. This worker read gives no guest/payment data or write power.
+create function ten29_private.may_deliver_request_notification(p_request uuid) returns boolean
+ language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.booking_requests where id=p_request and status in ('NEW','REVIEWING','QUOTED','AWAITING_DEPOSIT'))
+  and not exists(select 1 from public.booking_reservations where request_id=p_request);
+$$;
+create function public.may_deliver_booking_request_notification(p_request uuid) returns boolean
+ language sql stable security invoker set search_path='' as $$ select ten29_private.may_deliver_request_notification(p_request); $$;
+revoke all on function ten29_private.may_deliver_request_notification(uuid),public.may_deliver_booking_request_notification(uuid) from public,anon,authenticated;
+grant execute on function ten29_private.may_deliver_request_notification(uuid),public.may_deliver_booking_request_notification(uuid) to service_role;

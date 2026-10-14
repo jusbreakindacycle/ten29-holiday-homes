@@ -5,16 +5,17 @@ test.describe('Owner booking operations against disposable Supabase',()=>{
  test.describe.configure({mode:'serial',retries:0});
  const base=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const start=addDays(base,120),end=addDays(base,122);let website='',manual='';
- async function login(page:Page,role='OWNER'){await page.goto('/admin/login');await page.getByLabel('Email',{exact:true}).fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);await page.getByLabel('Password').fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);await page.getByRole('button',{name:'Sign In',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);}
+ async function login(page:Page,role='OWNER'){await page.goto('/admin/login');await page.getByLabel('Email').fill(process.env[`TEN29_E2E_${role}_EMAIL`]!);await page.getByLabel('Password').fill(process.env[`TEN29_E2E_${role}_PASSWORD`]!);await page.getByRole('button',{name:'Sign In',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);}
  async function quoteAndDeposit(page:Page,id:string){
   await page.goto(`/admin/requests/${id}`);await expect(page.getByRole('heading',{name:'Booking request',exact:true})).toBeVisible();
   page.removeAllListeners('dialog');page.on('dialog',d=>d.accept());await page.getByRole('button',{name:'Review request',exact:true}).click();await expect(page.getByText('Request: REVIEWING',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Load current nightly rates',exact:true}).click();
   for(const day of [start,addDays(start,1)]){await page.getByLabel(`Manual nightly amount ${day} (PHP, optional)`).fill('100.01');await page.getByLabel(`Manual rate reason ${day}`).fill('Synthetic owner-approved exception');}
   await page.getByRole('button',{name:'Add booking adjustment',exact:true}).click();await page.getByLabel('Adjustment description').fill('Synthetic private arrangement');await page.getByLabel('Unit amount (PHP)').fill('10.00');await page.getByLabel('Approval reason').fill('Synthetic owner approval');
+  await page.getByRole('button',{name:'Add booking adjustment',exact:true}).click();const discount=page.getByRole('group',{name:'Adjustment 2',exact:true});await discount.getByLabel('Adjustment type').selectOption('DISCOUNT');await discount.getByLabel('Adjustment description').fill('Synthetic agreed discount');await discount.getByLabel('Unit amount (PHP)').fill('5.00');await discount.getByLabel('Approval reason').fill('Synthetic owner discount approval');
   await page.getByLabel('Required down payment (PHP, owner-approved)').fill('25.00');await page.getByLabel('Refundable security deposit (PHP, optional)').fill('5.00');
   await page.getByLabel('I explicitly approve', {exact:false}).check();await page.getByRole('button',{name:'Save quotation draft and preview',exact:true}).click();
-  await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Final quoted total: PHP 210.02');
+  await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Final quoted total: PHP 205.02');
   await expect(page.getByRole('region',{name:'Itemized quotation preview'})).toContainText('Refundable security deposit: PHP 5.00');
   await page.getByRole('button',{name:'Issue quotation',exact:true}).click();await expect(page.getByText(/Revision 1 · ISSUED/)).toBeVisible();
   await page.getByRole('button',{name:'Await deposit',exact:true}).click();await expect(page.getByText('Request: AWAITING_DEPOSIT',{exact:true})).toBeVisible();

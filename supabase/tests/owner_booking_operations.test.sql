@@ -80,6 +80,9 @@ select is((select count(*)::int from public.booking_quotes where status='ISSUED'
 select lives_ok($$select public.perform_booking_operation('NOTE',request,gen_random_uuid(),'{"text":"Synthetic private operational note"}') from f$$,'private operational note is append-only');
 select lives_ok($$select public.perform_booking_operation('NOTIFY_RETRY',request,gen_random_uuid(),'{}') from f$$,'notification retry intent has actor audit');
 reset role;
+select is(public.may_deliver_booking_request_notification((select request from f)),false,'completed stay cannot send delayed pending acknowledgement');
+select ok(has_function_privilege('service_role','public.may_deliver_booking_request_notification(uuid)','EXECUTE'),'notification worker has only scoped eligibility read');
+select ok(not has_function_privilege('authenticated','public.may_deliver_booking_request_notification(uuid)','EXECUTE'),'admins cannot invoke worker eligibility RPC directly');
 set local role anon;
 select throws_ok($$select public.read_booking_operations('2038-01-01','2038-02-01',null)$$,'42501',null,'anonymous operations reads denied');
 select throws_ok($$select public.perform_booking_operation('MANUAL',null,gen_random_uuid(),'{}')$$,'42501',null,'anonymous writes denied');
