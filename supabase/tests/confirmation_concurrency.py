@@ -178,3 +178,23 @@ media_reserve = "select public.owner_media_action('RESERVE',null,null," + \
 race(media_reserve, media_reserve)
 assert sql(f"select count(*) from public.property_media where upload_key='{media_key}';").stdout.strip() == '1'
 print('PASS media same-key reservation concurrency: one upload scope')
+
+# Slice 7 operational writes: advisory/request locks observed in real PostgreSQL.
+manual_key=str(uuid.uuid4())
+manual_payload=json.dumps(dict(source='MESSENGER',package_code='WHOLE_HOME_3BR',check_in_date='2039-06-01',check_out_date='2039-06-03',overnight_guest_count=2,folding_foams_requested=False,full_name='Synthetic Concurrent Manual',contact_number='555-0100',email='',notes='')).replace("'","''")
+manual_statement=f"select public.perform_booking_operation('MANUAL',null,'{manual_key}','{manual_payload}');"
+race(manual_statement,manual_statement)
+assert sql(f"select count(*) from public.booking_requests where idempotency_key='{manual_key}';").stdout.strip()=='1'
+print('PASS: simultaneous manual retries: PostgreSQL lock observed, one contact/request pair')
+existing=ready('WHOLE_HOME_3BR','2039-07-01','2039-07-03',2)
+replacement=ready('WHOLE_HOME_1BR','2039-07-01','2039-07-03',1)
+reservation=sql(f"begin; {AUTH} {confirm(existing)} commit;").stdout.strip().splitlines()[-1]
+cancel_key=str(uuid.uuid4())
+cancel=f"select public.perform_booking_operation('CANCEL','{reservation}','{cancel_key}','{{\"reason\":\"Synthetic cancellation\",\"refund_review_acknowledged\":true}}');"
+race(cancel,confirm(replacement))
+assert sql("select count(*) from public.property_occupancies where active and check_in_date='2039-07-01';").stdout.strip()=='1'
+assert sql(f"select count(*) from public.booking_operation_events where reservation_id='{reservation}' and action='CANCEL';").stdout.strip()=='1'
+print('PASS: cancellation versus replacement confirmation: PostgreSQL lock observed, one released history and one active stay')
+race(cancel,cancel)
+assert sql(f"select count(*) from public.property_occupancy_events e join public.property_occupancies o on o.id=e.occupancy_id where o.reservation_id='{reservation}' and e.event='RELEASED';").stdout.strip()=='1'
+print('PASS: simultaneous cancellation retries: PostgreSQL lock observed, one immutable cancellation and occupancy release')

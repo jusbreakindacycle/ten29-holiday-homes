@@ -237,7 +237,11 @@ export async function createBookingQuoteDraft(
     if (error) throw new BookingServiceError("Could not check quote idempotency");
     if (existing) {
       const quote = existing as BookingQuote;
-      if (quote.request_id !== input.request_id || quote.revision !== input.revision) {
+      if (quote.request_id !== input.request_id || quote.revision !== input.revision
+        || quote.amount_total !== (input.amount_total ?? null)
+        || quote.required_deposit_amount !== (input.required_deposit_amount ?? null)
+        || quote.valid_until !== (input.valid_until ?? null)
+        || JSON.stringify(quote.line_items) !== JSON.stringify(input.line_items)) {
         throw new BookingServiceError("Idempotency key was already used for a different quote");
       }
       return quote;
@@ -326,7 +330,9 @@ export async function recordUnverifiedBookingDeposit(
     if (error) throw new BookingServiceError("Could not check deposit idempotency");
     if (existing) {
       const deposit = existing as BookingDeposit;
-      if (deposit.request_id !== input.request_id || deposit.amount !== input.amount) {
+      if (deposit.request_id !== input.request_id || deposit.amount !== input.amount
+        || deposit.payment_method !== (input.payment_method?.trim() || null)
+        || deposit.external_reference_masked !== (input.external_reference_masked?.trim() || null)) {
         throw new BookingServiceError("Idempotency key was already used for a different deposit");
       }
       return deposit;
@@ -352,7 +358,9 @@ export async function recordUnverifiedBookingDeposit(
       .maybeSingle();
     if (existing) {
       const deposit = existing as BookingDeposit;
-      if (deposit.request_id === input.request_id && deposit.amount === input.amount) return deposit;
+      if (deposit.request_id === input.request_id && deposit.amount === input.amount
+        && deposit.payment_method === (input.payment_method?.trim() || null)
+        && deposit.external_reference_masked === (input.external_reference_masked?.trim() || null)) return deposit;
     }
   }
   if (error || !data) throw new BookingServiceError("Could not record unverified deposit");

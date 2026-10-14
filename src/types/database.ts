@@ -1,4 +1,5 @@
 import type { OwnerMedia, PublicMedia, MediaDelivery } from './media';
+import type { OpsData } from './operations';
 import type { IntakeResult } from "./guest-booking";
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
 import type { RateRule, AdjustmentInput, OwnerRateState, PublicPriceEstimate, QuoteBreakdown } from "@/types/pricing";
@@ -26,6 +27,8 @@ export interface Database {
   public: {
     Views: Record<string, never>;
     Functions: {
+      perform_booking_operation: {Args:{p_action:string;p_id:string|null;p_key:string;p_data:Record<string,unknown>};Returns:string};
+      read_booking_operations: {Args:{p_from:string;p_to:string;p_request:string|null};Returns:OpsData};
       owner_media_action: { Args: { p_action: string; p_id: string | null; p_version: number | null; p_data: Record<string, unknown> }; Returns: OwnerMedia };
       media_worker_action: { Args: { p_id: string; p_action: string; p_token: string | null; p_data: Record<string, unknown> }; Returns: OwnerMedia };
       read_public_media: { Args: Record<never, never>; Returns: PublicMedia[] };
