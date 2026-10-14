@@ -12,6 +12,7 @@ const ADMIN_NAV = [
   { label: "Inquiries", href: "/admin/inquiries" },
   { label: "Rates", href: "/admin/rates" },
   { label: "Media", href: "/admin/media" },
+  { label: "Operations", href: "/admin/operations" },
   { label: "Owner Preview", href: "/admin/owner-preview" },
   { label: "Claim Registry", href: "/admin/claims" },
 ];

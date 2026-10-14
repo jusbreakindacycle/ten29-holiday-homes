@@ -110,6 +110,18 @@ reset role;
 set local role service_role;
 select ok(public.claim_booking_notification((select (result->>'request_id')::uuid from f where name='valid'),'OWNER') is not null,'failed task retryable after backoff');
 reset role;
+select throws_ok($$select public.finish_booking_notification((data->'task'->>'id')::uuid,(data->'task'->>'lease_token')::uuid,true) from claimed$$,'23514',null,'obsolete worker cannot finish replacement lease');
+reset role;
+update public.booking_notification_outbox set lease_until=now()-interval '1 second',next_attempt_at=now()-interval '1 second' where request_id=(select (result->>'request_id')::uuid from f where name='valid') and recipient_kind='OWNER';
+set local role service_role;
+select ok(public.claim_booking_notification((select (result->>'request_id')::uuid from f where name='valid'),'OWNER') is not null,'lost notification worker recovered after lease expiry');
+reset role;
+select ok((select attempts>=3 from public.booking_notification_outbox where request_id=(select (result->>'request_id')::uuid from f where name='valid') and recipient_kind='OWNER'),'recovered attempt remains auditable');
+update public.booking_notification_outbox set lease_until=null,next_attempt_at=now()-interval '1 second',first_attempt_at=now()-interval '24 hours' where request_id=(select (result->>'request_id')::uuid from f where name='valid') and recipient_kind='OWNER';
+set local role service_role;
+select is(public.claim_booking_notification((select (result->>'request_id')::uuid from f where name='valid'),'OWNER'),null::jsonb,'expired provider deduplication window prevents unsafe resend');
+reset role;
+
 reset role;
 insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at) values('00000000-0000-4000-8000-000000000092','authenticated','authenticated','intake-owner@example.invalid','',now());
 insert into public.ten29_admins(user_id,role) values('00000000-0000-4000-8000-000000000092','OWNER');

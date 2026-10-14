@@ -92,7 +92,7 @@ export interface Database {
     Tables: {
       property_media: { Row: OwnerMedia; Insert: Record<string, never>; Update: Record<string, never>; Relationships: [] };
       website_booking_intakes: { Row: { request_id: string; estimate: PublicPriceEstimate; receipt: Record<string, unknown>; created_at: string }; Insert: never; Update: never; Relationships: [] };
-      booking_notification_outbox: { Row: { id: string; request_id: string; recipient_kind: string; status: string; attempts: number; first_attempt_at: string | null; next_attempt_at: string }; Insert: never; Update: never; Relationships: [] };
+      booking_notification_outbox: { Row: { id: string; request_id: string; recipient_kind: string; status: string; attempts: number; lease_until: string | null; first_attempt_at: string | null; next_attempt_at: string }; Insert: never; Update: never; Relationships: [] };
 
       calendar_rate_heads: { Row: { package_code: BookingPackageCode; next_revision: number; published_revision_id: string | null }; Insert: never; Update: never; Relationships: [] };
       calendar_rate_revisions: { Row: { id: string; package_code: BookingPackageCode; revision: number; base_revision_id: string | null; save_key: string; publication_key: string | null; status: "DRAFT" | "PUBLISHED"; created_by: string; created_at: string; published_by: string | null; published_at: string | null }; Insert: never; Update: never; Relationships: [] };

@@ -6,6 +6,7 @@ import { buildGuestAcknowledgementEmail, buildOwnerNotificationEmail } from "./e
 import type { Inquiry } from "@/types/inquiry";
 import type { BookingReceipt } from "@/types/guest-booking";
 import { formatPhp } from "@/types/pricing";
+import { operationalLog } from '@/lib/operational-log';
 
 export class GuestBookingError extends Error {}
 export async function acceptGuestBooking(raw: GuestBookingInput, sessionHash: string, abuseHash: string,
@@ -39,6 +40,8 @@ export async function deliverBookingNotifications(requestId: string, client = cr
         sent = result.ok;
       }
     } catch { /* Task remains retryable; no provider details or PII in logs. */ }
-    await client.rpc("finish_booking_notification", { p_task: task.id, p_token: task.lease_token, p_sent: sent });
+    if (!sent) operationalLog('notification_delivery_failed');
+    const finished = await client.rpc("finish_booking_notification", { p_task: task.id, p_token: task.lease_token, p_sent: sent });
+    if (finished.error) operationalLog('notification_finish_failed');
   }
 }

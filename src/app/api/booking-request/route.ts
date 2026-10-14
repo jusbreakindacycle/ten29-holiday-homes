@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { acceptGuestBooking, deliverBookingNotifications, GuestBookingError } from "@/services/guest-booking-service";
 import { BOOKING_COOKIE, bookingHash, validBookingSession } from "@/lib/booking-session";
 import { isBookingSameOrigin } from "@/lib/booking-origin";
+import { operationalLog } from '@/lib/operational-log';
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, max-age=0" };
 export async function POST(request: Request) {
@@ -27,5 +28,5 @@ export async function POST(request: Request) {
       return Response.json(receipt, { headers });
     }
     return Response.json(result, { status: result.outcome === "RATE_LIMITED" ? 429 : 409, headers });
-  } catch (e) { return Response.json({ error: e instanceof GuestBookingError ? e.message : "Request not saved. Retry or contact TEN29." }, { status: 400, headers }); }
+  } catch (e) { operationalLog('booking_intake_failed'); return Response.json({ error: e instanceof GuestBookingError ? e.message : "Request not saved. Retry or contact TEN29." }, { status: 400, headers }); }
 }

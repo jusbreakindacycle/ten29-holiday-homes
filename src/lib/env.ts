@@ -18,7 +18,12 @@ function required(name: string): string {
 }
 
 export function getSupabaseUrl(): string {
-  return required("NEXT_PUBLIC_SUPABASE_URL");
+  const value = required("NEXT_PUBLIC_SUPABASE_URL");
+  const url = new URL(value);
+  if (process.env.TEN29_PROVIDER_E2E === 'true' && url.origin !== 'http://127.0.0.1:54321')
+    throw new Error('Disposable provider tests require the isolated localhost endpoint');
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid Supabase endpoint');
+  return value;
 }
 
 export function getSupabaseAnonKey(): string {
@@ -26,7 +31,9 @@ export function getSupabaseAnonKey(): string {
 }
 
 export function getSupabaseServiceRoleKey(): string {
-  return required("SUPABASE_SERVICE_ROLE_KEY");
+  const key = required("SUPABASE_SERVICE_ROLE_KEY");
+  if (key === process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) throw new Error('Privileged and public credentials must differ');
+  return key;
 }
 
 export function getResendApiKey(): string {
