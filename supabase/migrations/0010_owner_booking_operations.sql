@@ -137,7 +137,7 @@ begin
  'events',coalesce((select jsonb_agg(e order by created_at desc) from public.booking_operation_events e where request_id=any(ids)),'[]'),
  'request_events',coalesce((select jsonb_agg(e order by created_at desc) from public.booking_request_events e where request_id=any(ids)),'[]'),
  'reservation_events',coalesce((select jsonb_agg(e order by created_at desc) from public.booking_reservation_events e where reservation_id in(select id from public.booking_reservations where request_id=any(ids))),'[]'),
- 'block_events',coalesce((select jsonb_agg(e order by created_at desc) from public.property_occupancy_events e where occupancy_id in(select id from public.property_occupancies where check_in_date<p_to and check_out_date>p_from)),'[]'),
+ 'block_events',coalesce((select jsonb_agg(e order by created_at desc) from public.property_occupancy_events e where occupancy_id in(select id from public.property_occupancies where kind='OWNER_BLOCK' and check_in_date<p_to and check_out_date>p_from)),'[]'),
  'notifications',coalesce((select jsonb_agg(jsonb_build_object('request_id',request_id,'recipient_kind',recipient_kind,'status',status,'attempts',attempts,'first_attempt_at',first_attempt_at)) from public.booking_notification_outbox where request_id=any(ids)),'[]'),
  'estimates',coalesce((select jsonb_agg(jsonb_build_object('request_id',request_id,'estimate',estimate)) from public.website_booking_intakes where request_id=any(ids)),'[]'));
 end $$;
