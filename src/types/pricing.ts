@@ -62,7 +62,7 @@ export const adjustmentInputSchema = z.object({
   reason: z.string().trim().min(1).max(200),
 }).strict();
 export type AdjustmentInput = z.infer<typeof adjustmentInputSchema>;
-export type QuoteAdjustment = AdjustmentInput & { status: "APPROVED" | "PENDING"; approved_by: string | null; approved_at: string | null; line_total_centavos: number };
+export type QuoteAdjustment = AdjustmentInput & { nights?:number; status: "APPROVED" | "PENDING"; approved_by: string | null; approved_at: string | null; line_total_centavos: number };
 export const prepareQuoteSchema = z.object({
   request_id: z.string().uuid(), expected_rate_revision_id: z.string().uuid().nullable(),
   required_down_payment_centavos: z.number().int().min(0).max(999999999999).nullable(),

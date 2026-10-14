@@ -547,7 +547,7 @@ begin
   subtotal:=subtotal+amount; items:=items||jsonb_build_array(night);
  end loop;
  if req.policy_version<>'LEGACY' then
-  if exists(select 1 from jsonb_array_elements(p_adjustments) a where lower(a->>'description') ~ '(extra|additional|foam|linen|towel|dental|slipper|guest)') then
+  if exists(select 1 from jsonb_array_elements(p_adjustments) a where lower(coalesce(a->>'description','')||' '||coalesce(a->>'reason','')) ~ '(extra|additional|foam|linen|towel|dental|slipper|guest)') then
    raise check_violation using message='Use the authoritative extra-guest approval path'; end if;
   select * into approval from public.booking_policy_events where request_id=req.id and type='EXTRA_APPROVE' order by created_at desc,id desc limit 1;
   if (req.extra_guests_requested>0 or req.occupancy_owner_review) and (approval.id is null or (approval.data->>'count')::integer<>req.extra_guests_requested) then raise check_violation using message='OWNER occupancy approval required'; end if;

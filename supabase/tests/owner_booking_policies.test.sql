@@ -18,7 +18,7 @@ select is((select countable_guest_count::int from public.booking_requests where 
 select is((select overnight_guest_count::int from public.booking_requests where id=(select r from f)),8,'actual eight');
 select is((select exempt_children_count::int from public.booking_requests where id=(select r from f)),1,'toddler recorded');
 select is((select extra_guests_requested::int from public.booking_requests where id=(select r from f)),1,'one extra requested');
-select throws_ok($$update public.booking_requests set exempt_children_count=0 where id=(select r from f)$$,'23514',null,'cannot hide young occupants');
+select throws_ok($$update public.booking_requests set exempt_children_count=0 where id=(select r from f)$$,'42501',null,'cannot hide young occupants');
 select throws_ok($$insert into public.booking_requests(source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review) values('PHONE','WHOLE_HOME_1BR','2049-03-01','2049-03-02',4,true,'TEN29-20261015-v1',4,0,0,4,2,false)$$,'23514',null,'1BR cannot exceed three countable guests');
 select lives_ok($$insert into public.booking_requests(source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review) values('PHONE','WHOLE_HOME_1BR','2049-03-01','2049-03-02',4,true,'TEN29-20261015-v1',3,0,1,3,1,false)$$,'1BR three countable plus exempt toddler');
 select lives_ok($$insert into public.booking_requests(source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review) values('PHONE','WHOLE_HOME_2BR','2049-03-01','2049-03-02',6,true,'TEN29-20261015-v1',5,0,1,5,1,false)$$,'2BR five countable plus exempt toddler');
@@ -40,7 +40,7 @@ select throws_ok($$select public.issue_itemized_booking_quote(q) from f$$,'23514
 select throws_ok($$select public.prepare_itemized_booking_quote(r,null,null,'[{"type":"CHARGE","description":"Extra guest","quantity":1,"unit_amount_centavos":40000,"reason":"Duplicate"}]','[]',null,null,null,gen_random_uuid()) from f$$,'23514',null,'duplicate extra fee blocked');
 select public.perform_booking_policy_operation(q,gen_random_uuid(),'{"type":"QUOTE_AUTHORIZE","basis_approved":true,"terms_communicated":true,"boundary_reviewed":true}') from f;
 select public.issue_itemized_booking_quote(q) from f;
-select throws_ok($$update public.booking_quotes set amount_total=1 where id=(select q from f)$$,'23514',null,'issued amount immutable');
+select throws_ok($$update public.booking_quotes set amount_total=1 where id=(select q from f)$$,'42501',null,'issued amount immutable');
 select public.perform_booking_operation('STATUS',r,gen_random_uuid(),'{"status":"AWAITING_DEPOSIT","expected_status":"QUOTED"}') from f;
 update f set d=public.perform_booking_operation('PAYMENT',r,gen_random_uuid(),'{"amount_centavos":30003,"payment_method":"GCASH","masked_reference":""}');
 select throws_ok($$select public.confirm_booking_reservation(r,q,gen_random_uuid()) from f$$,'23514','Required down payment has not been independently verified','recorded receipt not verified');
@@ -89,6 +89,17 @@ select public.decide_booking_deposit(d,'VERIFIED',true,gen_random_uuid()) from f
 select throws_ok($$select public.confirm_booking_reservation(r,q,gen_random_uuid()) from f$$,'23514','Required down payment has not been independently verified','30 percent verified cannot confirm full-payment quote');
 update f set d=public.perform_booking_operation('PAYMENT',r,gen_random_uuid(),'{"amount_centavos":7000,"payment_method":"BANK_TRANSFER","masked_reference":""}');
 select public.decide_booking_deposit(d,'VERIFIED',true,gen_random_uuid()) from f;
+reset role;
+create function public.test_policy_confirmation_failure() returns trigger language plpgsql as $$ begin raise exception using errcode='23514',message='Synthetic injected failure'; end $$;
+create trigger test_policy_confirmation_failure before insert on public.booking_reservation_events for each row execute function public.test_policy_confirmation_failure();
+set local role authenticated;
+select throws_ok($$select public.confirm_booking_reservation(r,q,gen_random_uuid()) from f$$,'23514','Synthetic injected failure','current-policy confirmation aborts on injected audit failure');
+select is((select count(*)::int from public.booking_reservations where request_id=(select r from f)),0,'failed confirmation rolls back reservation');
+select is((select count(*)::int from public.property_occupancies where check_in_date='2000-01-01'),0,'failed confirmation rolls back occupancy');
+reset role;
+drop trigger test_policy_confirmation_failure on public.booking_reservation_events;
+drop function public.test_policy_confirmation_failure();
+set local role authenticated;
 update f set s=public.confirm_booking_reservation(r,q,gen_random_uuid());
 select public.perform_booking_operation('COMPLETE',s,gen_random_uuid(),'{"reason":"Synthetic checkout passed","refund_review_acknowledged":false}') from f;
 update f set e=public.perform_booking_policy_operation(s,gen_random_uuid(),'{"type":"SECURITY_RECORD","amount_centavos":150000,"method":"BANK_TRANSFER"}');
@@ -101,5 +112,19 @@ select public.perform_booking_policy_operation(s,gen_random_uuid(),'{"type":"SEC
 select throws_ok($$select public.perform_booking_policy_operation(s,gen_random_uuid(),'{"type":"SECURITY_REFUND_SENT","amount_centavos":1,"independent":true}') from f$$,'23514',null,'no security over-refund');
 select is((select (public.read_owner_quote_breakdown(q)->>'verified_payments_centavos')::bigint from f),10000::bigint,'security collection/deduction/refund remains separate from accommodation');
 select throws_ok($$select public.perform_booking_policy_operation(s,gen_random_uuid(),'{"type":"RULES","status":"SENT_EXTERNALLY","genuinely_evidenced":true}') from f$$,'23514',null,'completed stay cannot fabricate delivery');
+reset role;
+set local role anon;
+select throws_ok($$select public.perform_booking_policy_operation('00000000-0000-4000-8000-000000000111',gen_random_uuid(),'{"type":"EXTRA_APPROVE","count":1,"occupancy_reviewed":true}')$$,'42501',null,'anonymous cannot approve policy arrangements');
+reset role;
+set local role authenticated;
+insert into public.booking_requests(id,source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review)
+values('00000000-0000-4000-8000-000000000118','PHONE','WHOLE_HOME_1BR',(now() at time zone 'Asia/Manila')::date+7,(now() at time zone 'Asia/Manila')::date+8,1,false,'TEN29-20261015-v1',1,0,0,1,0,false);
+update f set r='00000000-0000-4000-8000-000000000118';
+update public.booking_requests set status='REVIEWING' where id=(select r from f);
+update f set q=public.prepare_itemized_booking_quote(r,null,3000,'[]',jsonb_build_array(jsonb_build_object('date',(now() at time zone 'Asia/Manila')::date+7,'amount_centavos',10000,'reason','Synthetic boundary review')),null,null,null,gen_random_uuid());
+select is((select public.read_owner_quote_breakdown(q)->'payment'->>'boundary_review_required' from f),'true','seven-day boundary explicitly reviewable');
+select is((select (public.read_owner_quote_breakdown(q)->'payment'->>'required_down_payment_centavos')::bigint from f),3000::bigint,'OWNER can choose standard at exact boundary before final authorization');
+update f set q=public.prepare_itemized_booking_quote(r,null,null,'[]',jsonb_build_array(jsonb_build_object('date',(now() at time zone 'Asia/Manila')::date+7,'amount_centavos',10000,'reason','Synthetic boundary review')),null,null,null,gen_random_uuid());
+select is((select (public.read_owner_quote_breakdown(q)->'payment'->>'required_down_payment_centavos')::bigint from f),10000::bigint,'boundary default proposes full payment rather than silently committing interpretation');
 select * from finish();
 rollback;

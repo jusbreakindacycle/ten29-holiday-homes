@@ -24,7 +24,9 @@ export function calculateQuotation(nights: NightlyPrice[], adjustments: QuoteAdj
       quantity: adjustment.quantity, unit_amount_centavos: adjustment.unit_amount_centavos, reason: adjustment.reason });
     if (adjustment.status !== "APPROVED") continue;
     if (!adjustment.approved_by || !adjustment.approved_at) throw new Error("Missing owner approval attribution");
-    const amount = validated.quantity * validated.unit_amount_centavos;
+    if (adjustment.nights !== undefined && (!Number.isInteger(adjustment.nights) || adjustment.nights !== nights.length
+      || validated.type !== 'CHARGE' || validated.unit_amount_centavos !== 40000 || validated.quantity > 2)) throw Error('Invalid approved extra-guest line');
+    const amount = validated.quantity * validated.unit_amount_centavos * (adjustment.nights ?? 1);
     if (validated.type === "DISCOUNT") discounts += amount; else charges += amount;
   }
   const total = subtotal + charges - discounts;

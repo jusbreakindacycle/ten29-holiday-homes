@@ -75,7 +75,7 @@ export function MediaManager({initial,claims}:{initial:OwnerMedia[];claims:Array
  }
  const used=media.filter(m=>!m.cleaned_at).reduce((s,m)=>s+m.quota_bytes,0);
  return <div className="space-y-6">
-  <p>Upload original TEN29 property media from your phone gallery. Uploading does not publish a file.</p>
+  <p>Upload original TEN29 property media from your phone gallery. Uploading does not publish a file. House Rules, document copies and conversation screenshots must never be uploaded, even privately.</p>
   <p className="text-sm">Photo limit: 20 MiB, up to 10 photos per batch. Video limit: 50 MiB / 2 minutes. Library allowance: 200 retained files / 1 GiB. Each unfinished upload reserves 101 MiB for its original and renditions; validation releases unused capacity.</p>
   <p className="text-sm">Used or reserved capacity: {(used/1024/1024).toFixed(1)} MiB. HEIC/HEIF requires a working server decoder; unsupported files stay private.</p>
   <div className="flex flex-wrap gap-3">

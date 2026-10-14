@@ -70,7 +70,7 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
       if (!abort.signal.aborted) { setStay(v); setReviewed(v.estimate); }
     }).catch(() => { if (!abort.signal.aborted) setCalendarError("Could not verify your selected stay. Retry before submitting."); });
     return () => abort.abort();
-  }, [pkg, guests, foams, month, start, end, retry, eligible, nights.length]);
+  }, [pkg, guests, young, foams, month, start, end, retry, eligible, nights.length]);
   useEffect(() => {
     if (monthData && pendingFocus.current) {
       calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${pendingFocus.current}"]`)?.focus();

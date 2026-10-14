@@ -40,7 +40,7 @@ export function QuoteBreakdownPreview({ quotes }: { quotes: QuoteChoice[] }) {
       </div>
       <div><h3 className="text-xl">Booking adjustments</h3>
         {quote.adjustments.length === 0 ? <p>No recorded adjustments.</p> : <ul>{quote.adjustments.map((a, index) => <li key={index} className="border-b border-border py-2">
-          {a.description} · {a.type} · {a.quantity} × {formatPhp(a.unit_amount_centavos)} = {formatPhp(a.line_total_centavos)}
+          {a.description} · {a.type} · {a.quantity} × {formatPhp(a.unit_amount_centavos)}{a.nights!==undefined?` × ${a.nights} nights`:''} = {formatPhp(a.line_total_centavos)}
           <small className="block break-all">{a.status} · Owner {a.approved_by} · {a.approved_at} · {a.reason}</small>
         </li>)}</ul>}
         <p>Approved additional charges: {quote.additional_charges_centavos === null ? "Unrecorded" : formatPhp(quote.additional_charges_centavos)}</p>
