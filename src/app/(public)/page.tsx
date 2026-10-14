@@ -111,7 +111,7 @@ export default function HomePage() {
         <SectionHeading
           eyebrow="How it works"
           title="Enquiry, not instant booking"
-          description="Option 1 of the TEN29 website keeps a human in charge of every confirmation."
+          description="The calendar helps you request dates; the owner reviews quotations and verified payment before confirming a reservation."
         />
         <ol className="mt-10 grid gap-6 sm:grid-cols-4">
           {[

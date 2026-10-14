@@ -106,7 +106,9 @@ with tempfile.TemporaryDirectory(prefix='ten29-synthetic-recovery-') as temp:
     backup.chmod(0o600)
     sql(f'create database {RESTORED} template template0;')
     try:
-        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'postgres', '-d', RESTORED, '--exit-on-error'], backup.read_bytes())
+        # Platform-owned schemas require the existing local platform owner.
+        # Never widen postgres/application grants to accommodate the fixture.
+        command(['docker', 'exec', '-i', CONTAINER, 'pg_restore', '-U', 'supabase_admin', '-d', RESTORED, '--exit-on-error'], backup.read_bytes())
         assert fingerprints(RESTORED) == before, 'Restored rows differ'
         assert sql(security, RESTORED) == before_security, 'Restored protections differ'
         assert sql("select count(*) from public.property_occupancies a join public.property_occupancies b on a.id<b.id and a.active and b.active and a.property_id=b.property_id and daterange(a.check_in_date,a.check_out_date,'[)') && daterange(b.check_in_date,b.check_out_date,'[)');", RESTORED) == '0'

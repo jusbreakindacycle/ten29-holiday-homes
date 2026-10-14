@@ -6,6 +6,7 @@ import {execFile} from 'node:child_process';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {randomUUID} from 'node:crypto';
 const ffmpeg=process.env.TEN29_FFMPEG_PATH || 'ffmpeg';
 test.describe('OWNER media with actual disposable Storage',()=>{
  test.skip(process.env.TEN29_PROVIDER_E2E!=='true','Requires disposable Supabase CI fixture');
@@ -166,4 +167,23 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   const covers=await owner.from('property_media').select('*').eq('featured',true);expect(covers.error).toBeNull();expect(covers.data).toHaveLength(1);
   const stale=await owner.rpc('owner_media_action',{p_action:'COVER',p_id:a.id,p_version:a.version,p_data:{}});expect(stale.error).not.toBeNull();
  });
+ test('cleanup removes all orphan rendition pages before releasing quota',async({page})=>{
+  test.setTimeout(90000);await login(page);
+  const owner=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  await owner.auth.signInWithPassword({email:process.env.TEN29_E2E_OWNER_EMAIL!,password:process.env.TEN29_E2E_OWNER_PASSWORD!});
+  const reserved=await owner.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{key:randomUUID(),mime:'image/png',bytes:64}});
+  expect(reserved.error).toBeNull();const m=reserved.data;
+  // Synthetic worker-orphan objects only, using a server-held disposable key.
+  const worker=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SERVICE_ROLE_KEY!,{auth:{persistSession:false,autoRefreshToken:false}});
+  const bytes=await sharp({create:{width:2,height:2,channels:3,background:'#123456'}}).webp().toBuffer();
+  for(let start=0;start<101;start+=10){
+   const results=await Promise.all(Array.from({length:Math.min(10,101-start)},(_,i)=>worker.storage.from('ten29-renditions').upload(`${m.id}/synthetic-${String(start+i).padStart(3,'0')}/rendition.webp`,bytes,{contentType:'image/webp'})));
+   expect(results.every(result=>!result.error)).toBe(true);
+  }
+  const archived=await owner.rpc('owner_media_action',{p_action:'ARCHIVE',p_id:m.id,p_version:m.version,p_data:{}});expect(archived.error).toBeNull();
+  const cleaned=await page.request.post('/api/admin/media',{headers:{Origin:new URL(page.url()).origin},data:{action:'CLEANUP',id:m.id,version:archived.data.version,data:{}}});expect(cleaned.status()).toBe(200);
+  const remaining=await worker.storage.from('ten29-renditions').list(m.id,{limit:1000});expect(remaining.error).toBeNull();expect(remaining.data).toHaveLength(0);
+  const record=await owner.from('property_media').select('cleaned_at').eq('id',m.id).single();expect(record.data?.cleaned_at).not.toBeNull();
+ });
+
 });

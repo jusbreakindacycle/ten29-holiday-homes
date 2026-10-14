@@ -67,16 +67,29 @@ export async function cleanupArchivedMedia(client:Client,id:string) {
  if(m.lease_until && new Date(m.lease_until).getTime()>Date.now()) throw Error('Processing is finishing. Retry cleanup after a few minutes.');
  const worker=mediaWorker();
  // Includes cancelled worker outputs; use Storage API, never storage.objects mutation.
- const listed=await worker.storage.from('ten29-renditions').list(id,{limit:100});
- if(listed.error) throw Error('Cleanup unavailable. Retry.');
  const paths:string[]=[];
- for(const directory of listed.data??[]) {
-  const files=await worker.storage.from('ten29-renditions').list(`${id}/${directory.name}`,{limit:100});
-  if(files.error) throw Error('Cleanup unavailable. Retry.');
-  paths.push(...(files.data??[]).map(f=>`${id}/${directory.name}/${f.name}`));
+ async function collect(prefix:string,depth:number) {
+  if(depth>3) throw Error('Cleanup requires operator review. Quota remains reserved.');
+  for(let offset=0;offset<=10000;offset+=100) {
+   const listed=await worker.storage.from('ten29-renditions').list(prefix,{limit:100,offset,sortBy:{column:'name',order:'asc'}});
+   if(listed.error) throw Error('Cleanup unavailable. Retry.');
+   for(const entry of listed.data??[]) {
+    if(entry.id) paths.push(`${prefix}/${entry.name}`);
+    else await collect(`${prefix}/${entry.name}`,depth+1);
+    if(paths.length>10000) throw Error('Cleanup requires operator review. Quota remains reserved.');
+   }
+   if((listed.data?.length??0)<100)return;
+  }
+  throw Error('Cleanup requires operator review. Quota remains reserved.');
  }
- const results=await Promise.all([worker.storage.from('ten29-originals').remove([m.original_key]), ...(paths.length?[worker.storage.from('ten29-renditions').remove(paths)]:[])]);
- if(results.some(r=>r.error)) throw Error('Archived safely; file cleanup failed. Retry cleanup.');
+ // Collect all pages before deleting: deleting while using offsets skips files.
+ await collect(id,0);
+ const original=await worker.storage.from('ten29-originals').remove([m.original_key]);
+ if(original.error) throw Error('Archived safely; file cleanup failed. Retry cleanup.');
+ for(let offset=0;offset<paths.length;offset+=100) {
+  const removed=await worker.storage.from('ten29-renditions').remove(paths.slice(offset,offset+100));
+  if(removed.error) throw Error('Archived safely; file cleanup failed. Retry cleanup.');
+ }
  const done=await worker.rpc('media_worker_action',{p_id:id,p_action:'CLEANED',p_token:null,p_data:{}});
  if(done.error) throw Error('Files removed; quota update pending. Retry cleanup.');
  return {cleaned:true};

@@ -7,7 +7,7 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Availability",
-  description: "How TEN29 Holiday Homes confirms availability for your requested dates.",
+  description: "Explore property-wide availability and owner-published nightly estimates, then request your dates.",
   alternates: { canonical: `${getSiteUrl()}/availability` },
 };
 

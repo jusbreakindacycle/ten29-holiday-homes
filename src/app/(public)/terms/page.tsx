@@ -18,9 +18,9 @@ export default function TermsPage() {
           <h2 className="font-heading text-xl text-forest mb-2">What this website is</h2>
           <p>
             This website presents information about TEN29 Holiday Homes and lets visitors submit a
-            booking enquiry. It is not a live booking, payment, or availability system. All rates,
-            capacity figures, and policies are either explicitly approved for publication or shown
-            as pending — see the Rates and Policies pages.
+            booking request using current property-wide availability and owner-published nightly estimates.
+            It does not provide instant reservations or process payments. Property claims and
+            commercial policies remain subject to their applicable owner-approval gates.
           </p>
         </section>
 
@@ -29,8 +29,9 @@ export default function TermsPage() {
           <p>
             Submitting the enquiry form sends a request to TEN29. It does not place a hold on any
             date, does not create a binding reservation, and does not constitute acceptance of any
-            price. A stay is confirmed only when TEN29 communicates that confirmation to you
-            directly, outside of this website.
+            price. Final confirmation requires an applicable owner-issued quotation, independently
+            verified required down payment, authorized owner action and successful atomic database
+            availability checks. The owner communicates the result directly.
           </p>
         </section>
 
@@ -39,7 +40,7 @@ export default function TermsPage() {
           <p>
             This website does not process payments and does not accept payment proof or screenshots.
             Any payment is arranged directly with TEN29 using the instructions TEN29 provides after
-            your dates are confirmed.
+            reviewing your request and issuing the applicable quotation and payment conditions.
           </p>
         </section>
 

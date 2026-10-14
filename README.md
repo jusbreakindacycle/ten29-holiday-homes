@@ -29,7 +29,7 @@ The app is designed to run and build **without** Supabase/Resend configured — 
 ### Supabase setup
 
 1. Create a Supabase project (owner's account — see [docs/18_DEPLOYMENT_AND_OPERATIONS.md](docs/18_DEPLOYMENT_AND_OPERATIONS.md) for account-ownership rules).
-2. Run the migrations in `supabase/migrations/` in order (via the Supabase SQL editor, CLI, or your preferred migration runner).
+2. For disposable development, replay migrations in `supabase/migrations/` in order. Production migration requires actual-owner authorization, backup/restore verification and supervised historical-data reconciliation; do not force legacy reservations through migration 0006.
 3. Use disposable CI fixtures for synthetic provider testing — never real guest data.
 4. Copy the project URL, anon key, and service-role key into `.env.local`.
 5. Create the first admin user directly in Supabase Auth (Dashboard → Authentication → Users → Add user). There is no public registration route by design.
@@ -59,7 +59,7 @@ npm run build -- --webpack # verified production build
 
 ## The claim-approval system
 
-No business fact (rates, capacity, amenities, policies, positioning copy) reaches a public page unless it is `VERIFIED` or `APPROVED_FOR_PUBLICATION` in `src/content/claims.ts`. Everything else renders honest fallback copy ("rates are being finalized," etc.) instead. This is enforced in code (`isPublicClaim()`/`getPublicClaim()`), not just documentation, and covered by `tests/unit/claims.test.ts`. See [docs/05_OWNER_APPROVAL_MATRIX.md](docs/05_OWNER_APPROVAL_MATRIX.md) and [docs/13_CONTENT_AND_CLAIM_STANDARD.md](docs/13_CONTENT_AND_CLAIM_STANDARD.md).
+Property claims (capacity, amenities, policies and positioning copy) reach a public page only when marked `VERIFIED` or `APPROVED_FOR_PUBLICATION` in `src/content/claims.ts`. Everything else renders honest fallback copy ("rates are being finalized," etc.) instead. Current calendar rates follow a separate database-enforced OWNER draft/preview/publication workflow, without developer reapproval. Property-claim gating is enforced in code (`isPublicClaim()`/`getPublicClaim()`), and covered by `tests/unit/claims.test.ts`. See [docs/05_OWNER_APPROVAL_MATRIX.md](docs/05_OWNER_APPROVAL_MATRIX.md) and [docs/13_CONTENT_AND_CLAIM_STANDARD.md](docs/13_CONTENT_AND_CLAIM_STANDARD.md).
 
 To approve a value for publication: update its `status`, `approvedBy`, and `approvedAt` in `src/content/claims.ts`, and mirror the change in `docs/05_OWNER_APPROVAL_MATRIX.md` in the same change set.
 
@@ -77,7 +77,7 @@ GitHub Actions starts a disposable localhost Supabase stack, replays migrations 
 
 `/api/health` is public liveness only. OWNER `/admin/operations` provides private configuration and queue/media diagnostics. Existing Requests and Media screens provide controlled retry and cleanup. Notifications pause beyond the deduplication window for manual delivery review. No cron/worker provisioning, real email delivery or physical-device acceptance is implied by automated CI.
 
-Browser-safe variables are `NEXT_PUBLIC_*` site/contact links and Supabase URL/anon key. Service-role and Resend keys, notification destinations, privacy contact and media executable paths are server-only. `.env*` remains ignored; use the existing local `.env.example` reference and never commit populated files. CI validates the provider endpoint is localhost. Production requires HTTPS, owner-held credentials and a separately reviewed environment; do not reuse disposable test accounts.
+Browser-safe variables are `NEXT_PUBLIC_*` site/contact links and Supabase URL/anon key. Service-role and Resend keys, notification destinations, privacy contact and media executable paths are server-only. `.env*` remains ignored; use the existing local `.env.example` reference and never commit populated files. CI validates the provider endpoint is localhost. Production requires HTTPS, disabled public Auth signup, owner-held credentials and a separately reviewed environment; do not reuse disposable test accounts.
 
 Node 22, Next 16 server rendering/actions/API routes and writable temporary storage are required. Media processing currently runs in an authorized Node request (up to 240 seconds), requires FFmpeg/ffprobe and libheif tools/plugins, and must be isolated with bounded CPU/memory and OS updates. A static host cannot run this application. A serverless web host alone is not an accepted media-processing deployment. An isolated Node container with these binaries is the smallest current compatible architecture; offloading to a durable worker requires verified integration before choosing that alternative.
 

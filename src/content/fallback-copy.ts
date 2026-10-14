@@ -5,7 +5,7 @@
 export const FALLBACK_COPY = {
   rates:
     "TEN29 offers private-house stays with access to one, two, or three bedrooms. Daily, weekly, and monthly stays may be requested. Send your dates, guest details, and preferred bedroom access to receive the current verified quotation.",
-  availability: "Availability is confirmed manually. Your enquiry does not reserve a date.",
+  availability: "View current property-wide availability in the calendar. Your request does not reserve dates; availability is checked again before submission and final owner confirmation.",
   amenities: "The complete amenity list will be published after final property verification.",
   policies:
     "Final stay policies are being reviewed. TEN29 will provide the applicable rules before payment.",
