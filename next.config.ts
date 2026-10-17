@@ -11,6 +11,12 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["sharp"],
+  // Sharp's platform package contains native DLLs/shared libraries that
+  // standalone tracing may omit even when it traces the native .node file.
+  // Include the platform package so standalone servers can load Sharp.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/@img/sharp-*/**/*"],
+  },
   // Next.js 16 blocks cross-origin dev-mode requests (HMR, etc.) by default.
   // 127.0.0.1 is used here (in addition to localhost) because local test
   // tooling (Playwright, curl smoke tests) targets it directly.
