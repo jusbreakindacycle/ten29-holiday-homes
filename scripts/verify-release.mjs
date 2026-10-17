@@ -33,5 +33,13 @@ function inspect(directory) {
   }
 }
 inspect('.next/static');
+try {
+  execFileSync(process.execPath, ['-e', 'require("sharp")'], {
+    cwd: path.resolve('.next/standalone'),
+    stdio: 'pipe',
+  });
+} catch {
+  fail('Standalone server output cannot load its Sharp native runtime');
+}
 console.log(JSON.stringify({ release_checks: 'passed', immutable_migrations: 10, browser_artifacts: files, browser_artifact_bytes: bytes,
   credential_values_checked: privateValues.length, note: 'Zero configured values is source/accessor validation only; not production-secret verification' }));
