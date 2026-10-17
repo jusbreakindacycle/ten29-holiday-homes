@@ -12,6 +12,48 @@ When two sources disagree: stop only the affected high-risk operation, expose th
 
 - Preserve the existing Next.js App Router + TypeScript strict + Tailwind CSS v4 application, Supabase PostgreSQL/Auth/SSR foundation, Zod validation, Resend abstraction, existing `inquiries` and `inquiry_audit_events`, public routes, owner preview, tests, and claim/publication gates.
 - Work from the inspected `main` head and make changes in bounded, reviewable increments. The last observed head during this document's preparation is `c1fa8360fa5ea4cc6fd9a18c15566cf87b562200` (2026-07-29); revalidate on each session.
+
+## 2. Git workflow (automated closeout)
+
+For every authorized implementation or documentation task, the agent must:
+
+1. **Check repository and working tree** before editing:
+   - Verify repository root with `git rev-parse --show-toplevel`
+   - Identify current branch and HEAD commit with `git branch --show-current` and `git log -1 --format="%H%n%ci%n%s"`
+   - Inspect working tree state with `git status --short --branch`, `git diff`, `git diff --cached`, and `git ls-files --modified`
+   - Inspect untracked paths with `git ls-files --others --exclude-standard`, relevant ignored paths with `git status --short --ignored`, and all linked worktrees with `git worktree list --porcelain`
+   - Verify configured remotes and upstream tracking branch with `git remote -v` and `git branch -vv`
+   - After a safe `git fetch origin`, compare local HEAD with its verified upstream and relevant `origin` branch to assess ahead/behind/diverged state; do not rely on stale remote-tracking refs
+   - Preserve any legitimate unsaved editor buffers and local work; disclose when editor buffers cannot be inspected with available tools, and do not discard or overwrite existing changes
+
+2. **Preserve pre-existing user work**:
+   - Never revert, reset, clean, overwrite, or silently discard user work
+   - Review the actual diffs of each changed and untracked path before staging
+   - Do not stage local Python caches, `node_modules`, build output, generated test artifacts, backups, local database files, or unrelated temporary files
+   - Never stage `.env.local`, other runtime `.env` files, `staging.env`, real credentials, tokens, private owner/guest data, or secret-containing logs. `.env.example` may be committed only after confirming it is sanitized and contains no real credential values
+
+3. **Implement bounded task and run checks**:
+   - Complete the authorized task implementation
+   - Run relevant checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build -- --webpack`, `node scripts/verify-release.mjs`, `npm audit --omit=dev --audit-level=high` (as appropriate)
+   - For documentation-only changes, perform `git diff --check` and review documentation diff
+
+4. **Stage reviewed project changes**:
+   - Review the full staged diff and exclude secrets, generated artifacts, and unrelated changes
+   - Stage the exact reviewed paths
+   - Inspect `git diff --cached` and run `git diff --cached --check`
+   - Create a descriptive Conventional Commit message where appropriate (e.g., `chore: automate verified git closeout`)
+
+5. **Push to verified active feature branch**:
+   - Push the commit to the active feature branch's upstream using `git push origin HEAD` when upstream is confirmed
+   - If no upstream is configured, set one only after verifying the intended remote and branch
+   - Immediately before pushing, fetch and recheck the active branch's upstream; if it advanced or diverged, preserve all work and reconcile without force-pushing or overwriting anyone's commits, or stop and report the blocker
+   - Push only to the verified active feature branch; never redirect this closeout to `main`
+   - After pushing, fetch and verify the upstream remote ref resolves to the exact local `HEAD` commit (zero ahead/behind); otherwise report that synchronization was not confirmed
+
+6. **Report results**:
+   - Provide commit SHA, branch, pushed files, checks and actual results, and any remaining risks
+
+This workflow is a permanent rule for future authorized coding tasks.
 - Repo-specific Next.js instructions matter: read `node_modules/next/dist/docs/` for the **installed** version before modifying framework-sensitive conventions. Follow supported Next.js 16 patterns; do not introduce deprecated middleware conventions or assume APIs from earlier versions.
 - Keep `CLAUDE.md` as the existing tiny pointer to `AGENTS.md`; don't maintain a duplicate manual there.
 - Historic `docs/00...27` files contain evidence and historical owner decisions: **archive them, don't discard them merely to meet the three-file planning preference**. Three *maintained instruction documents* means this file, `PRODUCT.md`, and the engineering `SKILL.md`. It does not mean eliminating source files, SQL migrations, tests, README, CHANGELOG, `.env.example`, or historical evidence.

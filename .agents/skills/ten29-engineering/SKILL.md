@@ -38,6 +38,10 @@ Check `git status`, current branch/HEAD, package versions, route tree, relevant 
 
 For each slice, identify `PRODUCT.md` requirement IDs, input/output contracts, authorization matrix, data changes, migrations, UI states, errors and minimum tests. Show one textual sequence diagram or Mermaid flow only when it resolves ambiguity. Name exact behavior for unsupported owner business approvals rather than auto-filling them.
 
+## 3. Git workflow (permanent rule)
+
+This skill now follows the permanent Git workflow defined in `AGENTS.md`. Every authorized implementation or documentation task must be completed using the step-by-step automated stage → commit → push workflow. Do not make any additional modifications to the Git workflow beyond what's specified in `AGENTS.md`.
+
 ### 4. Implement a vertical slice
 
 Favor small, end-to-end commits: domain types → SQL/RLS/service → form/API → UI → tests. Reuse components where practical. For SQL sensitive to races, put critical invariant in DB constraints/transactional function; unit tests alone cannot prove concurrency safety. Never run destructive DB changes against production automatically. Preserve existing inquiries and guest-data privacy.
