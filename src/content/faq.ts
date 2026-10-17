@@ -13,7 +13,7 @@ export function getFaqItems(): FaqItem[] {
     {
       question: "Does submitting the enquiry form reserve my dates?",
       answer:
-        "No. Submitting the form sends a booking enquiry only. TEN29 confirms availability, price, and payment instructions manually before anything is reserved.",
+        "No. The calendar displays property-wide availability and published package prices, but submitting a request does not hold dates. Final confirmation requires an owner-issued quotation, independently verified required down payment and successful database availability checks.",
     },
     {
       question: "Do we rent the whole house, or just a room?",
@@ -26,11 +26,11 @@ export function getFaqItems(): FaqItem[] {
     {
       question: "How do I pay for my stay?",
       answer:
-        "Payment instructions are shared directly by TEN29 after your enquiry is reviewed and your dates are manually confirmed. The website does not process payments.",
+        "TEN29 provides applicable owner-approved quotation and payment conditions directly after reviewing your request. Do not send payment before those details are provided. The website does not process payments or automatically verify receipt.",
     },
     {
       question: "What are the check-in and check-out times?",
-      answer: FALLBACK_COPY.policies,
+      answer: "Check-in is from 3:00 PM and checkout is before 12:00 PM, Asia/Manila. Early arrival, late checkout and any associated arrangements require separate owner approval.",
     },
     {
       question: "Can we bring pets or host an event?",
@@ -39,7 +39,7 @@ export function getFaqItems(): FaqItem[] {
     {
       question: "Can I book instantly through the website?",
       answer:
-        "Not yet. Option 1 of the TEN29 website is an enquiry system. TEN29 replies directly to confirm availability before any booking is treated as settled.",
+        "No. You can view availability and published nightly estimates and submit a request. Dates are not reserved until the owner completes the quotation, independently verified required payment and protected confirmation process.",
     },
     {
       question: "How do I contact TEN29 directly?",

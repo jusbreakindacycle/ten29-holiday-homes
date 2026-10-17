@@ -6,7 +6,13 @@ import { SignOutButton } from "@/components/features/admin/SignOutButton";
 
 const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin" },
+  { label: "Requests", href: "/admin/requests" },
+  { label: "Calendar", href: "/admin/calendar" },
+  { label: "Reservations", href: "/admin/reservations" },
   { label: "Inquiries", href: "/admin/inquiries" },
+  { label: "Rates", href: "/admin/rates" },
+  { label: "Media", href: "/admin/media" },
+  { label: "Operations", href: "/admin/operations" },
   { label: "Owner Preview", href: "/admin/owner-preview" },
   { label: "Claim Registry", href: "/admin/claims" },
 ];
@@ -38,7 +44,7 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+      <main className="mx-auto max-w-6xl px-3 py-10 sm:px-6">{children}</main>
     </div>
   );
 }

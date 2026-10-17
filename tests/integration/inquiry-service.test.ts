@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeSupabaseClient } from "./helpers/fakeSupabaseClient";
 import {
   createInquiry,
@@ -58,10 +58,28 @@ describe("createInquiry", () => {
     expect(inquiry.status).toBe("NEW");
     expect(client._tables.inquiry_audit_events.some((e) => e.event_type === "CREATED")).toBe(true);
   });
+
+  it("does not let public input spoof a manual-channel enquiry source", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inquiry = await createInquiry(validInput({ source: "MESSENGER" }), client as any);
+
+    expect(inquiry.source).toBe("website");
+  });
 });
 
 describe("persist-before-notify (FR-INQ-011)", () => {
-  beforeEach(() => mockSend.mockReset());
+  beforeEach(() => { mockSend.mockReset(); vi.stubEnv('INQUIRY_NOTIFICATION_TO', 'synthetic-owner@example.invalid'); });
+  afterEach(() => vi.unstubAllEnvs());
+  it('missing owner destination never sends guest details to an invented address', async () => {
+    vi.stubEnv('INQUIRY_NOTIFICATION_TO', '');
+    const client = createFakeSupabaseClient();
+    const fixture = client as unknown as Parameters<typeof createInquiry>[1];
+    const inquiry = await createInquiry(validInput(), fixture);
+    const result = await attemptOwnerNotification(inquiry, fixture);
+    expect(result.notification_status).toBe('FAILED'); expect(mockSend).not.toHaveBeenCalled();
+    expect(result.notification_error).not.toContain('SUPABASE');
+  });
 
   it("stores the inquiry even before the email provider is ever called", async () => {
     const client = createFakeSupabaseClient() as unknown as FakeClient;
@@ -171,6 +189,28 @@ describe("listInquiries / getDashboardCounts / inquiriesToCsv", () => {
     const spamOnly = await listInquiries(client as any, { status: "SPAM" });
     expect(spamOnly).toHaveLength(1);
     expect(spamOnly[0].id).toBe(inquiry.id);
+  });
+
+  it("rejects an authenticated non-admin before returning guest enquiries", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient & { _setAdmin: (value: boolean) => void };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await createInquiry(validInput(), client as any);
+    client._setAdmin(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(listInquiries(client as any)).rejects.toThrow("Unauthorized");
+  });
+
+  it("rejects status changes for an authenticated non-admin", async () => {
+    const client = createFakeSupabaseClient() as unknown as FakeClient & { _setAdmin: (value: boolean) => void };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inquiry = await createInquiry(validInput(), client as any);
+    client._setAdmin(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(updateInquiryStatus(client as any, inquiry.id, "CONTACTED", "attacker@test"))
+      .rejects.toThrow("Unauthorized");
+    expect(client._tables.inquiries[0].status).toBe("NEW");
   });
 
   it("exports a CSV with a header row and one row per inquiry", async () => {

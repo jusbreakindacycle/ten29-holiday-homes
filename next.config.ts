@@ -5,9 +5,12 @@ const SECURITY_HEADERS = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  serverExternalPackages: ["sharp"],
   // Next.js 16 blocks cross-origin dev-mode requests (HMR, etc.) by default.
   // 127.0.0.1 is used here (in addition to localhost) because local test
   // tooling (Playwright, curl smoke tests) targets it directly.
@@ -16,7 +19,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: SECURITY_HEADERS,
+        headers: [
+          ...SECURITY_HEADERS,
+          ...(process.env.TEN29_ENVIRONMENT === "staging"
+            ? [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }]
+            : []),
+        ],
       },
     ];
   },

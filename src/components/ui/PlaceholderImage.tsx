@@ -20,7 +20,7 @@ export function PlaceholderImage({ label }: { label: string }) {
       <span className="relative px-6 text-xs font-medium uppercase tracking-widest text-muted">
         {label}
       </span>
-      <span className="relative rounded-full border border-gold-soft bg-ivory px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold">
+      <span className="relative rounded-full border border-gold-soft bg-ivory px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-forest">
         Photo pending
       </span>
     </div>

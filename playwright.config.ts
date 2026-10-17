@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Runs against the production server (`next start`), not `next dev`.
+// Runs against the production standalone Node server, not `next dev`.
 // On a slow (HDD-backed) filesystem, Turbopack's first-hit-per-route compile
 // cost under `next dev` pushed startup past the old 120s webServer timeout.
 // A production build pays its compile cost once, up front, during

@@ -29,6 +29,13 @@ export default function AdminLoginPage() {
         return;
       }
 
+      const { data: isAuthorizedAdmin, error: authorizationError } = await supabase.rpc("is_ten29_admin");
+      if (authorizationError || isAuthorizedAdmin !== true) {
+        await supabase.auth.signOut();
+        setError("This account is not authorized to access TEN29 administration.");
+        return;
+      }
+
       router.push("/admin");
       router.refresh();
     } catch {

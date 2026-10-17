@@ -1,6 +1,7 @@
 import type { Inquiry } from "@/types/inquiry";
 import { getPhoneDisplay, getSiteUrl } from "@/lib/site-config";
 import type { EmailMessage } from "@/services/email/email-provider";
+import { getInquiryNotificationTo } from '@/lib/env';
 
 function escapeHtml(value: string): string {
   return value
@@ -45,7 +46,7 @@ export function buildOwnerNotificationEmail(inquiry: Inquiry): EmailMessage {
     .join("");
 
   return {
-    to: process.env.INQUIRY_NOTIFICATION_TO || "bookings@ten29holidayhomes.com",
+    to: getInquiryNotificationTo(),
     subject: `New enquiry ${inquiry.reference_code} — ${inquiry.full_name}`,
     text: `New TEN29 booking enquiry\n\n${textRows}\n\nMessage: ${inquiry.message ?? "(none)"}\n\nReview: ${adminUrl}`,
     html: `

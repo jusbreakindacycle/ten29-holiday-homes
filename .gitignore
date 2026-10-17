@@ -30,8 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# Runtime env files remain local; only the credential-free template is tracked.
 .env*
+!.env.example
+/staging.env
 
 # vercel
 .vercel

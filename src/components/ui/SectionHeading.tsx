@@ -20,7 +20,7 @@ export function SectionHeading({
   return (
     <div className={clsx("max-w-2xl", align === "center" && "mx-auto text-center", className)}>
       {eyebrow ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold mb-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest mb-2">
           {eyebrow}
         </p>
       ) : null}

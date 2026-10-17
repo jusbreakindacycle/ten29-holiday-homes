@@ -31,14 +31,13 @@ test.describe("Public site — critical path", () => {
 
   test("availability page states enquiries do not reserve a date", async ({ page }) => {
     await page.goto("/availability");
-    await expect(page.getByText(/does not place a hold or create a reservation/i)).toBeVisible();
+    await expect(page.getByText(/does not place a hold or create a reservation/i).first()).toBeVisible();
   });
 
   test("policies page never silently fabricates house rules", async ({ page }) => {
     await page.goto("/policies");
-    // House rules are PROPOSED_PENDING_APPROVAL in the current claim registry,
-    // so the public page must show the pending-state message, not a rules list.
-    await expect(page.getByText(/pending publication|being reviewed/i).first()).toBeVisible();
+    // Full rules remain outside the application; public copy points to direct communication.
+    await expect(page.getByText(/communicated directly by TEN29/i).first()).toBeVisible();
   });
 
   test("404 page is custom-branded, not the framework default", async ({ page }) => {
@@ -50,7 +49,7 @@ test.describe("Public site — critical path", () => {
 
 test.describe("Booking enquiry form", () => {
   test("requires the core fields before submission", async ({ page }) => {
-    await page.goto("/book");
+    await page.goto("/book?check_in_date=malformed");
     const fullName = page.locator("#full_name");
     await expect(fullName).toHaveAttribute("required", "");
     await expect(page.locator("#mobile_number")).toHaveAttribute("required", "");
@@ -60,7 +59,21 @@ test.describe("Booking enquiry form", () => {
   test("submitting a complete form never claims the stay is confirmed", async ({ page }) => {
     await page.goto("/book");
 
-    await page.locator("#full_name").fill("Playwright Test Guest");
+    const fullName = page.locator("#full_name");
+    const sessionError = page.getByText("Secure request session could not start. Retry or contact TEN29.", { exact: true });
+    await expect.poll(async () => await fullName.isEnabled() || await sessionError.isVisible()).toBe(true);
+    if (await sessionError.isVisible()) {
+      // An app-only CI job has no isolated Supabase service credential. The
+      // request submit action must remain disabled when it cannot mint its
+      // signed anti-replay session; provider-backed intake is covered in the
+      // disposable Supabase job.
+      await expect(fullName).toBeVisible();
+      await expect(page.getByRole("button", { name: /send enquiry/i })).toBeDisabled();
+      await expect(sessionError).toBeVisible();
+      return;
+    }
+
+    await fullName.fill("Playwright Test Guest");
     await page.locator("#mobile_number").fill("+639171234567");
 
     const checkIn = new Date();
@@ -73,7 +86,9 @@ test.describe("Booking enquiry form", () => {
     await page.locator("#adults").fill("2");
     await page.locator("#privacy_consent").check();
 
-    await page.getByRole("button", { name: /send enquiry/i }).click();
+    // Unconfigured services cannot establish availability or persist requests.
+    await expect(page.getByRole("button", { name: /send enquiry/i })).toBeDisabled();
+    await expect(page.getByText(/Calendar could not load|Could not verify|temporarily unavailable|Secure request session/).first()).toBeVisible();
 
     // Without a configured Supabase project in this environment, submission
     // fails gracefully — the important assertion is that the UI never claims

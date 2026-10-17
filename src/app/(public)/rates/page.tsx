@@ -43,8 +43,9 @@ export default function RatesPage() {
         as="h1"
         eyebrow="Rates"
         title="TEN29 rates"
-        description="Every figure below is either a rate the owner has approved for publication, or an honest statement that it isn't published yet."
+        description="Choose your bedroom package and dates in the calendar to see current owner-published nightly prices. Missing prices mean Request a quote."
       />
+      <div className="mt-6"><CtaLink href="/availability">View current calendar prices</CtaLink></div>
 
       <div className="mt-8 rounded-sm border border-border bg-white p-6">
         <h2 className="font-heading text-xl text-forest">How quotations work</h2>

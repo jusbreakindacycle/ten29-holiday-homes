@@ -27,6 +27,7 @@ export default async function AdminInquiryDetailPage({
 
   if (!inquiry) notFound();
 
+  const { data: linkedRequest } = await client.from("booking_requests").select("id,package_code,overnight_guest_count,folding_foams_requested,status").eq("inquiry_id", id).maybeSingle();
   const auditEvents = await getAuditEventsForInquiry(client, id);
 
   return (
@@ -52,6 +53,12 @@ export default async function AdminInquiryDetailPage({
         </div>
       ) : null}
 
+      {linkedRequest && <section className="mt-6 rounded-sm border border-forest bg-white p-5">
+        <h2 className="font-heading text-xl text-forest">Linked website booking request</h2>
+        <p>{linkedRequest.package_code} - {linkedRequest.overnight_guest_count} overnight guests - {linkedRequest.status}</p>
+        <p>Additional folding foams: {linkedRequest.folding_foams_requested ? "Requested" : "No"}. Dates are not reserved.</p>
+        <Link className="underline text-forest" href={`/admin/requests/${linkedRequest.id}`}>View booking request and saved estimate</Link>
+      </section>}
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-sm border border-border bg-white p-6">
           <h2 className="font-heading text-xl text-forest mb-4">Guest details</h2>

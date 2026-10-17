@@ -39,13 +39,13 @@ Free-tier Supabase projects can pause after a period of inactivity, and have con
 
 | Environment | Purpose |
 |---|---|
-| Local development | `npm run dev`, local `.env.local`, ideally a disposable/local Supabase project |
-| Preview/staging | Vercel preview deployments per branch/PR, pointed at a non-production Supabase project where possible |
-| Production | `https://www.ten29holidayhomes.com`, owner-owned Supabase/Resend/Vercel accounts |
+| Local development | `npm run dev`, ignored `.env.local`, and the repository's local Supabase stack; local Supabase CLI values are required before database-backed flows work |
+| Preview/staging | Not provisioned. Any future environment requires an owner-controlled Node 22-compatible runtime, separate Supabase project, restricted access, TLS and test-safe notification routing |
+| Production | Not deployed or authorized. Domain, hosting, Supabase and email ownership/configuration must be verified with the actual owner before release |
 
 ## Environment variables
 
-See `.env.example` at the repository root for the complete list. Never commit a populated `.env.local`.
+See the tracked, credential-free `.env.example` for the local variable names and placeholder formats. Copy it to `.env.local` only when `.env.local` is absent, then replace Supabase placeholders only with local Supabase CLI values. `.env.local`, staging environment files and provider secrets remain ignored/untracked. Never commit populated environment files or point local/provider tests at production.
 
 ## Backups and recovery
 

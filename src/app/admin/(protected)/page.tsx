@@ -1,3 +1,4 @@
+import {BookingOperations} from "@/components/features/admin/BookingOperations";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getDashboardCounts } from "@/services/inquiry-service";
@@ -23,7 +24,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="font-heading text-3xl text-forest">Dashboard</h1>
+      <BookingOperations view="dashboard"/><h2 className="mt-8 font-heading text-2xl text-forest">Legacy enquiry overview</h2>
       <p className="mt-1 text-muted">Overview of TEN29 booking enquiries.</p>
 
       {loadError ? (
