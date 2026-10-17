@@ -65,7 +65,17 @@ export function BookingJourney({ availabilityOnly = false, initial = {}, utm = {
     const selection = { package_code: pkg, overnight_guest_count: String(guests), folding_foams_requested: String(foams) };
     const read = async (from: string, to: string): Promise<CalendarData> => {
       const response = await fetch(`/api/booking-calendar?${new URLSearchParams({ ...selection, check_in_date: from, check_out_date: to })}`, { cache: "no-store", signal: abort.signal });
-      if (!response.ok) throw new Error(); return response.json();
+      if (!response.ok) throw new Error();
+      const body: unknown = await response.json();
+      if (!body || typeof body !== 'object' || !('estimate' in body) || !('unavailable' in body)
+        || !body.estimate || typeof body.estimate !== 'object' || !('nights' in body.estimate)
+        || !Array.isArray(body.estimate.nights) || !Array.isArray(body.unavailable)
+        || body.unavailable.some(range => !range || typeof range !== 'object'
+          || !('check_in_date' in range) || typeof range.check_in_date !== 'string'
+          || !('check_out_date' in range) || typeof range.check_out_date !== 'string')) {
+        throw new Error('Invalid calendar response');
+      }
+      return body as CalendarData;
     };
     read(`${month}-01`, `${nextMonth(month, 1)}-01`).then(v => { if (!abort.signal.aborted) { setMonthData(v); setCalendarError(""); } })
       .catch(() => { if (!abort.signal.aborted) setCalendarError("Calendar could not load. Retry; availability has not been verified."); });

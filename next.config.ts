@@ -9,6 +9,9 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep isolated Playwright development runs from colliding with an owner's
+  // already-running local server and its `.next` output.
+  distDir: process.env.TEN29_E2E_ISOLATED_DIST === "true" ? ".next-e2e" : ".next",
   output: "standalone",
   serverExternalPackages: ["sharp"],
   // Sharp's platform package contains native DLLs/shared libraries that

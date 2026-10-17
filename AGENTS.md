@@ -97,3 +97,13 @@ This workflow is a permanent rule for future authorized coding tasks.
 Be succinct, but report: (1) inspected baseline, (2) assumptions/open business approvals, (3) chosen slice and affected files, (4) changes made, (5) test names/actual results, (6) red-team findings and mitigations, (7) remaining risks/next safe slice. Never report a feature as working solely because code was generated. Evidence is required.
 
 Do not change the repository merely because this document exists; wait for a concrete authorized implementation task.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
