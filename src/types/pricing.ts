@@ -36,6 +36,73 @@ export const publishRateSchema = z.object({
   revision_id: z.string().uuid(), base_revision_id: z.string().uuid().nullable(),
   idempotency_key: z.string().uuid(), confirmed: z.literal(true),
 }).strict();
+export const promotionDraftSchema = z.object({
+  package_code: z.enum(BOOKING_PACKAGE_CODES),
+  former_amount_centavos: centavos,
+  promotional_amount_centavos: centavos.min(1),
+  eligible_from_date: calendarDate,
+  eligible_to_date: calendarDate,
+  minimum_nights: z.number().int().min(1).max(366),
+  maximum_nights: z.number().int().min(1).max(366),
+  valid_from: z.string().datetime({ offset: true }),
+  valid_until: z.string().datetime({ offset: true }),
+  former_price_basis: z.enum(["SOLD_WITHIN_90_DAYS", "OFFERED_4_WEEKS_WITHIN_90_DAYS", "OLDER_PERIOD_DISCLOSED"]),
+  former_price_period: z.string().trim().min(1).max(240),
+  former_price_evidence: z.string().trim().min(1).max(1000),
+}).strict().superRefine((value, context) => {
+  if (value.promotional_amount_centavos >= value.former_amount_centavos) {
+    context.addIssue({ code: "custom", path: ["promotional_amount_centavos"], message: "Promotional price must be lower than the stated former price." });
+  }
+  if (value.eligible_to_date <= value.eligible_from_date) {
+    context.addIssue({ code: "custom", path: ["eligible_to_date"], message: "The eligible end date must be after the start date." });
+  }
+  if (value.maximum_nights < value.minimum_nights) {
+    context.addIssue({ code: "custom", path: ["maximum_nights"], message: "Maximum nights must be at least the minimum." });
+  }
+  if (Date.parse(value.valid_until) <= Date.parse(value.valid_from)) {
+    context.addIssue({ code: "custom", path: ["valid_until"], message: "Promotion expiry must be after its start." });
+  }
+});
+export type PromotionDraft = z.infer<typeof promotionDraftSchema>;
+export const savePromotionDraftSchema = z.object({
+  base_promotion_id: z.string().uuid().nullable(),
+  promotion: promotionDraftSchema,
+  idempotency_key: z.string().uuid(),
+}).strict();
+export const publishPromotionSchema = z.object({
+  promotion_id: z.string().uuid(),
+  base_promotion_id: z.string().uuid().nullable(),
+  idempotency_key: z.string().uuid(),
+  confirmed: z.literal(true),
+  former_price_reviewed: z.literal(true),
+  dti_reviewed: z.literal(true),
+}).strict();
+export type PromotionRecord = PromotionDraft & {
+  id: string; revision: number; status: "DRAFT" | "PUBLISHED";
+  base_promotion_id: string | null;
+  created_at: string; published_at: string | null;
+};
+export type OwnerPromotionState = {
+  package_code: BookingPackageCode;
+  active_promotion_id: string | null;
+  active: PromotionRecord | null;
+  history: PromotionRecord[];
+};
+export const publicPromotionTeaserSchema = z.object({
+  package_code: z.enum(BOOKING_PACKAGE_CODES),
+  former_amount_centavos: centavos.min(1),
+  promotional_amount_centavos: centavos.min(1),
+  minimum_nights: z.number().int().min(1).max(366),
+  maximum_nights: z.number().int().min(1).max(366),
+  price_basis: z.literal("PER_NIGHT"),
+  former_price_period: z.string().trim().min(1).max(240).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.promotional_amount_centavos >= value.former_amount_centavos) context.addIssue({
+    code: "custom", path: ["promotional_amount_centavos"], message: "Promotional price must be lower than the former price.",
+  });
+  if (value.maximum_nights < value.minimum_nights) context.addIssue({ code: "custom", path: ["maximum_nights"], message: "Invalid promotion stay length." });
+});
+export type PublicPromotionTeaser = z.infer<typeof publicPromotionTeaserSchema>;
 export const priceWindowSchema = z.object({
   package_code: z.enum(BOOKING_PACKAGE_CODES), check_in_date: calendarDate, check_out_date: calendarDate,
   // Pricing selection uses countable guests; actual age-band headcount is stored on the request.
@@ -52,7 +119,7 @@ export type NightlyPrice = { date: string; package_code: BookingPackageCode; amo
 export type PublicPriceEstimate = PriceWindow & {
   bedrooms_opened: number; private_whole_house: true; version: string | null; nights: NightlyPrice[];
   missing_rates: boolean; accommodation_subtotal_centavos: number | null; estimated_total_centavos: number | null;
-  estimate_kind: "ACCOMMODATION_ONLY"; currency: "PHP";
+  estimate_kind: "ACCOMMODATION_ONLY"; currency: "PHP"; promotion?: PublicPromotionTeaser | null;
 };
 export type RateRevision = { id: string; revision: number; status: "DRAFT" | "PUBLISHED"; base_revision_id: string | null; created_at: string; published_at: string | null; rules: RateRule[] };
 export type OwnerRateState = { package_code: BookingPackageCode; published_revision_id: string | null; published_rules: RateRule[]; history: RateRevision[] };

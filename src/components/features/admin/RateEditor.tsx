@@ -150,7 +150,7 @@ export function RateEditor({ initial, initialMonth }: { initial: OwnerRateState;
       <dialog ref={dialog} className="m-auto w-[calc(100%-2rem)] max-w-md rounded-sm border border-border bg-ivory p-6 backdrop:bg-ink/50" aria-labelledby="publish-title">
         <h3 id="publish-title" className="text-2xl">Publish package rates?</h3>
         <p className="mt-3">{state.package_code}: publish this complete rule set, including {rules.filter((r) => r.start_date).map((r) => `${r.start_date} through ${addDays(r.end_date!, -1)}`).join(", ") || (rules.length ? "default/weekday rules" : "no active rules (all dates will require a quote)")}. Saved rules apply to their stated dates; this is not limited to the displayed month.</p>
-        <p className="mt-2">These rates become public. Previously issued quotations remain unchanged.</p>
+        <p className="mt-2">These rates remain private and are used to prepare owner quotations. Approved promotions may publish only their eligible starting-price teaser. Previously issued quotations remain unchanged.</p>
         <div className="mt-5 flex flex-wrap gap-3"><CtaButton variant="secondary" onClick={() => dialog.current?.close()}>Cancel</CtaButton>
           <CtaButton disabled={pending} onClick={() => begin(async () => {
             setError(""); const response = await safely(publishRateEditor({ revision_id: draftId, base_revision_id: state.published_revision_id, idempotency_key: publishKey.current, confirmed: true }));

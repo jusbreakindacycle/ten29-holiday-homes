@@ -2,7 +2,7 @@ import type { OwnerMedia, PublicMedia, MediaDelivery } from './media';
 import type { OpsData } from './operations';
 import type { IntakeResult } from "./guest-booking";
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
-import type { RateRule, AdjustmentInput, OwnerRateState, PublicPriceEstimate, QuoteBreakdown } from "@/types/pricing";
+import type { RateRule, AdjustmentInput, OwnerRateState, OwnerPromotionState, PublicPriceEstimate, PublicPromotionTeaser, QuoteBreakdown } from "@/types/pricing";
 import type {
   BookingDepositStatus,
   BookingPackageCode,
@@ -43,6 +43,12 @@ export interface Database {
       publish_calendar_rate_revision: { Args: { p_revision: string; p_base: string | null; p_key: string }; Returns: string };
       read_owner_rate_state: { Args: { p_package: BookingPackageCode; p_offset?: number }; Returns: OwnerRateState };
       read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
+      read_booking_price_snapshot: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
+      save_calendar_promotion_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_former: number; p_discount: number; p_from: string; p_to: string; p_min: number; p_max: number; p_valid_from: string; p_valid_until: string; p_basis: string; p_period: string; p_evidence: string; p_key: string }; Returns: string };
+      publish_calendar_promotion: { Args: { p_id: string; p_base: string | null; p_key: string; p_former_reviewed: boolean; p_dti_reviewed: boolean }; Returns: string };
+      deactivate_calendar_promotion: { Args: { p_package: BookingPackageCode; p_id: string }; Returns: undefined };
+      read_owner_promotion_state: { Args: { p_package: BookingPackageCode }; Returns: OwnerPromotionState };
+      read_public_promotion_teaser: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string }; Returns: PublicPromotionTeaser | null };
       prepare_itemized_booking_quote: {
         Args: { p_request: string; p_expected_rate: string | null; p_deposit: number | null; p_adjustments: AdjustmentInput[];
           p_manual_nights: Array<{ date: string; amount_centavos: number; reason: string }>;

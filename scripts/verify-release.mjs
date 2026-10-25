@@ -6,11 +6,11 @@ function fail(message) { throw new Error(message); }
 const tracked = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n');
 if (tracked.some(file => /(^|\/)\.env($|\.)/.test(file) && !file.endsWith('.example'))) fail('Populated environment file must not be tracked');
 const migrations = readdirSync('supabase/migrations').filter(name => name.endsWith('.sql')).sort();
-for (let number = 1; number <= 11; number++) {
+for (let number = 1; number <= 12; number++) {
   if (migrations.filter(name => name.startsWith(String(number).padStart(4, '0') + '_')).length !== 1) fail('Missing or duplicate migration number');
 }
 const baseline = 'a095fd6083d3d235e5c21214675744afee8b5c22';
-const changed = execFileSync('git', ['diff', '--name-only', baseline, '--', ...migrations.filter(name => !name.startsWith('0011_')).map(name => 'supabase/migrations/' + name)], { encoding: 'utf8' });
+const changed = execFileSync('git', ['diff', '--name-only', baseline, '--', ...migrations.filter(name => !name.startsWith('0011_') && !name.startsWith('0012_')).map(name => 'supabase/migrations/' + name)], { encoding: 'utf8' });
 if (changed.trim()) fail('Previously verified migrations changed; supervised review required');
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -32,10 +32,11 @@ function inspect(directory) {
     }
   }
 }
-inspect('.next/static');
+const buildDir = process.env.TEN29_E2E_ISOLATED_DIST === 'true' ? '.next-e2e' : '.next';
+inspect(path.join(buildDir, 'static'));
 try {
   execFileSync(process.execPath, ['-e', 'require("sharp")'], {
-    cwd: path.resolve('.next/standalone'),
+    cwd: path.resolve(buildDir, 'standalone'),
     stdio: 'pipe',
   });
 } catch {

@@ -1,10 +1,14 @@
+import "server-only";
 import { z } from "zod";
 import type { BookingDbClient } from "./booking-service";
 import { BOOKING_PACKAGE_CODES, type BookingPackageCode } from "@/types/booking";
 import { priceWindowSchema, prepareQuoteSchema, publishRateSchema, saveRateDraftSchema,
-  type OwnerRateState, type PriceWindow, type PublicPriceEstimate, type QuoteBreakdown } from "@/types/pricing";
+  savePromotionDraftSchema, publishPromotionSchema, publicPromotionTeaserSchema,
+  type OwnerRateState, type OwnerPromotionState, type PriceWindow, type PublicPriceEstimate, type PublicPromotionTeaser, type QuoteBreakdown } from "@/types/pricing";
 
-export class PricingError extends Error {}
+export class PricingError extends Error {
+  constructor(message:string, readonly providerCode?:string){super(message);this.name='PricingError';}
+}
 export async function requirePricingOwner(client: BookingDbClient): Promise<void> {
   const { data: auth, error: authError } = await client.auth.getUser();
   if (authError || !auth.user) throw new PricingError("OWNER authorization required.");
@@ -17,7 +21,8 @@ function fail(error: { code?: string; message?: string } | null): never {
     "This preview supports PHP quotations only; the historical record is unchanged"];
   throw new PricingError(error?.code === "23P01" || error?.code === "23505"
     ? "Conflicting rule or duplicate operation. Reload and review the affected dates."
-    : safe.includes(error?.message ?? "") ? error!.message! : "Pricing operation was rejected. Review the inputs and try again.");
+    : safe.includes(error?.message ?? "") ? error!.message! : "Pricing operation was rejected. Review the inputs and try again.",
+    error?.code && /^[0-9A-Z]{5}$/.test(error.code)?error.code:undefined);
 }
 export async function readOwnerRates(client: BookingDbClient, packageCode: BookingPackageCode, offset = 0): Promise<OwnerRateState> {
   await requirePricingOwner(client);
@@ -45,10 +50,47 @@ export async function publishRateDraft(client: BookingDbClient, raw: z.infer<typ
   if (error || !data) fail(error);
   return data;
 }
-export async function readPublicPrices(client: BookingDbClient, raw: PriceWindow): Promise<PublicPriceEstimate> {
+export async function readOwnerPromotion(client: BookingDbClient, packageCode: BookingPackageCode): Promise<OwnerPromotionState> {
+  await requirePricingOwner(client);
+  z.enum(BOOKING_PACKAGE_CODES).parse(packageCode);
+  const { data, error } = await client.rpc("read_owner_promotion_state", { p_package: packageCode });
+  if (error || !data) fail(error);
+  return data;
+}
+export async function saveOwnerPromotionDraft(client: BookingDbClient, raw: z.infer<typeof savePromotionDraftSchema>): Promise<string> {
+  await requirePricingOwner(client);
+  const input = savePromotionDraftSchema.safeParse(raw);
+  if (!input.success) throw new PricingError(input.error.issues[0]?.message ?? "Invalid promotion draft.");
+  const p = input.data.promotion;
+  const { data, error } = await client.rpc("save_calendar_promotion_draft", { p_package: p.package_code,
+    p_base: input.data.base_promotion_id, p_former: p.former_amount_centavos, p_discount: p.promotional_amount_centavos,
+    p_from: p.eligible_from_date, p_to: p.eligible_to_date, p_min: p.minimum_nights, p_max: p.maximum_nights,
+    p_valid_from: p.valid_from, p_valid_until: p.valid_until, p_basis: p.former_price_basis,
+    p_period: p.former_price_period, p_evidence: p.former_price_evidence, p_key: input.data.idempotency_key });
+  if (error || !data) fail(error);
+  return data;
+}
+export async function publishOwnerPromotion(client: BookingDbClient, raw: z.infer<typeof publishPromotionSchema>): Promise<string> {
+  await requirePricingOwner(client);
+  const input = publishPromotionSchema.safeParse(raw);
+  if (!input.success) throw new PricingError("Review the former-price evidence and publication before continuing.");
+  const { data, error } = await client.rpc("publish_calendar_promotion", { p_id: input.data.promotion_id,
+    p_base: input.data.base_promotion_id, p_key: input.data.idempotency_key,
+    p_former_reviewed: input.data.former_price_reviewed, p_dti_reviewed: input.data.dti_reviewed });
+  if (error || !data) fail(error);
+  return data;
+}
+export async function deactivateOwnerPromotion(client: BookingDbClient, packageCode: BookingPackageCode, promotionId: string): Promise<void> {
+  await requirePricingOwner(client);
+  z.enum(BOOKING_PACKAGE_CODES).parse(packageCode);
+  z.string().uuid().parse(promotionId);
+  const { error } = await client.rpc("deactivate_calendar_promotion", { p_package: packageCode, p_id: promotionId });
+  if (error) fail(error);
+}
+export async function readBookingPriceSnapshot(client: BookingDbClient, raw: PriceWindow): Promise<PublicPriceEstimate> {
   const input = priceWindowSchema.safeParse(raw);
   if (!input.success) throw new PricingError(input.error.issues[0]?.message ?? "Invalid price window.");
-  const { data, error } = await client.rpc("read_public_calendar_prices", { p_package: input.data.package_code,
+  const { data, error } = await client.rpc("read_booking_price_snapshot", { p_package: input.data.package_code,
     p_from: input.data.check_in_date, p_to: input.data.check_out_date,
     p_guests: input.data.overnight_guest_count, p_foams: input.data.folding_foams_requested });
   if (error || !data) fail(error);
@@ -59,9 +101,27 @@ export async function readPublicPrices(client: BookingDbClient, raw: PriceWindow
     nights: data.nights.map((n) => ({ date: n.date, package_code: input.data.package_code,
       amount_centavos: n.amount_centavos, source: n.source, rate_revision_id: n.rate_revision_id })) };
 }
+export async function readPublicPromotionTeaser(client: BookingDbClient, raw: Pick<PriceWindow, "package_code" | "check_in_date" | "check_out_date">): Promise<PublicPromotionTeaser | null> {
+  const input = z.object({ package_code: z.enum(BOOKING_PACKAGE_CODES), check_in_date: priceWindowSchema.shape.check_in_date,
+    check_out_date: priceWindowSchema.shape.check_out_date }).strict().superRefine((value, context) => {
+      const nights = Date.parse(`${value.check_out_date}T00:00:00Z`) - Date.parse(`${value.check_in_date}T00:00:00Z`);
+      if (nights <= 0 || nights % 86400000 !== 0 || nights / 86400000 > 366) context.addIssue({ code: "custom", message: "Choose a stay of 1 to 366 nights." });
+    }).safeParse(raw);
+  if (!input.success) throw new PricingError(input.error.issues[0]?.message ?? "Invalid promotion selection.");
+  const { data, error } = await client.rpc("read_public_promotion_teaser", { p_package: input.data.package_code,
+    p_from: input.data.check_in_date, p_to: input.data.check_out_date });
+  if (error) fail(error);
+  if (data === null) return null;
+  const safe = publicPromotionTeaserSchema.safeParse(data);
+  if (!safe.success || safe.data.package_code !== input.data.package_code
+    || safe.data.promotional_amount_centavos >= safe.data.former_amount_centavos) {
+    throw new PricingError("Promotion details are unavailable.");
+  }
+  return safe.data;
+}
 export async function revalidatePriceEstimate(client: BookingDbClient, raw: PriceWindow, expectedVersion: string | null) {
   z.string().uuid().nullable().parse(expectedVersion);
-  const current = await readPublicPrices(client, raw);
+  const current = await readBookingPriceSnapshot(client, raw);
   return { changed: current.version !== expectedVersion, acknowledgement_required: current.version !== expectedVersion, current_estimate: current };
 }
 // Owner-only foundation API. It approves the supplied booking-specific arrangements

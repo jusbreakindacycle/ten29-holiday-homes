@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const publicRoutes = [
-  '/', '/property', '/gallery', '/rates', '/availability', '/book', '/location',
+  '/', '/property', '/gallery', '/book', '/location',
   '/faq', '/contact', '/policies', '/privacy', '/terms', '/admin/login',
 ];
 
@@ -12,36 +12,8 @@ function addDays(date: string, count: number) {
 }
 
 async function installSyntheticCalendar(page: import('@playwright/test').Page) {
-  await page.route('**/api/booking-calendar?**', async route => {
-    const url = new URL(route.request().url());
-    const from = url.searchParams.get('check_in_date')!;
-    const to = url.searchParams.get('check_out_date')!;
-    const nights = [];
-    for (let date = from; date < to; date = addDays(date, 1)) nights.push({
-      date,
-      package_code: url.searchParams.get('package_code'),
-      amount_centavos: 500000,
-      source: 'synthetic-e2e-fixture',
-      rate_revision_id: '00000000-0000-4000-8000-000000000001',
-    });
-    const total = nights.length * 500000;
-    await route.fulfill({ json: { estimate: {
-      package_code: url.searchParams.get('package_code'),
-      check_in_date: from,
-      check_out_date: to,
-      overnight_guest_count: Number(url.searchParams.get('overnight_guest_count')),
-      folding_foams_requested: url.searchParams.get('folding_foams_requested') === 'true',
-      bedrooms_opened: Number(url.searchParams.get('package_code')?.slice(-2, -1) ?? 1),
-      private_whole_house: true,
-      currency: 'PHP',
-      estimate_kind: 'ACCOMMODATION_ONLY',
-      version: '00000000-0000-4000-8000-000000000002',
-      missing_rates: false,
-      accommodation_subtotal_centavos: total,
-      estimated_total_centavos: total,
-      nights,
-    }, unavailable: [] } });
-  });
+  await page.route('**/api/booking-calendar?**', route => route.fulfill({ json: { unavailable: [] } }));
+  await page.route('**/api/promotion-teaser?**', route => route.fulfill({ json: { promotion: null } }));
 }
 
 test('public routes render without overflow or hydration exceptions at desktop and narrow mobile widths', async ({ page }) => {
@@ -56,7 +28,7 @@ test('public routes render without overflow or hydration exceptions at desktop a
     if (reason !== 'net::ERR_ABORTED') failedRequests.push(`${request.method()} ${request.url()}: ${reason}`);
   });
   await installSyntheticCalendar(page);
-  for (const width of [1280, 390, 360]) {
+  for (const width of [1280, 390, 375, 360]) {
     await page.setViewportSize({ width, height: 900 });
     for (const route of publicRoutes) {
       const response = await page.goto(route);
@@ -79,7 +51,7 @@ test('public routes render without overflow or hydration exceptions at desktop a
   expect(failedRequests).toEqual([]);
 });
 
-test('synthetic calendar supports navigation and truthful request failure without saving a booking', async ({ page }) => {
+test('synthetic calendar carries a requested stay without disclosing rates and reports a failed request truthfully', async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10);
   const checkIn = addDays(today, 3);
   const checkOut = addDays(today, 5);
@@ -88,10 +60,14 @@ test('synthetic calendar supports navigation and truthful request failure withou
   await page.route('**/api/booking-request', route => route.fulfill({ status: 503, json: { error: 'Synthetic provider unavailable; no request was saved.' } }));
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/book');
+  await page.goto('/book?source=website-readiness');
+  await expect(page.getByText(/Check-in from 3:00 PM · Check-out before 12:00 PM/)).toBeVisible();
   await page.locator('#check_in_date').fill(checkIn);
   await page.locator('#check_out_date').fill(checkOut);
-  await expect(page.getByRole('region', { name: 'Accommodation estimate' })).toContainText('PHP 10,000.00');
+  await expect(page.getByRole('region', { name: 'Owner quotation' })).toContainText('TEN29 does not display rates online');
+  await expect(page.getByRole('region', { name: 'Owner quotation' })).toContainText('send a complete quote');
+  await expect(page.getByText('PHP', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('MISSING', { exact: false })).toHaveCount(0);
   const monthInput = page.getByLabel('Calendar month');
   const initialMonth = await monthInput.inputValue();
   await page.getByRole('button', { name: 'Next month' }).click();
@@ -100,12 +76,89 @@ test('synthetic calendar supports navigation and truthful request failure withou
   await expect(monthInput).toHaveValue(nextMonth.toISOString().slice(0, 7));
   await page.getByRole('button', { name: 'Previous month' }).click();
   await expect(monthInput).toHaveValue(initialMonth);
+  await expect(page).toHaveURL(/\/book\?/);
+  await expect(page.getByText('Your selected stay', { exact: true })).toBeVisible();
+  // The booking journey stays on one page; the selected stay remains editable beside its review summary.
+  await expect(page.getByLabel('Bedroom package', { exact: true })).toHaveValue('WHOLE_HOME_1BR');
+  await page.reload();
+  await expect(page.getByText('Your selected stay', { exact: true })).toBeVisible();
   await page.locator('#full_name').fill('Synthetic UI Guest');
-  await page.locator('#mobile_number').fill('+639171234567');
+  await page.locator('#mobile_number').fill('09171234567');
   await page.locator('#privacy_consent').check();
   const submit = page.getByRole('button', { name: /Send Enquiry/ });
   await expect(submit).toBeEnabled();
   await submit.click();
   await expect(page.getByText('Synthetic provider unavailable; no request was saved.')).toBeVisible();
+  await expect(page.locator('#full_name')).toHaveValue('Synthetic UI Guest');
+  await expect(page.locator('#mobile_number')).toHaveValue('09171234567');
   await expect(page.getByRole('heading', { name: 'Request received' })).toHaveCount(0);
+});
+
+test('an eligible approved promotion is clear per night and remains readable on mobile and desktop', async ({ page }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  await page.route('**/api/booking-session', route => route.fulfill({ json: { ready: true } }));
+  await installSyntheticCalendar(page);
+  await page.unroute('**/api/promotion-teaser?**');
+  await page.route('**/api/promotion-teaser?**', route => route.fulfill({ json: { promotion: {
+    package_code: 'WHOLE_HOME_1BR', former_amount_centavos: 50000, promotional_amount_centavos: 40000,
+    minimum_nights: 2, maximum_nights: 5, price_basis: 'PER_NIGHT',
+  } } }));
+  await page.goto('/book');
+  await page.locator('#check_in_date').fill(addDays(today, 7));
+  await page.locator('#check_out_date').fill(addDays(today, 9));
+  const teaser = page.getByRole('region', { name: 'Promotional accommodation starting price' });
+  await expect(teaser).toContainText('Starts at ₱400.00');
+  await expect(teaser.locator('del')).toContainText('₱500.00 per night');
+  await expect(teaser).toContainText('1-bedroom package');
+  await expect(teaser).toContainText('Final accommodation pricing depends on your selected dates, bedroom package, guest count, and any approved extras. Request a formal quotation before payment.');
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(teaser).toBeVisible();
+  }
+});
+
+test('missing promotion dependency blocks intake until a retry confirms the no-promotion fallback', async ({ page }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  let promotionReads = 0;
+  let requestWrites = 0;
+  await page.route('**/api/booking-session', route => route.fulfill({ json: { ready: true } }));
+  await page.route('**/api/booking-calendar?**', route => route.fulfill({ json: { unavailable: [] } }));
+  await page.route('**/api/promotion-teaser?**', route => {
+    promotionReads += 1;
+    return promotionReads === 1
+      ? route.fulfill({ status: 503, json: { error: 'Promotion details unavailable.' } })
+      : route.fulfill({ json: { promotion: null } });
+  });
+  await page.route('**/api/booking-request', route => {
+    requestWrites += 1;
+    return route.fulfill({ status: 503, json: { error: 'Synthetic provider unavailable; no request was saved.' } });
+  });
+
+  await page.goto('/book');
+  await page.locator('#check_in_date').fill(addDays(today, 7));
+  await page.locator('#check_out_date').fill(addDays(today, 9));
+  const submit = page.getByRole('button', { name: /Send Enquiry/ });
+  await expect(page.getByText(/Promotional details could not be checked/)).toBeVisible();
+  await page.locator('#full_name').fill('Synthetic Promotion Retry Guest');
+  await page.locator('#mobile_number').fill('09171234567');
+  await page.locator('#privacy_consent').check();
+  await expect(submit).toBeDisabled();
+  expect(requestWrites).toBe(0);
+
+  await page.getByRole('button', { name: 'Retry promotion check' }).click();
+  await expect(page.getByText(/No approved promotional starting price applies/)).toBeVisible();
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  await expect(page.getByText('Synthetic provider unavailable; no request was saved.')).toBeVisible();
+  expect(requestWrites).toBe(1);
+  await expect(page.locator('#full_name')).toHaveValue('Synthetic Promotion Retry Guest');
+  await expect(page.locator('#mobile_number')).toHaveValue('09171234567');
+  await expect(page.getByRole('heading', { name: 'Request received' })).toHaveCount(0);
+});
+
+test('direct booking visits render date selection without an unverified form', async ({ page }) => {
+  await page.goto('/book');
+  await expect(page.getByLabel('Bedroom package', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Send Enquiry/ })).toHaveCount(0);
 });

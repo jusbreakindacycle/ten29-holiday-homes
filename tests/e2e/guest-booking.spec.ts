@@ -15,20 +15,23 @@ test.describe("Guest booking against disposable Supabase", () => {
     const r = await request.get(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?${filter}`, { headers: await ownerHeaders(request) });
     expect(r.ok()).toBe(true); return r.json();
   }
-  async function choose(page: Page, pack = "WHOLE_HOME_3BR", from = dates[0], to = dates[2]) {
+  async function choose(page: Page, pack = "WHOLE_HOME_3BR", from = dates[0], to = dates[2], expectReady = true) {
     await page.goto("/book?source=hero");
     await page.locator("#adults").fill("2");
     await page.getByLabel("Bedroom package", { exact: true }).selectOption(pack);
     await page.locator("#check_in_date").fill(from); await page.locator("#check_out_date").fill(to);
-    await expect(page.getByRole("region", { name: "Accommodation estimate" })).toBeVisible();
-    await page.locator("#full_name").fill("Synthetic Calendar Guest"); await page.locator("#mobile_number").fill("+639171234567");
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toBeVisible();
+    await expect(page.getByText("PHP", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("MISSING", { exact: false })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/book\?/);
+    await page.locator("#full_name").fill("Synthetic Calendar Guest"); await page.locator("#mobile_number").fill("09171234567");
     await page.locator("#privacy_consent").check();
-    await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeEnabled();
+    if (expectReady) await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeEnabled();
   }
   test("mobile guest persists linked pair, recovers lost response and owner can inspect it", async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 }); await choose(page);
-    await expect(page.getByRole("region", { name: "Accommodation estimate" })).toContainText("PHP 330.00");
-    await expect(page.locator(`[data-date="${dates[2]}"]`)).toContainText("Checkout");
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("complete quote");
+    await expect(page.getByText(`${dates[0]} to ${dates[2]}`, { exact: false }).first()).toBeVisible();
     await page.screenshot({ path: "test-results/guest-calendar-mobile.png", fullPage: true });
     let submitted: unknown;
     await page.route("**/api/booking-request", async route => { submitted = route.request().postDataJSON(); await route.fetch(); await route.abort("failed"); });
@@ -74,19 +77,21 @@ test.describe("Guest booking against disposable Supabase", () => {
     const rev = await rpc("save_calendar_rate_draft", { p_package: "WHOLE_HOME_3BR", p_base: state.published_revision_id, p_rules: rules, p_key: crypto.randomUUID() });
     await rpc("publish_calendar_rate_revision", { p_revision: rev, p_base: state.published_revision_id, p_key: crypto.randomUUID() });
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
-    await expect(page.getByText(/Published prices changed/)).toBeVisible();
+    await expect(page.getByText(/Stay details changed while you were submitting/)).toBeVisible();
     expect(await rows(request, "inquiries", "full_name=eq.Synthetic%20Changed%20Price%20Guest&select=id")).toHaveLength(0);
-    await expect(page.getByRole("region", { name: "Accommodation estimate" })).toContainText("PHP 370.00");
-    await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeDisabled();
-    await page.getByRole("button", { name: "I acknowledge the updated estimate" }).click();
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("TEN29 does not display rates online");
+    await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeEnabled();
+
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
     await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
   });
   test("missing rates allow an honest request; capacities preserve larger purchases", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 }); await choose(page, "WHOLE_HOME_2BR");
+    await page.goBack();
     const targets = await page.locator("[data-date]").evaluateAll(nodes => nodes.map(n => ({ width: n.getBoundingClientRect().width, height: n.getBoundingClientRect().height })));
     expect(targets.every(t => t.width >= 44 && t.height >= 44)).toBe(true);
-    await expect(page.getByRole("region", { name: "Accommodation estimate" })).toContainText("Request a quote");
+    await page.goForward();
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("TEN29 does not display rates online");
     await page.locator("#full_name").fill("Synthetic Missing Rate Guest");
     await page.getByRole("button", { name: /Send Enquiry/ }).click(); await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
     await page.goto("/book"); await page.getByLabel("Bedroom package", { exact: true }).selectOption("WHOLE_HOME_3BR");
@@ -96,7 +101,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
   test("calendar blocks the whole house, supports keyboard/year navigation and adjacent checkout", async ({ page, request }) => {
-    await page.setViewportSize({ width: 768, height: 1024 }); await page.goto("/availability");
+    await page.setViewportSize({ width: 768, height: 1024 }); await page.goto("/book");
     await page.getByLabel("Bedroom package", { exact: true }).selectOption("WHOLE_HOME_3BR");
     await page.getByLabel("Calendar month").fill(dates[0].slice(0, 7));
     await expect(page.locator(`[data-date="${dates[0]}"]`)).toBeEnabled();
@@ -111,7 +116,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await expect(page.locator('[data-date="2028-01-01"]')).toBeFocused();
     await page.getByLabel("Calendar month").fill(dates[0].slice(0, 7));
     await page.locator("#check_in_date").fill(dates[2]); await page.locator("#check_out_date").fill(dates[3]);
-    await expect(page.getByRole("region", { name: "Accommodation estimate" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toBeVisible();
     await expect(page.getByText("This stay includes unavailable nights.")).toHaveCount(0);
     const r = await request.get(`/api/booking-calendar?package_code=WHOLE_HOME_3BR&overnight_guest_count=2&folding_foams_requested=false&check_in_date=${dates[3]}&check_out_date=${dates[5]}`);
     const b = await r.json(); expect(b.unavailable.length).toBeGreaterThan(0);
@@ -130,7 +135,7 @@ test.describe("Guest booking against disposable Supabase", () => {
   });
   test("secure-session failure is visible and retry restores the genuine request path", async ({ page }) => {
     await page.route("**/api/booking-session", route => route.abort("failed"));
-    await page.goto("/book"); await expect(page.getByText("Secure request session could not start. Retry or contact TEN29.")).toBeVisible();
+    await choose(page, "WHOLE_HOME_3BR", dates[0], dates[2], false); await expect(page.getByText("Secure request session could not start. Retry or contact TEN29.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeDisabled();
     await page.unroute("**/api/booking-session");
     await page.getByRole("button", { name: "Retry secure session" }).click();

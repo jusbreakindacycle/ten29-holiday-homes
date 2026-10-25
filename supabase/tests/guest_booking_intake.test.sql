@@ -5,7 +5,7 @@ create function pg_temp.payload(n text default 'Synthetic Guest',a integer defau
  'message','','purpose_of_stay','','privacy_consent',true,'utm_source','fixture','utm_medium','','utm_campaign','',
  'package_code',pack,'folding_foams_requested',foam,'check_in_date',(now() at time zone 'Asia/Manila')::date+20,
  'check_out_date',(now() at time zone 'Asia/Manila')::date+22,'reviewed_estimate',
- public.read_public_calendar_prices(pack::public.booking_package_code,(now() at time zone 'Asia/Manila')::date+20,(now() at time zone 'Asia/Manila')::date+22,a+c,foam)); $$;
+ public.read_booking_price_snapshot(pack::public.booking_package_code,(now() at time zone 'Asia/Manila')::date+20,(now() at time zone 'Asia/Manila')::date+22,a+c,foam)); $$;
 create temporary table f(name text primary key, session text default replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-',''), key uuid default gen_random_uuid(), payload jsonb, result jsonb);
 grant all on f to service_role,authenticated,anon;
 insert into f(name,payload) values('valid',pg_temp.payload()),('fault-inquiry',pg_temp.payload('FAULT_INQUIRY')),('fault-request',pg_temp.payload('FAULT_REQUEST')),('fault-outbox',pg_temp.payload('FAULT_OUTBOX'));
@@ -160,7 +160,7 @@ reset role;
 select is((select count(*)::integer from public.booking_requests),3,'quota response is not fabricated success');
 insert into f(name,payload) values('long-stay',pg_temp.payload('Long Stay Synthetic Guest') || jsonb_build_object(
 'check_in_date',(now() at time zone 'Asia/Manila')::date+100,'check_out_date',(now() at time zone 'Asia/Manila')::date+466,
-'reviewed_estimate',public.read_public_calendar_prices('WHOLE_HOME_3BR',(now() at time zone 'Asia/Manila')::date+100,(now() at time zone 'Asia/Manila')::date+466,2,false)));
+'reviewed_estimate',public.read_booking_price_snapshot('WHOLE_HOME_3BR',(now() at time zone 'Asia/Manila')::date+100,(now() at time zone 'Asia/Manila')::date+466,2,false)));
 set local role service_role;
 select lives_ok($$select public.accept_website_booking((select payload from f where name='long-stay'),
 repeat('5',64),gen_random_uuid(),repeat('5',64))$$,'full bounded nightly breakdown fits atomic intake size limits');

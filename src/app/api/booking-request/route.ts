@@ -23,10 +23,19 @@ export async function POST(request: Request) {
     // Contact quota plus signed session quota; client-forwarded IP addresses have no authority.
     const result = await acceptGuestBooking(raw, bookingHash(session), bookingHash(String(raw.mobile_number).replace(/\D/g, "")));
     if (result.outcome === "SAVED") {
-      const { request_id, ...receipt } = result;
+      const { request_id, estimate: _privateEstimate, ...receipt } = result;
+      void _privateEstimate;
       after(async () => { try { await deliverBookingNotifications(request_id); } catch { /* Durable task remains pending. */ } });
       return Response.json(receipt, { headers });
     }
+    if (result.outcome === "PRICE_CHANGED")
+      return Response.json({ outcome: result.outcome }, { status: 409, headers });
     return Response.json(result, { status: result.outcome === "RATE_LIMITED" ? 429 : 409, headers });
-  } catch (e) { operationalLog('booking_intake_failed'); return Response.json({ error: e instanceof GuestBookingError ? e.message : "Request not saved. Retry or contact TEN29." }, { status: 400, headers }); }
+  } catch (e) {
+    if(e instanceof GuestBookingError&&e.stage) operationalLog('booking_intake_failed',{stage:e.stage,providerCode:e.providerCode});
+    else if(e instanceof Error&&e.name==='MissingEnvError') operationalLog('booking_intake_failed',{stage:'configuration'});
+    else if(!(e instanceof GuestBookingError)) operationalLog('booking_intake_failed',{stage:'response'});
+    const status=e instanceof GuestBookingError&&!e.stage?400:503;
+    return Response.json({ error: e instanceof GuestBookingError ? e.message : "Request not saved. Retry or contact TEN29." }, { status, headers });
+  }
 }

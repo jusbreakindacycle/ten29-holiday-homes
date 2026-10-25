@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculateQuotation, previewRateRules } from "@/lib/pricing";
-import { addDays, formatPhp, phpToCentavos, priceWindowSchema, rateRulesSchema, type QuoteAdjustment, type RateRule } from "@/types/pricing";
+import { addDays, formatPhp, phpToCentavos, priceWindowSchema, promotionDraftSchema, rateRulesSchema, type QuoteAdjustment, type RateRule } from "@/types/pricing";
 const rule = (kind: RateRule["kind"], amount_centavos: number, extra: Partial<RateRule> = {}): RateRule =>
   ({ kind, amount_centavos, weekday: null, start_date: null, end_date: null, ...extra });
 describe("calendar rate resolution", () => {
@@ -39,6 +39,26 @@ describe("calendar rate resolution", () => {
     expect(priceWindowSchema.safeParse({ ...base, check_in_date: "2033-99-01", check_out_date: "2034-01-01" }).success).toBe(false);
     expect(priceWindowSchema.safeParse({ ...base, check_out_date: "2035-01-01" }).success).toBe(false);
     expect(addDays("2032-12-31", 1)).toBe("2033-01-01");
+  });
+});
+describe("owner promotion validation", () => {
+  const promotion = {
+    package_code: "WHOLE_HOME_2BR", former_amount_centavos: 50000, promotional_amount_centavos: 40000,
+    eligible_from_date: "2033-01-01", eligible_to_date: "2033-02-01", minimum_nights: 2, maximum_nights: 7,
+    valid_from: "2032-12-01T00:00:00+08:00", valid_until: "2032-12-15T00:00:00+08:00",
+    former_price_basis: "OFFERED_4_WEEKS_WITHIN_90_DAYS", former_price_period: "Offered during the documented qualifying period",
+    former_price_evidence: "Owner-held contemporaneous price records",
+  } as const;
+  it("accepts explicit centavo values and former-price evidence for an eligible package", () => {
+    expect(promotionDraftSchema.parse(promotion).promotional_amount_centavos).toBe(40000);
+  });
+  it("rejects equal or higher prices, invalid date windows, and missing comparison evidence", () => {
+    expect(promotionDraftSchema.safeParse({ ...promotion, promotional_amount_centavos: 50000 }).success).toBe(false);
+    expect(promotionDraftSchema.safeParse({ ...promotion, promotional_amount_centavos: 50001 }).success).toBe(false);
+    expect(promotionDraftSchema.safeParse({ ...promotion, eligible_to_date: promotion.eligible_from_date }).success).toBe(false);
+    expect(promotionDraftSchema.safeParse({ ...promotion, maximum_nights: 1 }).success).toBe(false);
+    expect(promotionDraftSchema.safeParse({ ...promotion, former_price_evidence: "" }).success).toBe(false);
+    expect(promotionDraftSchema.safeParse({ ...promotion, promotional_amount_centavos: 40000.5 }).success).toBe(false);
   });
 });
 describe("exact itemized quotation calculations", () => {

@@ -7,17 +7,32 @@ import type { Inquiry } from "@/types/inquiry";
 import type { BookingReceipt } from "@/types/guest-booking";
 import { formatPhp } from "@/types/pricing";
 import { operationalLog } from '@/lib/operational-log';
+import { readBookingPriceSnapshot, PricingError } from '@/services/pricing-service';
 
-export class GuestBookingError extends Error {}
+export class GuestBookingError extends Error {
+  constructor(message:string, readonly stage?:'pricing'|'response', readonly providerCode?:string){super(message);this.name='GuestBookingError';}
+}
 export async function acceptGuestBooking(raw: GuestBookingInput, sessionHash: string, abuseHash: string,
   client = createSupabaseServiceRoleClient()): Promise<IntakeResult> {
   const parsed = guestBookingSchema.safeParse(raw);
   if (!parsed.success) throw new GuestBookingError(parsed.error.issues[0]?.message ?? "Review your request.");
   if (parsed.data.website) throw new GuestBookingError("Request not saved. Leave the website field empty or contact TEN29 for help.");
-  const { idempotency_key, website: _website, ...payload } = parsed.data;
+  const { idempotency_key, website: _website, ...validated } = parsed.data;
   void _website;
+  let estimate:Awaited<ReturnType<typeof readBookingPriceSnapshot>>;
+  try { estimate = await readBookingPriceSnapshot(client, {
+    package_code: validated.package_code,
+    check_in_date: validated.check_in_date,
+    check_out_date: validated.check_out_date,
+    overnight_guest_count: validated.adults + validated.children + (validated.young_children ?? 0),
+    folding_foams_requested: validated.folding_foams_requested,
+  }); } catch(error) {
+    if(error instanceof PricingError) throw new GuestBookingError('We could not validate your stay request just now. No request was saved. Please retry or contact TEN29.', 'pricing', error.providerCode);
+    throw error;
+  }
+  const payload = { ...validated, reviewed_estimate: estimate };
   const { data, error } = await client.rpc("accept_website_booking", { p_payload: payload, p_session: sessionHash, p_key: idempotency_key, p_abuse: abuseHash });
-  if (error || !data) throw new GuestBookingError("Request could not be saved. Retry with the same details, or contact TEN29.");
+  if (error || !data) throw new GuestBookingError("Request could not be saved. Retry with the same details, or contact TEN29.",'response',error?.code&&/^[0-9A-Z]{5}$/.test(error.code)?error.code:undefined);
   return data;
 }
 export async function deliverBookingNotifications(requestId: string, client = createSupabaseServiceRoleClient()): Promise<void> {
@@ -34,7 +49,7 @@ export async function deliverBookingNotifications(requestId: string, client = cr
       // Fail closed if operational destination/from is not configured; never invent a live recipient.
       if (process.env.INQUIRY_FROM_EMAIL && (kind === "GUEST" || process.env.INQUIRY_NOTIFICATION_TO)) {
         const message = kind === "OWNER" ? buildOwnerNotificationEmail(inquiry) : buildGuestAcknowledgementEmail(inquiry);
-        const summary = `\nPackage: ${receipt.package_code}\nOvernight guests: ${receipt.overnight_guest_count}\nAdditional folding foams: ${receipt.folding_foams_requested ? "Requested" : "No"}\nAccommodation estimate at submission: ${formatPhp(receipt.estimate.estimated_total_centavos)}\nThis email acknowledges the original request submission, not reservation confirmation. Any subsequent owner-issued confirmation is a separate communication.`;
+        const summary = `\nPackage: ${receipt.package_code}\nOvernight guests: ${receipt.overnight_guest_count}\nAdditional folding foams: ${receipt.folding_foams_requested ? "Requested" : "No"}${kind === "OWNER" ? `\nPrivate internal rate reference: ${formatPhp(receipt.estimate.estimated_total_centavos)}` : ""}\nThis email acknowledges the original request submission, not reservation confirmation. Any subsequent owner-issued confirmation is a separate communication.`;
         const result = await getEmailProvider().send({ ...message, text: message.text + summary,
           html: message.html + `<p>${summary.replace(/\n/g, "<br>")}</p>`, idempotencyKey: `booking-notification/${task.id}` });
         sent = result.ok;

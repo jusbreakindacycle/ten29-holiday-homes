@@ -2,9 +2,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { readOwnerRates, saveRateDraft, publishRateDraft, readQuoteBreakdown, requirePricingOwner, PricingError } from "@/services/pricing-service";
+import { readOwnerRates, saveRateDraft, publishRateDraft, readOwnerPromotion, saveOwnerPromotionDraft, publishOwnerPromotion,
+  deactivateOwnerPromotion, readQuoteBreakdown, requirePricingOwner, PricingError } from "@/services/pricing-service";
 import { previewRateRules } from "@/lib/pricing";
-import { priceWindowSchema, rateRulesSchema, saveRateDraftSchema, publishRateSchema } from "@/types/pricing";
+import { priceWindowSchema, rateRulesSchema, saveRateDraftSchema, publishRateSchema, savePromotionDraftSchema, publishPromotionSchema } from "@/types/pricing";
 import { BOOKING_PACKAGE_CODES } from "@/types/booking";
 
 async function result<T>(operation: () => Promise<T>): Promise<{ data: T; error?: never } | { error: string; data?: never }> {
@@ -33,8 +34,26 @@ export async function publishRateEditor(input: unknown) {
   return result(async () => {
     const id = await publishRateDraft(await createSupabaseServerClient(), publishRateSchema.parse(input));
     revalidatePath("/admin/rates");
-    revalidatePath("/api/pricing");
     return id;
+  });
+}
+export async function loadPromotionEditor(packageCode: unknown) {
+  return result(async () => readOwnerPromotion(await createSupabaseServerClient(), z.enum(BOOKING_PACKAGE_CODES).parse(packageCode)));
+}
+export async function savePromotionEditor(input: unknown) {
+  return result(async () => saveOwnerPromotionDraft(await createSupabaseServerClient(), savePromotionDraftSchema.parse(input)));
+}
+export async function publishPromotionEditor(input: unknown) {
+  return result(async () => {
+    const id = await publishOwnerPromotion(await createSupabaseServerClient(), publishPromotionSchema.parse(input));
+    revalidatePath("/admin/rates");
+    return id;
+  });
+}
+export async function deactivatePromotionEditor(packageCode: unknown, promotionId: unknown) {
+  return result(async () => {
+    await deactivateOwnerPromotion(await createSupabaseServerClient(), z.enum(BOOKING_PACKAGE_CODES).parse(packageCode), z.string().uuid().parse(promotionId));
+    revalidatePath("/admin/rates");
   });
 }
 export async function loadQuotePreview(quoteId: unknown) {
