@@ -66,7 +66,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await expect(page.getByText("PHP 330.00", { exact: false }).first()).toBeVisible();
     await expect(page.getByText(/No quotation, deposit terms or reservation was automatically created/)).toBeVisible();
   });
-  test("stale prices require explicit acknowledgement before durable submission", async ({ page, request }) => {
+  test("uses current published pricing when rates change before submission", async ({ page, request }) => {
     await choose(page); await page.locator("#full_name").fill("Synthetic Changed Price Guest");
     const auth = await request.post(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }, data: { email: process.env.TEN29_E2E_OWNER_EMAIL, password: process.env.TEN29_E2E_OWNER_PASSWORD } });
     const token = (await auth.json()).access_token;
@@ -77,13 +77,17 @@ test.describe("Guest booking against disposable Supabase", () => {
     const rev = await rpc("save_calendar_rate_draft", { p_package: "WHOLE_HOME_3BR", p_base: state.published_revision_id, p_rules: rules, p_key: crypto.randomUUID() });
     await rpc("publish_calendar_rate_revision", { p_revision: rev, p_base: state.published_revision_id, p_key: crypto.randomUUID() });
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
-    await expect(page.getByText(/Stay details changed while you were submitting/)).toBeVisible();
-    expect(await rows(request, "inquiries", "full_name=eq.Synthetic%20Changed%20Price%20Guest&select=id")).toHaveLength(0);
-    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("TEN29 does not display rates online");
-    await expect(page.getByRole("button", { name: /Send Enquiry/ })).toBeEnabled();
-
-    await page.getByRole("button", { name: /Send Enquiry/ }).click();
     await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
+    const status = page.getByRole("status", { name: "Saved booking request" });
+    const reference = (await status.innerText()).match(/TEN29-[A-F0-9]{32}/)![0];
+    const enquiries = await rows(request, "inquiries", `reference_code=eq.${reference}&select=id`);
+    expect(enquiries).toHaveLength(1);
+    const bookings = await rows(request, "booking_requests", `inquiry_id=eq.${enquiries[0].id}&select=id`);
+    expect(bookings).toHaveLength(1);
+    const snapshots = await rows(request, "website_booking_intakes", `request_id=eq.${bookings[0].id}&select=estimate`);
+    expect(snapshots[0].estimate.estimated_total_centavos).toBe(37000);
+    await expect(status).toContainText("This request does not hold the dates");
+    await expect(status).not.toContainText("PHP");
   });
   test("missing rates allow an honest request; capacities preserve larger purchases", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 }); await choose(page, "WHOLE_HOME_2BR");
