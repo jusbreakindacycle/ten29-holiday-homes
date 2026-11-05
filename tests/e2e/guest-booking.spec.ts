@@ -101,7 +101,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await page.getByRole("button", { name: /Send Enquiry/ }).click(); await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
     await page.goto("/book"); await page.getByLabel("Bedroom package", { exact: true }).selectOption("WHOLE_HOME_3BR");
     await page.locator("#adults").fill("2"); await expect(page.getByLabel("Bedroom package", { exact: true })).toHaveValue("WHOLE_HOME_3BR");
-    await page.locator("#adults").fill("7"); await expect(page.getByLabel(/Additional folding foams/)).toBeChecked();
+    await page.locator("#adults").fill("7"); await expect(page.getByLabel(/Request folding foams/)).toBeChecked();
     await page.locator("#children").fill("2"); await expect(page.getByText("Choose between 1 and 8 countable guests.")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
