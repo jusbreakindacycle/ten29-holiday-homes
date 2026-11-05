@@ -10,7 +10,9 @@ for (let number = 1; number <= 12; number++) {
   if (migrations.filter(name => name.startsWith(String(number).padStart(4, '0') + '_')).length !== 1) fail('Missing or duplicate migration number');
 }
 const baseline = 'a095fd6083d3d235e5c21214675744afee8b5c22';
-const changed = execFileSync('git', ['diff', '--name-only', baseline, '--', ...migrations.filter(name => !name.startsWith('0011_') && !name.startsWith('0012_')).map(name => 'supabase/migrations/' + name)], { encoding: 'utf8' });
+const baselineMigrations = execFileSync('git', ['ls-tree', '-r', '--name-only', baseline, '--', 'supabase/migrations'], { encoding: 'utf8' })
+  .split('\n').filter(Boolean);
+const changed = execFileSync('git', ['diff', '--name-only', baseline, '--', ...baselineMigrations], { encoding: 'utf8' });
 if (changed.trim()) fail('Previously verified migrations changed; supervised review required');
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));

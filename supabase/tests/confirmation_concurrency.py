@@ -143,7 +143,8 @@ intake_from, intake_to = sql("select ((now() at time zone 'Asia/Manila')::date+6
 price = json.loads(sql(f"select public.read_booking_price_snapshot('WHOLE_HOME_3BR','{intake_from}','{intake_to}',2,false);").stdout)
 payload = dict(full_name='Concurrent Synthetic Guest', mobile_number='+639171234567', email='', adults=2, children=0, day_visitors=0, vehicles=0,
     message='', purpose_of_stay='', privacy_consent=True, utm_source='', utm_medium='', utm_campaign='', package_code='WHOLE_HOME_3BR',
-    folding_foams_requested=False, check_in_date=intake_from, check_out_date=intake_to, reviewed_estimate=price)
+    folding_foams_requested=False, check_in_date=intake_from, check_out_date=intake_to,
+    policy_version='TEN29-20261015-v1', reviewed_estimate=price)
 def intake_statement(session, key, body=payload):
     literal = json.dumps(body).replace("'", "''")
     return f"set local role service_role; select public.accept_website_booking('{literal}'::jsonb,repeat('{session}',64),'{key}',repeat('{session}',64));"
