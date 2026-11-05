@@ -4,7 +4,7 @@ import { POST } from '@/app/api/pricing/revalidate/route';
 
 describe('public pricing route', () => {
   it('does not expose the private standard rate schedule or revalidation snapshots', async () => {
-    const response = await GET(new Request('http://local.test/api/pricing?package_code=WHOLE_HOME_1BR'));
+    const response = await GET();
     const revalidation = await POST();
 
     expect(response.status).toBe(404);

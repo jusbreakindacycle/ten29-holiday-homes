@@ -11,7 +11,7 @@ create function pg_temp.rule(k text,a bigint,w integer default null,s date defau
 create function pg_temp.read_rates(p_package public.booking_package_code,p_from date,p_to date,p_guests integer,p_foams boolean)
 returns jsonb language sql security definer set search_path='' as $$
  select ten29_private.read_prices(p_package,p_from,p_to,p_guests,p_foams); $$;
-create temporary table f(name text primary key,id uuid,key uuid default gen_random_uuid(),publish_key uuid default gen_random_uuid());
+create temporary table f(name text primary key,id uuid,q uuid,key uuid default gen_random_uuid(),publish_key uuid default gen_random_uuid());
 grant all on f to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000061',true);
