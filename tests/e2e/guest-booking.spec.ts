@@ -96,7 +96,8 @@ test.describe("Guest booking against disposable Supabase", () => {
     expect(targets.every(t => t.width >= 44 && t.height >= 44)).toBe(true);
     await page.goForward();
     await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("TEN29 does not display rates online");
-    await page.locator("#full_name").fill("Synthetic Missing Rate Guest");
+    await page.locator("#full_name").fill("Synthetic Missing Rate Guest"); await page.locator("#mobile_number").fill("09171234567");
+    await page.locator("#privacy_consent").check();
     await page.getByRole("button", { name: /Send Enquiry/ }).click(); await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
     await page.goto("/book"); await page.getByLabel("Bedroom package", { exact: true }).selectOption("WHOLE_HOME_3BR");
     await page.locator("#adults").fill("2"); await expect(page.getByLabel("Bedroom package", { exact: true })).toHaveValue("WHOLE_HOME_3BR");
