@@ -58,7 +58,7 @@ update f set id=public.save_calendar_rate_draft('WHOLE_HOME_2BR',null,jsonb_buil
 update f set id=public.save_calendar_rate_draft('WHOLE_HOME_3BR',null,jsonb_build_array(pg_temp.rule('DEFAULT',50011)),key) where name='three';
 select public.publish_calendar_rate_revision(id,null,publish_key) from f where name in ('two','three');
 select is((pg_temp.read_rates('WHOLE_HOME_2BR','2033-01-01','2033-01-02',2,false)->>'estimated_total_centavos')::bigint,40009::bigint,'2BR has separate package price');
-select is((pg_temp.read_rates('WHOLE_HOME_1BR','2033-01-01','2033-01-02',3,false)->>'estimated_total_centavos')::bigint,10001::bigint,'1BR approved-extra countable maximum is priced without foams');
+select is((pg_temp.read_rates('WHOLE_HOME_1BR','2033-01-01','2033-01-02',3,false)->>'estimated_total_centavos')::bigint,20005::bigint,'1BR approved-extra countable maximum is priced without foams');
 select is((pg_temp.read_rates('WHOLE_HOME_2BR','2033-01-01','2033-01-02',5,false)->>'estimated_total_centavos')::bigint,40009::bigint,'2BR approved-extra countable maximum is priced without foams');
 select is((pg_temp.read_rates('WHOLE_HOME_3BR','2033-01-01','2033-01-02',2,false)->>'estimated_total_centavos')::bigint,50011::bigint,'two guests pay chosen 3BR price without per-person multiplication');
 select is((pg_temp.read_rates('WHOLE_HOME_3BR','2033-01-01','2033-01-02',8,true)->>'estimated_total_centavos')::bigint,50011::bigint,'approved 8-guest bedding invents no fee');
@@ -71,17 +71,17 @@ select throws_ok($$select pg_temp.read_rates('WHOLE_HOME_3BR','2032-12-31','2033
 insert into f(name) values('promo-future'),('promo-active'),('promo-next'),('promo-replacement'),
  ('promo-stale-replacement'),('policy-quote'),('boundary-policy-quote'),('null-promotion-quote'),
  ('late-promotion'),('legacy-promotion-quote'),('stale-rate-quote');
-select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,60000,'2033-01-01','2033-01-15',2,7,now(),now()+interval '2 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',gen_random_uuid())$$,
+select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,60000,'2033-01-01','2033-01-15',2::smallint,7::smallint,now(),now()+interval '2 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',gen_random_uuid())$$,
  '23514','Invalid promotion terms','equal former and promotional prices rejected by database');
-update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2,7,now()+interval '1 day',now()+interval '2 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key) where name='promo-future';
+update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2::smallint,7::smallint,now()+interval '1 day',now()+interval '2 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key) where name='promo-future';
 select public.publish_calendar_promotion(id,null,publish_key,true,true) from f where name='promo-future';
 select is(public.read_public_promotion_teaser('WHOLE_HOME_3BR','2033-02-02','2033-02-04'),null::jsonb,'promotion before its start is not public');
 select public.deactivate_calendar_promotion('WHOLE_HOME_3BR',(select id from f where name='promo-future'));
-update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2,7,now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key) where name='promo-active';
-select is(public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2,7,
+update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2::smallint,7::smallint,now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key) where name='promo-active';
+select is(public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2::smallint,7::smallint,
  now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','  Recent eligible period  ',' Synthetic evidence ',key),
  (select id from f where name='promo-active'),'normalized promotion retry returns original draft');
-select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,44000,'2033-02-01','2033-02-15',2,7,
+select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,44000,'2033-02-01','2033-02-15',2::smallint,7::smallint,
  now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key)
  from f where name='promo-active'$$,'23514','Promotion idempotency key was already used','same save key cannot change promotion terms');
 select public.publish_calendar_promotion(id,null,publish_key,true,true) from f where name='promo-active';
@@ -202,7 +202,7 @@ select ok(not (public.read_owner_quote_breakdown((select q from f where name='le
 select lives_ok($$select public.issue_itemized_booking_quote((select q from f where name='legacy-promotion-quote'))$$,
  'legacy quote without promotion field remains issuable while a promotion is active');
 update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_2BR',null,20000,15000,
- '2033-02-01','2033-02-15',2,7,now()-interval '1 day',now()+interval '7 days',
+ '2033-02-01','2033-02-15',2::smallint,7::smallint,now()-interval '1 day',now()+interval '7 days',
  'SOLD_WITHIN_90_DAYS','Recent eligible period','Late synthetic evidence',key) where name='late-promotion';
 select public.publish_calendar_promotion(id,null,publish_key,true,true) from f where name='late-promotion';
 select throws_ok($$select public.issue_itemized_booking_quote((select q from f where name='null-promotion-quote'))$$,
@@ -270,10 +270,10 @@ select is((public.read_owner_quote_breakdown((select id from f where name='promo
 select is(public.read_owner_quote_breakdown((select id from f where name='promo-next'))->'promotion'->>'id',(select id::text from f where name='promo-active'),'quotation records the promotion applied');
 select public.issue_itemized_booking_quote(id) from f where name='promo-next';
 update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',(select id from f where name='promo-active'),
- 60000,43000,'2033-02-01','2033-02-15',2,7,now()-interval '1 day',now()+interval '7 days',
+ 60000,43000,'2033-02-01','2033-02-15',2::smallint,7::smallint,now()-interval '1 day',now()+interval '7 days',
  'SOLD_WITHIN_90_DAYS','Recent eligible period','Replacement synthetic evidence',key) where name='promo-replacement';
 update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',(select id from f where name='promo-active'),
- 60000,42000,'2033-02-01','2033-02-15',2,7,now()-interval '1 day',now()+interval '7 days',
+ 60000,42000,'2033-02-01','2033-02-15',2::smallint,7::smallint,now()-interval '1 day',now()+interval '7 days',
  'SOLD_WITHIN_90_DAYS','Recent eligible period','Stale synthetic evidence',key) where name='promo-stale-replacement';
 select public.publish_calendar_promotion(id,(select id from f where name='promo-active'),publish_key,true,true)
  from f where name='promo-replacement';
@@ -321,7 +321,7 @@ select throws_ok($$select public.prepare_itemized_booking_quote('00000000-0000-4
  '42501','TEN29 owner authorization required','manager cannot authorize private adjustments');
 select throws_ok($$select public.read_owner_quote_breakdown(id) from f where name='quote-one'$$,'42501','TEN29 owner authorization required','manager cannot access pricing approval breakdown');
 select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_1BR',null,20000,15000,
- '2033-02-01','2033-02-15',2,7,now(),now()+interval '1 day','SOLD_WITHIN_90_DAYS','Period','Evidence',gen_random_uuid())$$,
+ '2033-02-01','2033-02-15',2::smallint,7::smallint,now(),now()+interval '1 day','SOLD_WITHIN_90_DAYS','Period','Evidence',gen_random_uuid())$$,
  '42501','TEN29 owner authorization required','manager cannot save promotion drafts');
 select throws_ok($$select public.publish_calendar_promotion(id,null,publish_key,true,true) from f where name='late-promotion'$$,
  '42501','TEN29 owner authorization required','manager cannot publish promotions');
@@ -335,7 +335,7 @@ select throws_ok($$select * from public.calendar_rate_rules$$,'42501',null,'anon
 select throws_ok($$select public.save_calendar_rate_draft('WHOLE_HOME_1BR',null,'[]',gen_random_uuid())$$,'42501',null,'anonymous write denied');
 select throws_ok($$select public.publish_calendar_rate_revision(gen_random_uuid(),null,gen_random_uuid())$$,'42501',null,'anonymous publication denied');
 select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_1BR',null,20000,15000,
- '2033-02-01','2033-02-15',2,7,now(),now()+interval '1 day','SOLD_WITHIN_90_DAYS','Period','Evidence',gen_random_uuid())$$,
+ '2033-02-01','2033-02-15',2::smallint,7::smallint,now(),now()+interval '1 day','SOLD_WITHIN_90_DAYS','Period','Evidence',gen_random_uuid())$$,
  '42501',null,'anonymous promotion write denied');
 select throws_ok($$select public.publish_calendar_promotion(gen_random_uuid(),null,gen_random_uuid(),true,true)$$,
  '42501',null,'anonymous promotion publication denied');

@@ -494,7 +494,9 @@ revoke all on function ten29_private.promotion_json(uuid),ten29_private.save_pro
  from public,anon,authenticated,service_role;
 grant execute on function ten29_private.save_promotion(public.booking_package_code,uuid,bigint,bigint,date,date,smallint,smallint,timestamptz,timestamptz,text,text,text,uuid),
  ten29_private.publish_promotion(uuid,uuid,uuid,boolean,boolean),ten29_private.deactivate_promotion(public.booking_package_code,uuid),
- ten29_private.owner_promotion_state(public.booking_package_code) to authenticated;
+ ten29_private.owner_promotion_state(public.booking_package_code),
+ ten29_private.prepare_priced_quote(uuid,uuid,bigint,jsonb,jsonb,bigint,text,timestamptz,uuid),
+ ten29_private.issue_priced_quote(uuid),ten29_private.read_quote_breakdown(uuid) to authenticated;
 grant execute on function ten29_private.read_prices(public.booking_package_code,date,date,integer,boolean) to ten29_intake_writer;
 
 revoke all on function public.read_public_calendar_prices(public.booking_package_code,date,date,integer,boolean),

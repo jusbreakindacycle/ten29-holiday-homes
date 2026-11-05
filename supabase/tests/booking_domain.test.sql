@@ -107,11 +107,16 @@ select throws_ok(
   '23514', 'Folding foams are available within the 3-bedroom package only', 'database rejects foam option on non-3BR package'
 );
 
-insert into public.booking_requests (id, inquiry_id, source, package_code, check_in_date, check_out_date, overnight_guest_count)
+insert into public.booking_requests (
+  id, inquiry_id, source, package_code, check_in_date, check_out_date, overnight_guest_count,
+  folding_foams_requested, policy_version, adults_count, older_children_count,
+  exempt_children_count, countable_guest_count, extra_guests_requested, occupancy_owner_review
+)
 values (
   '00000000-0000-4000-8000-000000000044',
   '00000000-0000-4000-8000-000000000047',
-  'WEBSITE', 'WHOLE_HOME_2BR', date '2027-04-01', date '2027-04-03', 4
+  'WEBSITE', 'WHOLE_HOME_2BR', date '2027-04-01', date '2027-04-03', 4,
+  false, 'TEN29-20261015-v1', 1, 3, 0, 4, 0, false
 );
 select is((select status::text from public.booking_requests where id = '00000000-0000-4000-8000-000000000044'), 'NEW', 'new request starts in NEW');
 select is((select count(*)::integer from public.booking_request_events where request_id = '00000000-0000-4000-8000-000000000044'), 1, 'request creation is audited');
