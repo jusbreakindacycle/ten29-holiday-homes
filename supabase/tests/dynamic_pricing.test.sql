@@ -79,7 +79,8 @@ select is(public.read_public_promotion_teaser('WHOLE_HOME_3BR','2033-02-02','203
 select public.deactivate_calendar_promotion('WHOLE_HOME_3BR',(select id from f where name='promo-future'));
 update f set id=public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2::smallint,7::smallint,now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key) where name='promo-active';
 select is(public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,45000,'2033-02-01','2033-02-15',2::smallint,7::smallint,
- now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','  Recent eligible period  ',' Synthetic evidence ',key),
+ now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','  Recent eligible period  ',' Synthetic evidence ',
+ (select key from f where name='promo-active')),
  (select id from f where name='promo-active'),'normalized promotion retry returns original draft');
 select throws_ok($$select public.save_calendar_promotion_draft('WHOLE_HOME_3BR',null,60000,44000,'2033-02-01','2033-02-15',2::smallint,7::smallint,
  now()-interval '1 day',now()+interval '7 days','SOLD_WITHIN_90_DAYS','Recent eligible period','Synthetic evidence',key)

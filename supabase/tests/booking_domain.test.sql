@@ -183,8 +183,8 @@ update public.booking_requests set status = 'AWAITING_DEPOSIT'
 where id = '00000000-0000-4000-8000-000000000044';
 select is((select status::text from public.booking_requests where id = '00000000-0000-4000-8000-000000000044'), 'AWAITING_DEPOSIT', 'issued quote enables the awaiting-deposit state');
 
-insert into public.booking_deposits (request_id, amount, external_reference_masked)
-values ('00000000-0000-4000-8000-000000000044', 25, '****1234');
+insert into public.booking_deposits (request_id, amount, payment_method, external_reference_masked)
+values ('00000000-0000-4000-8000-000000000044', 25, 'BANK_TRANSFER', '****1234');
 select is((select status::text from public.booking_deposits where request_id = '00000000-0000-4000-8000-000000000044'), 'RECORDED_UNVERIFIED', 'deposit is recorded unverified only');
 select is((select verified_by from public.booking_deposits where request_id = '00000000-0000-4000-8000-000000000044'), null, 'deposit has no payment verification attribution');
 select throws_ok(
