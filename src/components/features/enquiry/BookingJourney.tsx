@@ -23,8 +23,8 @@ export function BookingJourney({ initial = {}, utm = {} }: {
   const [children, setChildren] = useState(Number(initial.children) || 0);
   const [young, setYoung] = useState(Number(initial.young_children) || 0);
   const [pkg, setPkg] = useState<BookingPackageCode>(BOOKING_PACKAGE_CODES.includes(initial.package_code as BookingPackageCode) ? initial.package_code as BookingPackageCode : "WHOLE_HOME_1BR");
-  const [foams, setFoams] = useState(initial.folding_foams_requested === "true");
-  const [explicitExtra, setExplicitExtra] = useState(initial.folding_foams_requested === "true");
+  const [foams, setFoams] = useState(initial.folding_foams_requested === "true" && initial.package_code === "WHOLE_HOME_3BR");
+  const [explicitExtra, setExplicitExtra] = useState(initial.folding_foams_requested === "true" && initial.package_code === "WHOLE_HOME_3BR");
   const [start, setStart] = useState(calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : "");
   const [end, setEnd] = useState(calendarDate.safeParse(initial.check_out_date).success ? initial.check_out_date! : "");
   const [month, setMonth] = useState((calendarDate.safeParse(initial.check_in_date).success ? initial.check_in_date! : manilaToday()).slice(0, 7));
@@ -52,7 +52,8 @@ export function BookingJourney({ initial = {}, utm = {} }: {
   const recommendation = recommendBookingPackage(guests);
   const rooms = BOOKING_PACKAGE_CODES.indexOf(pkg) + 1;
   const counts = occupancy(adults, children, young, pkg);
-  const eligible = !!recommendation && counts.eligible && (counts.extraRequested === 0 || foams);
+  const eligible = !!recommendation && counts.eligible
+    && (pkg !== "WHOLE_HOME_3BR" || counts.extraRequested === 0 || foams);
   const nights = nightDates(start, end);
   const currentPromotionSelection = `${pkg}:${start}:${end}`;
   const promotionReady = promotionSelection === currentPromotionSelection;
@@ -73,7 +74,8 @@ export function BookingJourney({ initial = {}, utm = {} }: {
     if (changePackage && r) {
       setPkg(r.packageCode); setMessage(`Recommended package selected for this count; an eligible extra-guest arrangement may be explicitly requested. Selected ${BOOKING_PACKAGE_CODES.indexOf(r.packageCode) + 1} bedrooms.`);
     }
-    setFoams(a + c > PACKAGE_POLICY[changePackage && r ? r.packageCode : pkg].included);
+    const targetPackage = changePackage && r ? r.packageCode : pkg;
+    setFoams(targetPackage === "WHOLE_HOME_3BR" && a + c > PACKAGE_POLICY[targetPackage].included);
   }
   useEffect(() => {
     if (!hasValidStaySelection) return;
@@ -212,12 +214,12 @@ export function BookingJourney({ initial = {}, utm = {} }: {
         {counts.ownerReview&&<p>The owner must review this group size before accepting the request.</p>}
         <p aria-live="polite"><strong>{guests} people staying overnight.</strong> TEN29 will confirm any special arrangements before accepting the stay.</p>
         {!recommendation && <p role="alert">Choose between 1 and 8 countable guests.</p>}
-        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { setPkg(e.target.value as BookingPackageCode); setExplicitExtra(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setFoams(guests > PACKAGE_POLICY[e.target.value as BookingPackageCode].included); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
+        <div><label htmlFor="package_code">Bedroom package</label><select id="package_code" value={pkg} onChange={e => { const nextPackage = e.target.value as BookingPackageCode; setPkg(nextPackage); setExplicitExtra(guests > PACKAGE_POLICY[nextPackage].included); setFoams(nextPackage === "WHOLE_HOME_3BR" && guests > PACKAGE_POLICY[nextPackage].included); setMonthData(null); resetEstimate(); }} className={INPUT_CLASSES}>
           {BOOKING_PACKAGE_CODES.map((code, i) => <option key={code} value={code} disabled={!recommendation || guests > PACKAGE_POLICY[code].maximum}>{i + 1} bedroom{ i ? "s" : ""} · Whole private house</option>)}
         </select></div>
         <p>Rooms {Array.from({ length: rooms }, (_, i) => i + 1).join(", ")} opened.{rooms < 3 ? " Other bedrooms remain locked." : " All three bedrooms opened."}</p>
         <p className="text-sm text-muted">Room 1: queen-size bed.{rooms > 1 ? " Room 2: twin-size bedding." : ""}{rooms > 2 ? " Room 3: single-size double-deck bed." : ""}</p>
-        {counts.extraRequested > 0 && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={counts.extraRequested > 0} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Request extra guests or folding foams. Owner approval is required; no fee is assumed.</label>}
+        {pkg === "WHOLE_HOME_3BR" && counts.extraRequested > 0 && <label className="flex items-start gap-3 min-h-11"><input type="checkbox" checked={foams} required={counts.extraRequested > 0} onChange={e => { setFoams(e.target.checked); setMonthData(null); resetEstimate(); }} className="mt-1 h-5 w-5"/>Request folding foams for the 3-bedroom package. Owner approval is required; no fee is assumed.</label>}
       </section>
       <section className="rounded-sm border border-border bg-white p-2 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">Choose your requested dates</h2>

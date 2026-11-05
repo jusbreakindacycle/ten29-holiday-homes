@@ -36,6 +36,11 @@ describe("calendar rate resolution", () => {
     expect(priceWindowSchema.safeParse({ ...base, overnight_guest_count: 8 }).success).toBe(false);
     expect(priceWindowSchema.safeParse({ ...base, overnight_guest_count: 8, folding_foams_requested: true }).success).toBe(true);
     expect(priceWindowSchema.safeParse({ ...base, package_code: "WHOLE_HOME_1BR", overnight_guest_count: 4 }).success).toBe(false);
+    expect(priceWindowSchema.safeParse({ ...base, package_code: "WHOLE_HOME_1BR", overnight_guest_count: 3 }).success).toBe(true);
+    expect(priceWindowSchema.safeParse({ ...base, package_code: "WHOLE_HOME_2BR", overnight_guest_count: 5 }).success).toBe(true);
+    expect(priceWindowSchema.safeParse({ ...base, package_code: "WHOLE_HOME_1BR", overnight_guest_count: 2, folding_foams_requested: true }).success).toBe(false);
+    expect(priceWindowSchema.safeParse({ ...base, package_code: "WHOLE_HOME_2BR", overnight_guest_count: 4, folding_foams_requested: true }).success).toBe(false);
+    expect(priceWindowSchema.safeParse({ ...base, overnight_guest_count: 7 }).success).toBe(false);
     expect(priceWindowSchema.safeParse({ ...base, check_in_date: "2033-99-01", check_out_date: "2034-01-01" }).success).toBe(false);
     expect(priceWindowSchema.safeParse({ ...base, check_out_date: "2035-01-01" }).success).toBe(false);
     expect(addDays("2032-12-31", 1)).toBe("2033-01-01");

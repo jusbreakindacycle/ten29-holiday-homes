@@ -36,7 +36,7 @@ describe("pricing service authorization and projection", () => {
     expect((await revalidatePriceEstimate(db, window, key)).changed).toBe(false);
     expect(rpc.mock.calls.every(([name]) => name === "read_booking_price_snapshot")).toBe(true);
   });
-  it("validates owner promotion drafts and requires both review acknowledgements before publishing", async () => {
+  it("validates owner promotion drafts and requires explicit owner attestations before publishing", async () => {
     const { db, rpc } = fixture();
     const promotion = { package_code: "WHOLE_HOME_1BR" as const, former_amount_centavos: 50000, promotional_amount_centavos: 40000,
       eligible_from_date: "2033-01-01", eligible_to_date: "2033-01-10", minimum_nights: 2, maximum_nights: 7,
@@ -44,8 +44,16 @@ describe("pricing service authorization and projection", () => {
       former_price_basis: "SOLD_WITHIN_90_DAYS" as const, former_price_period: "Prior 90 days", former_price_evidence: "Synthetic owner record" };
     await expect(saveOwnerPromotionDraft(db, { base_promotion_id: null, promotion: { ...promotion, promotional_amount_centavos: 50000 }, idempotency_key: key })).rejects.toThrow("lower than");
     await expect(publishOwnerPromotion(db, { promotion_id: key, base_promotion_id: null, idempotency_key: key,
-      confirmed: true, former_price_reviewed: false, dti_reviewed: true } as never)).rejects.toThrow("Review");
+      confirmed: true, former_price_attested: false, owner_dti_acknowledged: true } as never)).rejects.toThrow("Review");
     expect(rpc.mock.calls.every(([name]) => name === "is_ten29_owner")).toBe(true);
+  });
+  it("sends explicit owner attestation semantics to the promotion RPC", async () => {
+    const { db, rpc } = fixture();
+    await publishOwnerPromotion(db, { promotion_id: key, base_promotion_id: null, idempotency_key: key,
+      confirmed: true, former_price_attested: true, owner_dti_acknowledged: true });
+    expect(rpc).toHaveBeenLastCalledWith("publish_calendar_promotion", {
+      p_id: key, p_base: null, p_key: key, p_former_price_attested: true, p_owner_dti_acknowledged: true,
+    });
   });
   it("projects only the matching package/date promotional teaser and returns null when ineligible", async () => {
     const { db, rpc } = fixture(false);

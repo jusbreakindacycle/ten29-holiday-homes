@@ -124,7 +124,11 @@ export const createBookingRequestSchema = z
     }
     if (value.policy_version) {
       const o = occupancy(value.adults_count ?? 0, value.older_children_count ?? -1, value.exempt_children_count ?? -1, value.package_code);
-      if (!o.eligible || o.actual !== value.overnight_guest_count || (o.extraRequested > 0 && !value.folding_foams_requested)) context.addIssue({code:"custom",message:"Review countable guests, actual occupants and extra-guest request."});
+      if (!o.eligible || o.actual !== value.overnight_guest_count
+        || (value.folding_foams_requested && value.package_code !== "WHOLE_HOME_3BR")
+        || (o.extraRequested > 0 && value.package_code === "WHOLE_HOME_3BR" && !value.folding_foams_requested)) {
+        context.addIssue({code:"custom",message:"Review countable guests, actual occupants and extra-guest request."});
+      }
       return;
     }
     if (value.adults_count !== undefined || value.older_children_count !== undefined || value.exempt_children_count !== undefined) context.addIssue({code:"custom",message:"Explicit policy identity required."});

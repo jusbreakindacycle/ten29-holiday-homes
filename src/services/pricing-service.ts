@@ -76,7 +76,8 @@ export async function publishOwnerPromotion(client: BookingDbClient, raw: z.infe
   if (!input.success) throw new PricingError("Review the former-price evidence and publication before continuing.");
   const { data, error } = await client.rpc("publish_calendar_promotion", { p_id: input.data.promotion_id,
     p_base: input.data.base_promotion_id, p_key: input.data.idempotency_key,
-    p_former_reviewed: input.data.former_price_reviewed, p_dti_reviewed: input.data.dti_reviewed });
+    p_former_price_attested: input.data.former_price_attested,
+    p_owner_dti_acknowledged: input.data.owner_dti_acknowledged });
   if (error || !data) fail(error);
   return data;
 }

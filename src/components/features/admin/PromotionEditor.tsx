@@ -22,8 +22,8 @@ export function PromotionEditor() {
   const [money, setMoney] = useState({ former: "", promotional: "" });
   const [draftId, setDraftId] = useState<string | null>(null);
   const [baseId, setBaseId] = useState<string | null>(null);
-  const [formerReviewed, setFormerReviewed] = useState(false);
-  const [dtiReviewed, setDtiReviewed] = useState(false);
+  const [formerAttested, setFormerAttested] = useState(false);
+  const [dtiAcknowledged, setDtiAcknowledged] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
@@ -44,7 +44,7 @@ export function PromotionEditor() {
       former_price_evidence: draft.former_price_evidence,
     }); else setForm(blank);
     setMoney(draft ? { former: (draft.former_amount_centavos / 100).toFixed(2), promotional: (draft.promotional_amount_centavos / 100).toFixed(2) } : { former: "", promotional: "" });
-    setFormerReviewed(false); setDtiReviewed(false);
+    setFormerAttested(false); setDtiAcknowledged(false);
   }, [packageCode]);
   useEffect(() => { startTransition(() => { void reload(packageCode); }); }, [packageCode, reload]);
 
@@ -63,10 +63,10 @@ export function PromotionEditor() {
     });
   }
   function publish() {
-    if (!draftId || !formerReviewed || !dtiReviewed) return;
+    if (!draftId || !formerAttested || !dtiAcknowledged) return;
     startTransition(async () => {
       setError(""); const result = await safely(publishPromotionEditor({ promotion_id: draftId, base_promotion_id: baseId,
-        idempotency_key: crypto.randomUUID(), confirmed: true, former_price_reviewed: true, dti_reviewed: true }));
+        idempotency_key: crypto.randomUUID(), confirmed: true, former_price_attested: true, owner_dti_acknowledged: true }));
       if (result.error) setError(result.error); else { setMessage("Promotion published for its stated package, dates, and validity period."); await reload(); }
     });
   }
@@ -99,9 +99,9 @@ export function PromotionEditor() {
     </fieldset>
     <p className="text-sm">The guest-facing price is per night for the selected bedroom package. The formal quotation is calculated for the whole selected stay and may include only approved extras.</p>
     <div className="flex flex-wrap gap-3"><CtaButton disabled={pending} onClick={save}>Save promotion draft</CtaButton>
-      <CtaButton disabled={pending || !draftId || !formerReviewed || !dtiReviewed} onClick={publish}>Publish promotion</CtaButton></div>
-    <label className="flex min-h-11 items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5" checked={formerReviewed} onChange={e => setFormerReviewed(e.target.checked)}/><span>I reviewed and can substantiate the former advertised price using contemporaneous owner records.</span></label>
-    <label className="flex min-h-11 items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5" checked={dtiReviewed} onChange={e => setDtiReviewed(e.target.checked)}/><span>I reviewed whether this promotion needs any DTI approval and obtained it where required.</span></label>
+      <CtaButton disabled={pending || !draftId || !formerAttested || !dtiAcknowledged} onClick={publish}>Publish promotion</CtaButton></div>
+    <label className="flex min-h-11 items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5" checked={formerAttested} onChange={e => setFormerAttested(e.target.checked)}/><span>I attest that the former advertised price is supported by contemporaneous owner records.</span></label>
+    <label className="flex min-h-11 items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5" checked={dtiAcknowledged} onChange={e => setDtiAcknowledged(e.target.checked)}/><span>I acknowledge that I am responsible for obtaining any required DTI approval before publication. This records my acknowledgement only; it does not independently verify DTI approval.</span></label>
     <p role="status" aria-live="polite">{message}</p>{error && <p role="alert" className="text-danger">{error}</p>}
   </section>;
 }

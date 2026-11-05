@@ -8,6 +8,7 @@ import type { BookingReceipt } from "@/types/guest-booking";
 import { formatPhp } from "@/types/pricing";
 import { operationalLog } from '@/lib/operational-log';
 import { readBookingPriceSnapshot, PricingError } from '@/services/pricing-service';
+import { OWNER_POLICY_VERSION } from "@/types/owner-policy";
 
 export class GuestBookingError extends Error {
   constructor(message:string, readonly stage?:'pricing'|'response', readonly providerCode?:string){super(message);this.name='GuestBookingError';}
@@ -24,13 +25,13 @@ export async function acceptGuestBooking(raw: GuestBookingInput, sessionHash: st
     package_code: validated.package_code,
     check_in_date: validated.check_in_date,
     check_out_date: validated.check_out_date,
-    overnight_guest_count: validated.adults + validated.children + (validated.young_children ?? 0),
+    overnight_guest_count: validated.adults + validated.children,
     folding_foams_requested: validated.folding_foams_requested,
   }); } catch(error) {
     if(error instanceof PricingError) throw new GuestBookingError('We could not validate your stay request just now. No request was saved. Please retry or contact TEN29.', 'pricing', error.providerCode);
     throw error;
   }
-  const payload = { ...validated, reviewed_estimate: estimate };
+  const payload = { ...validated, policy_version: OWNER_POLICY_VERSION, reviewed_estimate: estimate };
   const { data, error } = await client.rpc("accept_website_booking", { p_payload: payload, p_session: sessionHash, p_key: idempotency_key, p_abuse: abuseHash });
   if (error || !data) throw new GuestBookingError("Request could not be saved. Retry with the same details, or contact TEN29.",'response',error?.code&&/^[0-9A-Z]{5}$/.test(error.code)?error.code:undefined);
   return data;

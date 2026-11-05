@@ -23,6 +23,81 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await card.getByLabel('I authorize').check();await card.getByRole('button',{name:'Save metadata'}).click();await expect(page.getByRole('status').first()).toContainText('Saved');
   return page.getByRole('article').filter({has:page.getByRole('heading',{name:title,exact:true})});
  }
+ async function signInOwnerPage(page:Page) {
+  await page.goto('/admin/login');
+  await page.getByLabel('Email').fill(process.env.TEN29_E2E_OWNER_EMAIL!);
+  await page.getByLabel('Password').fill(process.env.TEN29_E2E_OWNER_PASSWORD!);
+  await page.getByRole('button',{name:'Sign In',exact:true}).click();
+  await expect(page).toHaveURL(/\/admin$/);
+ }
+ async function authenticatedOwner() {
+  const owner=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const result=await owner.auth.signInWithPassword({email:process.env.TEN29_E2E_OWNER_EMAIL!,password:process.env.TEN29_E2E_OWNER_PASSWORD!});
+  expect(result.error).toBeNull();
+  return owner;
+ }
+ async function publishUploadedMedia(page:Page,owner:Awaited<ReturnType<typeof authenticatedOwner>>,mime:string,bytes:Buffer,title:string,position:number) {
+  const reserved=await owner.rpc('owner_media_action',{p_action:'RESERVE',p_id:null,p_version:null,p_data:{key:randomUUID(),mime,bytes:bytes.length}});
+  expect(reserved.error).toBeNull();
+  const media=reserved.data as {id:string;version:number;original_key:string};
+  const upload=await owner.storage.from('ten29-originals').upload(media.original_key,bytes,{contentType:mime,upsert:false});
+  expect(upload.error).toBeNull();
+  const processing=await page.context().request.post('/api/admin/media',{headers:{Origin:new URL(page.url()).origin},data:{action:'PROCESS',id:media.id,version:media.version,data:{}}});
+  expect(processing.status()).toBe(200);
+  const processed=(await processing.json() as {media:{version:number}}).media;
+  const prepared=await owner.rpc('owner_media_action',{p_action:'EDIT',p_id:media.id,p_version:processed.version,p_data:{title,caption:'Private CI note',alt:'Private custom CI description',category:'Room 1',position,rights:true,public_claim_id:null}});
+  expect(prepared.error).toBeNull();
+  const published=await owner.rpc('owner_media_action',{p_action:'PUBLISH',p_id:media.id,p_version:(prepared.data as {version:number}).version,p_data:{}});
+  expect(published.error).toBeNull();
+  return published.data as {id:string;kind:'PHOTO'|'VIDEO';state:string;version:number;published_by:string;published_at:string;rights_acknowledged:boolean};
+ }
+ test('published media metadata edits preserve publication and keep custom alt text private',async({page})=>{
+  test.setTimeout(180000);
+  await signInOwnerPage(page);
+  const owner=await authenticatedOwner();
+  const anon=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const photo=await sharp({create:{width:96,height:64,channels:3,background:'teal'}}).png().toBuffer();
+  const folder=await mkdtemp(path.join(tmpdir(),'ten29-published-media-'));
+  const videoPath=path.join(folder,'synthetic-published.mp4');
+  try {
+   await promisify(execFile)(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=96x64:d=1','-f','lavfi','-i','sine=frequency=440:duration=1','-c:v','libx264','-threads','1','-pix_fmt','yuv420p','-c:a','aac','-shortest',videoPath],{timeout:30000,maxBuffer:1024*1024,windowsHide:true});
+   const fixtures=[
+    await publishUploadedMedia(page,owner,'image/png',photo,'Published photo metadata regression',8000),
+    await publishUploadedMedia(page,owner,'video/mp4',await readFile(videoPath),'Published video metadata regression',8001),
+   ];
+   for(const published of fixtures) {
+    expect(published.state).toBe('PUBLISHED');
+    const before=published;
+    const edit=await owner.rpc('owner_media_action',{p_action:'EDIT',p_id:before.id,p_version:before.version,p_data:{title:`Updated ${before.kind.toLowerCase()} title`,caption:'Private CI note',alt:`Private custom description ${before.kind}`,category:'Room 2',position:before.kind==='PHOTO'?8010:8011,rights:true,public_claim_id:null}});
+    expect(edit.error).toBeNull();
+    const edited=edit.data as {id:string;kind:'PHOTO'|'VIDEO';state:string;version:number;published_by:string;published_at:string;rights_acknowledged:boolean};
+    expect(edited.state).toBe('PUBLISHED');
+    expect(edited.published_by).toBe(before.published_by);
+    expect(edited.published_at).toBe(before.published_at);
+    expect(edited.version).toBe(before.version+1);
+    expect(edited.rights_acknowledged).toBe(true);
+
+    const rightsRemoval=await owner.rpc('owner_media_action',{p_action:'EDIT',p_id:edited.id,p_version:edited.version,p_data:{title:'Rejected rights change',caption:'Private CI note',alt:'Private custom description',category:'Room 2',position:8012,rights:false,public_claim_id:null}});
+    expect(rightsRemoval.error?.message).toContain('Unpublish before removing rights acknowledgement');
+    const stale=await owner.rpc('owner_media_action',{p_action:'EDIT',p_id:edited.id,p_version:before.version,p_data:{title:'Rejected stale change',caption:'Private CI note',alt:'Private custom description',category:'Room 2',position:8013,rights:true,public_claim_id:null}});
+    expect(stale.error?.message).toContain('Stale media revision');
+
+    const audit=await owner.from('media_audit_events').select('event,version').eq('media_id',edited.id).eq('event','EDIT').eq('version',edited.version);
+    expect(audit.error).toBeNull();
+    expect(audit.data).toHaveLength(1);
+    const publicResult=await anon.rpc('read_public_media');
+    expect(publicResult.error).toBeNull();
+    const projected=publicResult.data!.find((item:{id:string})=>item.id===edited.id) as Record<string,unknown>|undefined;
+    expect(projected).toBeDefined();
+    expect(projected).not.toHaveProperty('alt');
+    expect(projected).not.toHaveProperty('height');
+    expect(Object.keys(projected!).sort()).toEqual(['id','kind','category','featured','version','public_claim_id','width','poster_width'].sort());
+    expect(projected).toMatchObject({id:edited.id,kind:edited.kind,category:'Room 2',version:edited.version,public_claim_id:null});
+   }
+  } finally {
+   await rm(folder,{recursive:true,force:true});
+  }
+ });
  test('mobile photo uploads, private preview, OWNER publication and immediate revocation',async({page,request})=>{
   await page.setViewportSize({width:390,height:844});await login(page);
   const jpeg=await sharp({create:{width:96,height:64,channels:3,background:'green'}}).jpeg().withMetadata().toBuffer();

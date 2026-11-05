@@ -74,8 +74,8 @@ export const publishPromotionSchema = z.object({
   base_promotion_id: z.string().uuid().nullable(),
   idempotency_key: z.string().uuid(),
   confirmed: z.literal(true),
-  former_price_reviewed: z.literal(true),
-  dti_reviewed: z.literal(true),
+  former_price_attested: z.literal(true),
+  owner_dti_acknowledged: z.literal(true),
 }).strict();
 export type PromotionRecord = PromotionDraft & {
   id: string; revision: number; status: "DRAFT" | "PUBLISHED";
@@ -112,7 +112,11 @@ export const priceWindowSchema = z.object({
   if (span.length === 0 || span.length > 366) context.addIssue({ code: "custom", message: "Choose between 1 and 366 nights." });
   const included = value.package_code === "WHOLE_HOME_1BR" ? 2 : value.package_code === "WHOLE_HOME_2BR" ? 4 : 6;
   const maximum = value.package_code === "WHOLE_HOME_1BR" ? 3 : value.package_code === "WHOLE_HOME_2BR" ? 5 : 8;
-  if (value.overnight_guest_count > maximum || (value.overnight_guest_count > included && !value.folding_foams_requested)) context.addIssue({code:"custom",message:"Review package eligibility and extra-guest request."});
+  if (value.overnight_guest_count > maximum
+    || (value.folding_foams_requested && value.package_code !== "WHOLE_HOME_3BR")
+    || (value.package_code === "WHOLE_HOME_3BR" && value.overnight_guest_count > included && !value.folding_foams_requested)) {
+    context.addIssue({code:"custom",message:"Review package eligibility and extra-guest request."});
+  }
 });
 export type PriceWindow = z.infer<typeof priceWindowSchema>;
 export type NightlyPrice = { date: string; package_code: BookingPackageCode; amount_centavos: number | null; source: string; rate_revision_id: string | null; reason?: string; approved_by?: string; approved_at?: string };

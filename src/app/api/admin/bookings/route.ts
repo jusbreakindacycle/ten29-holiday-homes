@@ -1,10 +1,10 @@
 import {z} from 'zod';
 import {policyOperationSchema} from '@/types/owner-policy';
-import {createSupabaseServerClient} from '@/lib/supabase/server';
+import {createSupabaseServerClient,createSupabaseServiceRoleClient} from '@/lib/supabase/server';
 import {isBookingSameOrigin} from '@/lib/booking-origin';
 import {operationSchema} from '@/types/operations';
 import {calendarDate,prepareQuoteSchema} from '@/types/pricing';
-import {prepareItemizedQuote,issueItemizedQuote,readQuoteBreakdown,readPublicPrices} from '@/services/pricing-service';
+import {prepareItemizedQuote,issueItemizedQuote,readQuoteBreakdown,readBookingPriceSnapshot} from '@/services/pricing-service';
 import {deliverBookingNotifications} from '@/services/guest-booking-service';
 import {operationalLog} from '@/lib/operational-log';
 export const dynamic='force-dynamic';
@@ -34,7 +34,7 @@ export async function POST(request:Request){
  }else if(raw.action==='ESTIMATE'){
   const p=z.object({action:z.literal('ESTIMATE'),id:z.uuid()}).strict().parse(raw);
   const r=await c.from('booking_requests').select('*').eq('id',p.id).single();if(r.error||!r.data)throw Error('Request unavailable');const b=r.data;
-  data=await readPublicPrices(c,{package_code:b.package_code,check_in_date:b.check_in_date,check_out_date:b.check_out_date,overnight_guest_count:b.countable_guest_count??b.overnight_guest_count!,folding_foams_requested:b.folding_foams_requested});
+  data=await readBookingPriceSnapshot(createSupabaseServiceRoleClient(),{package_code:b.package_code,check_in_date:b.check_in_date,check_out_date:b.check_out_date,overnight_guest_count:b.countable_guest_count??b.overnight_guest_count!,folding_foams_requested:b.folding_foams_requested});
  }else if(raw.action==='VERIFY'){
   const p=z.object({action:z.literal('VERIFY'),id:z.uuid(),key:z.uuid(),decision:z.enum(['VERIFIED','REJECTED']),independent:z.boolean()}).strict().parse(raw);
   const owner=await c.rpc('is_ten29_owner');if(owner.data!==true)throw Error('OWNER required');

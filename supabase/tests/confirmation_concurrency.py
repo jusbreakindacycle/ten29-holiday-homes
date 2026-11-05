@@ -140,7 +140,7 @@ print("PASS: concurrent publication retries: lock observed, one publication even
 # Slice 5: real concurrent same-session/key intake, payload substitution, and owner-block race.
 import json
 intake_from, intake_to = sql("select ((now() at time zone 'Asia/Manila')::date+60)::text || ',' || ((now() at time zone 'Asia/Manila')::date+62)::text;").stdout.strip().split(',')
-price = json.loads(sql(f"select public.read_public_calendar_prices('WHOLE_HOME_3BR','{intake_from}','{intake_to}',2,false);").stdout)
+price = json.loads(sql(f"select public.read_booking_price_snapshot('WHOLE_HOME_3BR','{intake_from}','{intake_to}',2,false);").stdout)
 payload = dict(full_name='Concurrent Synthetic Guest', mobile_number='+639171234567', email='', adults=2, children=0, day_visitors=0, vehicles=0,
     message='', purpose_of_stay='', privacy_consent=True, utm_source='', utm_medium='', utm_campaign='', package_code='WHOLE_HOME_3BR',
     folding_foams_requested=False, check_in_date=intake_from, check_out_date=intake_to, reviewed_estimate=price)
@@ -165,7 +165,7 @@ print('PASS: owner block versus public intake: occupancy write lock observed, un
 revision = sql(f"begin; {AUTH} select public.save_calendar_rate_draft('WHOLE_HOME_3BR',(select published_revision_id from public.calendar_rate_heads where package_code='WHOLE_HOME_3BR'),'[{{\"kind\":\"DEFAULT\",\"amount_centavos\":77777,\"weekday\":null,\"start_date\":null,\"end_date\":null}}]'::jsonb,'{uuid.uuid4()}'); commit;").stdout.strip().splitlines()[-1]
 # Use a different available span to isolate stale-price behavior from the previous owner block.
 payload2 = {**payload, 'check_in_date': sql("select ((now() at time zone 'Asia/Manila')::date+80)::text;").stdout.strip(), 'check_out_date': sql("select ((now() at time zone 'Asia/Manila')::date+82)::text;").stdout.strip()}
-payload2['reviewed_estimate'] = json.loads(sql(f"select public.read_public_calendar_prices('WHOLE_HOME_3BR','{payload2['check_in_date']}','{payload2['check_out_date']}',2,false);").stdout)
+payload2['reviewed_estimate'] = json.loads(sql(f"select public.read_booking_price_snapshot('WHOLE_HOME_3BR','{payload2['check_in_date']}','{payload2['check_out_date']}',2,false);").stdout)
 result = race(f"select public.publish_calendar_rate_revision('{revision}',(select base_revision_id from public.calendar_rate_revisions where id='{revision}'),'{uuid.uuid4()}');",intake_statement('b',str(uuid.uuid4()),payload2))
 assert 'PRICE_CHANGED' in result.stdout, result.stdout
 assert sql("select count(*) from public.website_booking_intakes where session_hash=repeat('b',64);").stdout.strip()=='0'

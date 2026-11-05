@@ -1,7 +1,8 @@
 begin;
 select no_plan();
-create function pg_temp.payload(n text default 'Synthetic Guest',a integer default 2,c integer default 0,pack text default 'WHOLE_HOME_3BR',foam boolean default false) returns jsonb language sql security definer set search_path='' as $$
- select jsonb_build_object('full_name',n,'mobile_number','+639171234567','email','synthetic@example.invalid','adults',a,'children',c,'day_visitors',0,'vehicles',0,
+create function pg_temp.payload(n text default 'Synthetic Guest',a integer default 2,c integer default 0,pack text default 'WHOLE_HOME_3BR',foam boolean default false,young integer default 0) returns jsonb language sql security definer set search_path='' as $$
+ select jsonb_build_object('full_name',n,'mobile_number','+639171234567','email','synthetic@example.invalid','adults',a,'children',c,'young_children',young,
+ 'policy_version','TEN29-20261015-v1','day_visitors',0,'vehicles',0,
  'message','','purpose_of_stay','','privacy_consent',true,'utm_source','fixture','utm_medium','','utm_campaign','',
  'package_code',pack,'folding_foams_requested',foam,'check_in_date',(now() at time zone 'Asia/Manila')::date+20,
  'check_out_date',(now() at time zone 'Asia/Manila')::date+22,'reviewed_estimate',
@@ -14,8 +15,9 @@ set local role service_role;
 update f set result=public.accept_website_booking(payload,session,key,session) where name='valid';
 reset role;
 select is((select result->>'outcome' from f where name='valid'),'SAVED','genuine guest is saved without an admin identity');
-select is((select count(*)::integer from public.inquiries),1,'one legacy enquiry persisted');
+select is((select count(*)::integer from public.inquiries),1,'one guest enquiry persisted');
 select is((select count(*)::integer from public.booking_requests),1,'one linked request persisted');
+select is((select policy_version from public.booking_requests),'TEN29-20261015-v1','new public request is assigned the current booking policy');
 select is((select source::text from public.booking_requests),'WEBSITE','authoritative WEBSITE source');
 select is((select package_code::text from public.booking_requests),'WHOLE_HOME_3BR','two guests retain purchased 3BR');
 select is((select overnight_guest_count::integer from public.booking_requests),2,'overnight count persisted');
@@ -29,6 +31,14 @@ select is((select estimate->>'missing_rates' from public.website_booking_intakes
 select ok((select i.check_in_date=b.check_in_date and i.check_out_date=b.check_out_date from public.inquiries i join public.booking_requests b on b.inquiry_id=i.id),'dates match');
 set local role service_role;
 select is((select public.accept_website_booking(payload,session,key,session) from f where name='valid'),(select result from f where name='valid'),'matching retry returns original result');
+reset role;
+set local role service_role;
+select throws_ok($$select public.accept_website_booking((select payload-'policy_version'-'young_children' from f where name='valid'),repeat('1',64),gen_random_uuid(),repeat('1',64))$$,
+ '23514','New website booking requests require the current booking policy','missing public policy version is rejected by database enforcement');
+select throws_ok($$select public.accept_website_booking((select payload||'{"policy_version":"LEGACY"}' from f where name='valid'),repeat('2',64),gen_random_uuid(),repeat('2',64))$$,
+ '23514',null,'public client cannot downgrade policy to LEGACY');
+select throws_ok($$select public.accept_website_booking((select payload||'{"policy_version":"TEN29-unsupported"}' from f where name='valid'),repeat('3',64),gen_random_uuid(),repeat('3',64))$$,
+ '23514',null,'unsupported public policy version is rejected');
 reset role;
 select is((select count(*)::integer from public.booking_requests),1,'retry does not duplicate requests');
 set local role service_role;
@@ -165,6 +175,20 @@ set local role service_role;
 select lives_ok($$select public.accept_website_booking((select payload from f where name='long-stay'),
 repeat('5',64),gen_random_uuid(),repeat('5',64))$$,'full bounded nightly breakdown fits atomic intake size limits');
 reset role;
+set local role service_role;
+select is((public.accept_website_booking(pg_temp.payload('Nine Occupant Exempt Child',7,1,'WHOLE_HOME_3BR',true,1)
+ || jsonb_build_object('check_in_date',(now() at time zone 'Asia/Manila')::date+40,
+  'check_out_date',(now() at time zone 'Asia/Manila')::date+42,
+  'reviewed_estimate',public.read_booking_price_snapshot('WHOLE_HOME_3BR'::public.booking_package_code,
+   (now() at time zone 'Asia/Manila')::date+40,(now() at time zone 'Asia/Manila')::date+42,8,true)),
+ repeat('4',64),gen_random_uuid(),repeat('4',64))->>'outcome'),'SAVED','3BR pricing accepts eight countable guests with nine actual occupants');
+reset role;
+select is((select countable_guest_count::integer from public.booking_requests where inquiry_id in
+ (select id from public.inquiries where full_name='Nine Occupant Exempt Child')),8,'database stores eight countable guests');
+select is((select overnight_guest_count::integer from public.booking_requests where inquiry_id in
+ (select id from public.inquiries where full_name='Nine Occupant Exempt Child')),9,'database retains all nine actual occupants');
+select is((select exempt_children_count::integer from public.booking_requests where inquiry_id in
+ (select id from public.inquiries where full_name='Nine Occupant Exempt Child')),1,'exempt child remains separately recorded');
 set local role anon;
 select throws_ok($$select public.accept_website_booking('{}',repeat('a',64),gen_random_uuid(),repeat('b',64))$$,'42501',null,'anon cannot call server intake RPC');
 select throws_ok($$select * from public.website_booking_intakes$$,'42501',null,'anon cannot enumerate intake snapshots');

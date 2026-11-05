@@ -8,6 +8,7 @@ import {
   recommendBookingPackage,
   recordBookingDepositSchema,
 } from "@/types/booking";
+import { OWNER_POLICY_VERSION } from "@/types/owner-policy";
 
 const REQUEST_ID = "00000000-0000-4000-8000-000000000001";
 const IDEMPOTENCY_KEY = "00000000-0000-4000-8000-000000000002";
@@ -108,6 +109,49 @@ describe("booking package and request domain", () => {
       }
     }
   );
+
+  it.each([
+    ["WHOLE_HOME_1BR", 3, 0, false, true],
+    ["WHOLE_HOME_2BR", 5, 0, false, true],
+    ["WHOLE_HOME_1BR", 2, 0, true, false],
+    ["WHOLE_HOME_2BR", 4, 0, true, false],
+    ["WHOLE_HOME_3BR", 7, 0, false, false],
+    ["WHOLE_HOME_3BR", 7, 0, true, true],
+  ] as const)("validates current-policy package occupancy for %s (%s countable, %s exempt; foam=%s)", (
+    package_code, countable, exempt, folding_foams_requested, expected,
+  ) => {
+    const result = createBookingRequestSchema.safeParse({
+      source: "PHONE",
+      package_code,
+      check_in_date: "2027-06-10",
+      check_out_date: "2027-06-11",
+      overnight_guest_count: countable + exempt,
+      policy_version: OWNER_POLICY_VERSION,
+      adults_count: countable,
+      older_children_count: 0,
+      exempt_children_count: exempt,
+      folding_foams_requested,
+    });
+    expect(result.success).toBe(expected);
+    if (result.success) expect(result.data.overnight_guest_count).toBe(countable + exempt);
+  });
+
+  it("uses countable guests for eligibility and preserves exempt children in the overnight count", () => {
+    const result = createBookingRequestSchema.safeParse({
+      source: "PHONE",
+      package_code: "WHOLE_HOME_1BR",
+      check_in_date: "2027-06-10",
+      check_out_date: "2027-06-11",
+      overnight_guest_count: 4,
+      policy_version: OWNER_POLICY_VERSION,
+      adults_count: 3,
+      older_children_count: 0,
+      exempt_children_count: 1,
+      folding_foams_requested: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.overnight_guest_count).toBe(4);
+  });
 
   it.each([
     { check_in_date: "2027-02-30", check_out_date: "2027-03-01" },

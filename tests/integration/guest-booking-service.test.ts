@@ -8,6 +8,7 @@ vi.mock("@/services/pricing-service", () => ({ readBookingPriceSnapshot: readPri
 import { acceptGuestBooking, deliverBookingNotifications } from "@/services/guest-booking-service";
 import { PricingError } from "@/services/pricing-service";
 import { addDays } from "@/types/pricing";
+import { OWNER_POLICY_VERSION } from "@/types/owner-policy";
 import { manilaToday, type GuestBookingInput } from "@/types/guest-booking";
 const raw = { idempotency_key: "00000000-0000-4000-8000-000000000091", full_name: "Synthetic Guest", mobile_number: "09171234567", email: "", adults: 2, children: 0,
   day_visitors: 0, vehicles: 0, package_code: "WHOLE_HOME_3BR", folding_foams_requested: false, check_in_date: addDays(manilaToday(),20), check_out_date: addDays(manilaToday(),22),
@@ -22,7 +23,19 @@ describe("atomic intake service", () => {
     expect(readPrices).toHaveBeenCalledWith(expect.objectContaining({ rpc }), expect.objectContaining({ package_code: raw.package_code }));
     expect(rpc).toHaveBeenCalledTimes(1); expect(rpc.mock.calls[0][0]).toBe("accept_website_booking");
     expect(rpc.mock.calls[0][1].p_payload).not.toHaveProperty("source");
+    expect(rpc.mock.calls[0][1].p_payload.policy_version).toBe(OWNER_POLICY_VERSION);
     expect(rpc.mock.calls[0][1].p_payload.reviewed_estimate).toMatchObject({ estimated_total_centavos: 12345 });
+  });
+  it("prices countable guests but retains exempt children and actual occupancy in the policy payload", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { outcome: "SAVED" }, error: null });
+    const request = { ...raw, adults: 7, children: 1, young_children: 1, package_code: "WHOLE_HOME_3BR" as const, folding_foams_requested: true };
+    await acceptGuestBooking(request,"a".repeat(64),"b".repeat(64),{ rpc } as unknown as Client);
+    expect(readPrices).toHaveBeenCalledWith(expect.objectContaining({ rpc }), expect.objectContaining({
+      package_code: "WHOLE_HOME_3BR", overnight_guest_count: 8, folding_foams_requested: true,
+    }));
+    expect(rpc.mock.calls[0][1].p_payload).toMatchObject({
+      policy_version: OWNER_POLICY_VERSION, adults: 7, children: 1, young_children: 1,
+    });
   });
   it("reads prices through the private service client and stops before intake if that snapshot read fails", async () => {
     readPrices.mockRejectedValue(new PricingError('private database details', '42501'));
