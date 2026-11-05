@@ -43,7 +43,7 @@ test.describe("Guest booking against disposable Supabase", () => {
     await page.getByRole("button", { name: /Send Enquiry/ }).click();
     await expect(page.getByRole("heading", { name: "Request received" })).toBeVisible();
     const status = page.getByRole("status", { name: "Saved booking request" });
-    await expect(status).toContainText("Dates are not reserved");
+    await expect(status).toContainText("This request does not hold the dates");
     const reference = (await status.innerText()).match(/TEN29-[A-F0-9]{32}/)![0];
     const enquiries = await rows(request, "inquiries", `reference_code=eq.${reference}&select=*`);
     expect(enquiries).toHaveLength(1);
