@@ -214,10 +214,11 @@ select is((public.read_public_promotion_teaser('WHOLE_HOME_3BR','2033-02-02','20
 select ok(public.read_public_promotion_teaser('WHOLE_HOME_3BR','2033-02-02','2033-02-04')::text !~ 'former_price_evidence|standard|history|owner_input|adjustments|guest|payment','public teaser omits private rate and booking data');
 select throws_ok($$select public.read_public_calendar_prices('WHOLE_HOME_3BR','2033-02-02','2033-02-04',2,false)$$,'42501',null,'anonymous caller cannot read schedule despite knowing eligible dates');
 reset role;
-select throws_ok($$select pg_temp.read_rates('WHOLE_HOME_1BR','2033-01-01','2033-01-02',3,false)$$,'23514','Ineligible package occupancy','pricing cannot bypass capacity');
+select throws_ok($$select pg_temp.read_rates('WHOLE_HOME_1BR','2033-01-01','2033-01-02',4,false)$$,'23514','Ineligible package occupancy','pricing cannot exceed the 1BR countable maximum');
 select throws_ok($$select pg_temp.read_rates('WHOLE_HOME_3BR','2033-01-01','2033-01-02',8,false)$$,'23514','Ineligible package occupancy','pricing enforces foam arrangement');
 select throws_ok($$select pg_temp.read_rates('WHOLE_HOME_3BR','2033-01-01','2035-01-02',1,false)$$,'23514','Price window must be between 1 and 366 nights','public price read bounded');
-select throws_ok($$insert into public.calendar_rate_rules(revision_id,position,kind,amount_centavos) select id,99,'DEFAULT',1 from f where name='one'$$,'42501',null,'owner cannot directly mutate published rule tables');
+select throws_ok($$insert into public.calendar_rate_rules(revision_id,position,kind,amount_centavos) select id,99,'DEFAULT',1 from f where name='one'$$,
+ '23514','Published rule sets are immutable','owner cannot directly mutate published rule tables');
 
 insert into public.booking_requests(id,source,package_code,check_in_date,check_out_date,overnight_guest_count)
  values('00000000-0000-4000-8000-000000000064','PHONE','WHOLE_HOME_3BR','2032-12-31','2033-01-02',2),
@@ -266,7 +267,7 @@ select lives_ok($$select public.confirm_booking_reservation('00000000-0000-4000-
 select is((public.read_owner_quote_breakdown((select id from f where name='quote-two'))->>'remaining_balance_centavos')::bigint,119026::bigint,'verified deposit reduces remaining balance, not quotation charges');
 select throws_ok($$select public.prepare_itemized_booking_quote('00000000-0000-4000-8000-000000000064',(select id from f where name='new-three'),1000,'[]','[]',null,null,null,gen_random_uuid())$$,
  '23514','Request is not eligible for a new quote','confirmed financial agreement cannot be replaced');
-update f set id=public.prepare_itemized_booking_quote('00000000-0000-4000-8000-000000000065',(select id from f where name='three'),10000,'[]','[]',null,'Promotion applies to the eligible whole-house package and nights',null,key) where name='promo-next';
+update f set id=public.prepare_itemized_booking_quote('00000000-0000-4000-8000-000000000065',(select id from f where name='new-three'),10000,'[]','[]',null,'Promotion applies to the eligible whole-house package and nights',null,key) where name='promo-next';
 select is((public.read_owner_quote_breakdown((select id from f where name='promo-next'))->'accommodation'->>'subtotal_centavos')::bigint,90000::bigint,'owner quotation uses the approved promotional amount for eligible nights');
 select is(public.read_owner_quote_breakdown((select id from f where name='promo-next'))->'promotion'->>'id',(select id::text from f where name='promo-active'),'quotation records the promotion applied');
 select public.issue_itemized_booking_quote(id) from f where name='promo-next';

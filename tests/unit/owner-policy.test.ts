@@ -6,8 +6,9 @@ import {referencesHouseRules} from '@/lib/nonstored-rules';
 const base={source:'PHONE' as const,check_in_date:'2030-01-01',check_out_date:'2030-01-03',policy_version:OWNER_POLICY_VERSION,folding_foams_requested:true};
 describe('owner policy age bands and authoritative approvals',()=>{
  it.each([['WHOLE_HOME_1BR',3],['WHOLE_HOME_2BR',5],['WHOLE_HOME_3BR',8]] as const)('permits %s requested extras within policy maximum', (package_code,adults_count)=>{
-  expect(createBookingRequestSchema.safeParse({...base,package_code,adults_count,older_children_count:0,exempt_children_count:1,overnight_guest_count:adults_count+1}).success).toBe(true);
-  expect(createBookingRequestSchema.safeParse({...base,package_code,adults_count:adults_count+1,older_children_count:0,exempt_children_count:0,overnight_guest_count:adults_count+1}).success).toBe(false);
+  const packageSelection={...base,package_code,folding_foams_requested:package_code==='WHOLE_HOME_3BR'};
+  expect(createBookingRequestSchema.safeParse({...packageSelection,adults_count,older_children_count:0,exempt_children_count:1,overnight_guest_count:adults_count+1}).success).toBe(true);
+  expect(createBookingRequestSchema.safeParse({...packageSelection,adults_count:adults_count+1,older_children_count:0,exempt_children_count:0,overnight_guest_count:adults_count+1}).success).toBe(false);
  });
  it('records actual occupants without billing exempt young children',()=>{
   expect(occupancy(7,0,1,'WHOLE_HOME_3BR')).toMatchObject({countable:7,actual:8,exempt:1,extraRequested:1,eligible:true});
