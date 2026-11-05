@@ -14,7 +14,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.goto("/admin/rates");
   }
   const priceUrl = (pkg = "WHOLE_HOME_1BR") => `/api/pricing?package_code=${pkg}&check_in_date=2034-01-01&check_out_date=2034-01-03&overnight_guest_count=1&folding_foams_requested=false`;
-  test("mobile owner saves private draft, previews, publishes and refreshes public prices", async ({ page, request }) => {
+  test("mobile owner manages private rates without exposing the standard schedule", async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await login(page);
     await expect(page.getByRole("heading", { name: "Rate Management", exact: true })).toBeVisible();
@@ -32,16 +32,14 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await expect(page.getByText("Draft saved. Public rates are unchanged.")).toBeVisible();
     const draftRead = await request.get(priceUrl());
     expect(draftRead.headers()["cache-control"]).toContain("no-store");
-    expect((await draftRead.json()).missing_rates).toBe(true);
+    expect(draftRead.status()).toBe(404);
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Private draft preview · 2034-01" })).toBeVisible();
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await expect(page.getByRole("dialog")).toContainText("Previously issued quotations remain unchanged");
     await page.getByRole("button", { name: "Confirm publication", exact: true }).click();
     await expect(page.getByText("Rates published successfully. New calendar views use this revision.")).toBeVisible();
-    const initial = await (await request.get(priceUrl())).json();
-    expect(initial.estimated_total_centavos).toBe(20002);
-    expect(JSON.stringify(initial)).not.toMatch(/approved_by|actor_id|conditions|adjustments/);
+    expect((await request.get(priceUrl())).status()).toBe(404);
     await expect(page.getByRole("button", { name: /2034-01-01, published PHP 100.01/ })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.setViewportSize({ width: 360, height: 800 });
@@ -51,8 +49,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: "test-results/owner-rates-mobile.png", fullPage: true });
   });
-  test("monthly update and date override refresh subsequent reads and disclose a stale estimate", async ({ page, request }) => {
-    const before = await (await request.get(priceUrl())).json();
+  test("monthly and date override changes stay private to the owner", async ({ page, request }) => {
     await login(page);
     await page.getByLabel("Go to month").fill("2034-01");
     await expect(page.getByRole("heading", { name: "January 2034", exact: true })).toBeVisible();
@@ -74,13 +71,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await page.getByRole("button", { name: "Confirm publication", exact: true }).click();
     await expect(page.getByText("Rates published successfully. New calendar views use this revision.")).toBeVisible();
-    const current = await (await request.get(priceUrl())).json();
-    expect(current.nights.map((n: { amount_centavos: number }) => n.amount_centavos)).toEqual([20002, 30003]);
-    expect(current.estimated_total_centavos).toBe(50005);
-    const weekday = await request.get("/api/pricing?package_code=WHOLE_HOME_1BR&check_in_date=2034-02-06&check_out_date=2034-02-07&overnight_guest_count=1&folding_foams_requested=false");
-    expect((await weekday.json()).estimated_total_centavos).toBe(22002);
-    const stale = await request.post("/api/pricing/revalidate", { data: { selection: { package_code: "WHOLE_HOME_1BR", check_in_date: "2034-01-01", check_out_date: "2034-01-03", overnight_guest_count: 1, folding_foams_requested: false }, expected_version: before.version } });
-    expect(stale.status()).toBe(409); expect((await stale.json()).acknowledgement_required).toBe(true);
+    expect((await request.get(priceUrl())).status()).toBe(404);
     await expect(page.getByRole("region", { name: "Rate revision history" })).toContainText("PUBLISHED");
   });
   test("selected larger package uses its own price and quote preview separates private arrangements", async ({ page, request }) => {
@@ -98,7 +89,7 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await page.getByRole("button", { name: "Confirm publication", exact: true }).click();
     await expect(page.getByText("Rates published successfully. New calendar views use this revision.")).toBeVisible();
-    expect((await (await request.get(priceUrl("WHOLE_HOME_3BR"))).json()).estimated_total_centavos).toBe(80008);
+    expect((await request.get(priceUrl("WHOLE_HOME_3BR"))).status()).toBe(404);
     await page.getByLabel("Recorded quotation").selectOption(process.env.TEN29_E2E_QUOTE_ID!);
     await page.getByRole("button", { name: "Preview quotation", exact: true }).click();
     const breakdown = page.getByTestId("quote-breakdown");

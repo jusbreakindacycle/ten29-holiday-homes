@@ -373,7 +373,7 @@ Migrations are forward-only, transactional where supported, backed up, staged an
 | TEN-ADMIN-02 | Mobile | Owner can use dashboard, rates, date blocks, media and booking confirmation at 360px width |
 | TEN-ADMIN-03 | Media library fit | Nine existing items appear in aligned 3x3 desktop view at 1365x600; grid collapses responsively below desktop |
 | TEN-ADMIN-04 | Owner request workflow | Request list has guest/source/status filters; manual request requires a source category and clearly separates guest, stay and private-note fields |
-| TEN-REQ-04 | Public pricing read access | Guest price reads use the public/session-bound role; only the atomic intake RPC uses service_role; missing rates remain explicit and are not invented |
+| TEN-REQ-04 | Public pricing read access | Public clients receive coarse availability and a qualifying approved promotion teaser only; standard rates and full estimates remain private, while intake uses the service-role snapshot RPC and missing rates are never invented |
 | TEN-MEDIA-05 | Captions and expanded photos | Full approved public caption and separate alt text are traceable in owner editor; expanded photos use metadata-stripped source resolution without cropping |
 | TEN-OPS-01 | Reliability | Outbox handles email retries; clear user feedback; backup, restore and deployment tests documented |
 | TEN-OPS-02 | Privacy/accessibility | No guest PII leakage; keyboard and screen-reader journey; media stripped of unnecessary GPS metadata |

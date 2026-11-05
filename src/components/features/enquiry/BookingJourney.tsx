@@ -16,8 +16,8 @@ function formatTeaserPrice(amount: number): string {
   if (!Number.isSafeInteger(amount) || amount < 0) return "Price unavailable";
   return `₱${(amount / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
-export function BookingJourney({ initial = {}, utm = {} }: {
-  initial?: Record<string, string | undefined>; utm?: Record<string, string | undefined>;
+export function BookingJourney({ initial = {}, utm = {}, availabilityOnly = false }: {
+  initial?: Record<string, string | undefined>; utm?: Record<string, string | undefined>; availabilityOnly?: boolean;
 }) {
   const [adults, setAdults] = useState(Number(initial.adults) || 1);
   const [children, setChildren] = useState(Number(initial.children) || 0);
@@ -78,10 +78,10 @@ export function BookingJourney({ initial = {}, utm = {} }: {
     setFoams(targetPackage === "WHOLE_HOME_3BR" && a + c > PACKAGE_POLICY[targetPackage].included);
   }
   useEffect(() => {
-    if (!hasValidStaySelection) return;
+    if (availabilityOnly || !hasValidStaySelection) return;
     fetch("/api/booking-session", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(); setSessionReady(true); setSessionError(""); })
       .catch(() => setSessionError("Secure request session could not start. Retry or contact TEN29."));
-  }, [hasValidStaySelection, sessionRetry]);
+  }, [availabilityOnly, hasValidStaySelection, sessionRetry]);
   useEffect(() => {
     if (!eligible || !/^\d{4}-\d{2}$/.test(month)) return;
     const abort = new AbortController();
@@ -199,7 +199,7 @@ export function BookingJourney({ initial = {}, utm = {} }: {
   </section>;
   const days = nightDates(`${month}-01`, `${nextMonth(month, 1)}-01`);
   const offset = new Date(`${month}-01T00:00:00Z`).getUTCDay();
-  return <form onSubmit={submit} className="space-y-6" aria-label="Request to Book">
+  return <form onSubmit={availabilityOnly ? (event) => event.preventDefault() : submit} className="space-y-6" aria-label={availabilityOnly ? "Check Availability" : "Request to Book"}>
     <fieldset disabled={busy || !hydrated} className="space-y-6 min-w-0">
       <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
         <h2 className="font-heading text-2xl text-forest">One private house. Choose how many bedrooms you&apos;d like opened.</h2>
@@ -272,7 +272,13 @@ export function BookingJourney({ initial = {}, utm = {} }: {
         <h2 className="font-heading text-xl text-forest">Owner quotation</h2>
         <p>TEN29 does not display rates online. The owner will check availability and send you a quotation before asking for payment.</p>
       </section>}
-      {hasValidStaySelection ? <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
+      {availabilityOnly && <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-3" aria-label="Availability next step">
+        <h2 className="font-heading text-xl text-forest">Ready to request these dates?</h2>
+        {stay && !blockedStay
+          ? <Link href={`/book?${stayQuery}`} className={`${button} inline-flex`}>Continue to request these dates</Link>
+          : <p role="status">{blockedStay ? "Choose different dates before making a request." : "Check the selected dates above before continuing."}</p>}
+      </section>}
+      {!availabilityOnly && (hasValidStaySelection ? <section className="rounded-sm border border-border bg-white p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
           <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest">Your selected stay</p><p className="mt-1 font-medium text-forest">{start} to {end} · {guests} guests · {rooms} bedroom{rooms === 1 ? "" : "s"}</p></div>
           <a href="#check_in_date" className={`${button} inline-flex`}>Edit dates</a>
@@ -292,7 +298,7 @@ export function BookingJourney({ initial = {}, utm = {} }: {
         {!sessionReady && !sessionError && <p role="status">Preparing a secure request session…</p>}
         <div aria-hidden="true" className="absolute left-[-9999px] h-0 overflow-hidden"><label htmlFor="website">Leave empty</label><input id="website" name="website" tabIndex={-1} autoComplete="off"/></div>
         <button type="submit" className={`${button} bg-forest text-white w-full`} disabled={busy || !sessionReady || !stay || blockedStay || !eligible || !promotionReady} aria-busy={busy}>{busy ? "Saving your request…" : "Request to Book — Send Enquiry"}</button>
-      </section> : <p role="status" className="rounded-sm border border-border bg-white p-4">Choose an eligible stay above to review availability and send your enquiry. Rates are not displayed online. The owner will review availability and provide a complete quote.</p>}
+      </section> : <p role="status" className="rounded-sm border border-border bg-white p-4">Choose an eligible stay above to review availability and send your enquiry. Rates are not displayed online. The owner will review availability and provide a complete quote.</p>)}
     </fieldset>
     {message && <p role="alert" className="rounded-sm border border-gold bg-sand p-4">{message}</p>}
   </form>;

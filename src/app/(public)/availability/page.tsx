@@ -7,14 +7,14 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Availability",
-  description: "Explore property-wide availability and owner-published nightly estimates, then request your dates.",
+  description: "Explore property-wide availability and any approved promotional offer, then request your dates.",
   alternates: { canonical: `${getSiteUrl()}/availability` },
 };
 
 export default function AvailabilityPage() {
   return <div className="mx-auto max-w-3xl px-1 py-12 sm:px-6">
     <SectionHeading as="h1" eyebrow="Availability" title="Explore your dates"
-      description="Current property-wide availability and owner-published accommodation estimates. Dates remain subject to owner confirmation."/>
+      description="Current property-wide availability and any approved promotional offer. Dates remain subject to owner confirmation."/>
     <div className="my-8"><Alert tone="warning" title="Request, not reservation">{NON_RESERVATION_NOTICE}</Alert></div>
     <BookingJourney availabilityOnly/>
   </div>;

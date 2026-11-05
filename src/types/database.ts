@@ -45,7 +45,7 @@ export interface Database {
       read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
       read_booking_price_snapshot: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
       save_calendar_promotion_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_former: number; p_discount: number; p_from: string; p_to: string; p_min: number; p_max: number; p_valid_from: string; p_valid_until: string; p_basis: string; p_period: string; p_evidence: string; p_key: string }; Returns: string };
-      publish_calendar_promotion: { Args: { p_id: string; p_base: string | null; p_key: string; p_former_reviewed: boolean; p_dti_reviewed: boolean }; Returns: string };
+      publish_calendar_promotion: { Args: { p_id: string; p_base: string | null; p_key: string; p_former_price_attested: boolean; p_owner_dti_acknowledged: boolean }; Returns: string };
       deactivate_calendar_promotion: { Args: { p_package: BookingPackageCode; p_id: string }; Returns: undefined };
       read_owner_promotion_state: { Args: { p_package: BookingPackageCode }; Returns: OwnerPromotionState };
       read_public_promotion_teaser: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string }; Returns: PublicPromotionTeaser | null };
