@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { BookingDbClient } from "./booking-service";
 import { BOOKING_PACKAGE_CODES, type BookingPackageCode } from "@/types/booking";
 import { priceWindowSchema, prepareQuoteSchema, publishRateSchema, saveRateDraftSchema,
-  savePromotionDraftSchema, publishPromotionSchema, publicPromotionTeaserSchema,
+  savePromotionDraftSchema, publishPromotionSchema, publicPromotionTeaserSchema, type DatabasePriceSnapshot,
   type OwnerRateState, type OwnerPromotionState, type PriceWindow, type PublicPriceEstimate, type PublicPromotionTeaser, type QuoteBreakdown } from "@/types/pricing";
 
 export class PricingError extends Error {
@@ -88,13 +88,22 @@ export async function deactivateOwnerPromotion(client: BookingDbClient, packageC
   const { error } = await client.rpc("deactivate_calendar_promotion", { p_package: packageCode, p_id: promotionId });
   if (error) fail(error);
 }
+async function readDatabasePriceSnapshot(client: BookingDbClient, input: PriceWindow): Promise<DatabasePriceSnapshot> {
+  const { data, error } = await client.rpc("read_booking_price_snapshot", { p_package: input.package_code,
+    p_from: input.check_in_date, p_to: input.check_out_date,
+    p_guests: input.overnight_guest_count, p_foams: input.folding_foams_requested });
+  if (error || !data) fail(error);
+  return data;
+}
+export async function readBookingPriceSnapshotForIntake(client: BookingDbClient, raw: PriceWindow): Promise<DatabasePriceSnapshot> {
+  const input = priceWindowSchema.safeParse(raw);
+  if (!input.success) throw new PricingError(input.error.issues[0]?.message ?? "Invalid price window.");
+  return readDatabasePriceSnapshot(client, input.data);
+}
 export async function readBookingPriceSnapshot(client: BookingDbClient, raw: PriceWindow): Promise<PublicPriceEstimate> {
   const input = priceWindowSchema.safeParse(raw);
   if (!input.success) throw new PricingError(input.error.issues[0]?.message ?? "Invalid price window.");
-  const { data, error } = await client.rpc("read_booking_price_snapshot", { p_package: input.data.package_code,
-    p_from: input.data.check_in_date, p_to: input.data.check_out_date,
-    p_guests: input.data.overnight_guest_count, p_foams: input.data.folding_foams_requested });
-  if (error || !data) fail(error);
+  const data = await readDatabasePriceSnapshot(client, input.data);
   // Explicit public projection; never spread database/private booking records.
   return { ...input.data, bedrooms_opened: data.bedrooms_opened, private_whole_house: true, currency: "PHP",
     estimate_kind: "ACCOMMODATION_ONLY", version: data.version, missing_rates: data.missing_rates,

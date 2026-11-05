@@ -116,7 +116,7 @@ test.describe('OWNER media with actual disposable Storage',()=>{
   await page.setViewportSize({width:360,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/owner-media-mobile.png',fullPage:true});
   for(const width of [768,1280]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
-  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Unpublish',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('Unpublished');
+  page.once('dialog',d=>d.accept());await card.getByRole('button',{name:'Unpublish',exact:true}).click();await expect(page.getByRole('status').first()).toContainText('Unpublished');
   expect((await request.get(`/api/media/${id}`)).status()).toBe(404);
  });
  for(const codec of ['libx264','libx265']) test(`actual ${codec==='libx264'?'Android MP4':'MOV HEVC'} upload becomes playable H264`,async({page,request})=>{

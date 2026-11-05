@@ -120,6 +120,20 @@ export const priceWindowSchema = z.object({
 });
 export type PriceWindow = z.infer<typeof priceWindowSchema>;
 export type NightlyPrice = { date: string; package_code: BookingPackageCode; amount_centavos: number | null; source: string; rate_revision_id: string | null; reason?: string; approved_by?: string; approved_at?: string };
+export type DatabasePriceSnapshot = {
+  package_code: BookingPackageCode; bedrooms_opened: number; private_whole_house: true;
+  check_in_date: string; check_out_date: string; overnight_guest_count: number; folding_foams_requested: boolean;
+  version: string | null;
+  nights: Array<NightlyPrice & { promotion_id: string | null }>;
+  missing_rates: boolean; accommodation_subtotal_centavos: number | null; estimated_total_centavos: number | null;
+  estimate_kind: "ACCOMMODATION_ONLY"; currency: "PHP";
+  promotion: {
+    id: string; revision: number; package_code: BookingPackageCode; former_amount_centavos: number;
+    promotional_amount_centavos: number; eligible_from_date: string; eligible_to_date: string;
+    minimum_nights: number; maximum_nights: number; valid_from: string; valid_until: string;
+    former_price_basis: string; former_price_period: string | null;
+  } | null;
+};
 export type PublicPriceEstimate = PriceWindow & {
   bedrooms_opened: number; private_whole_house: true; version: string | null; nights: NightlyPrice[];
   missing_rates: boolean; accommodation_subtotal_centavos: number | null; estimated_total_centavos: number | null;

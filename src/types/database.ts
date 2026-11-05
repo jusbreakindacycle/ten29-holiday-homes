@@ -2,7 +2,7 @@ import type { OwnerMedia, PublicMedia, MediaDelivery } from './media';
 import type { OpsData } from './operations';
 import type { IntakeResult } from "./guest-booking";
 import type { InquiryStatus, NotificationStatus } from "@/types/inquiry";
-import type { RateRule, AdjustmentInput, OwnerRateState, OwnerPromotionState, PublicPriceEstimate, PublicPromotionTeaser, QuoteBreakdown } from "@/types/pricing";
+import type { RateRule, AdjustmentInput, OwnerRateState, OwnerPromotionState, DatabasePriceSnapshot, PublicPriceEstimate, PublicPromotionTeaser, QuoteBreakdown } from "@/types/pricing";
 import type {
   BookingDepositStatus,
   BookingPackageCode,
@@ -42,8 +42,8 @@ export interface Database {
       save_calendar_rate_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_rules: RateRule[]; p_key: string }; Returns: string };
       publish_calendar_rate_revision: { Args: { p_revision: string; p_base: string | null; p_key: string }; Returns: string };
       read_owner_rate_state: { Args: { p_package: BookingPackageCode; p_offset?: number }; Returns: OwnerRateState };
-      read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
-      read_booking_price_snapshot: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: PublicPriceEstimate };
+      read_public_calendar_prices: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: DatabasePriceSnapshot };
+      read_booking_price_snapshot: { Args: { p_package: BookingPackageCode; p_from: string; p_to: string; p_guests: number; p_foams: boolean }; Returns: DatabasePriceSnapshot };
       save_calendar_promotion_draft: { Args: { p_package: BookingPackageCode; p_base: string | null; p_former: number; p_discount: number; p_from: string; p_to: string; p_min: number; p_max: number; p_valid_from: string; p_valid_until: string; p_basis: string; p_period: string; p_evidence: string; p_key: string }; Returns: string };
       publish_calendar_promotion: { Args: { p_id: string; p_base: string | null; p_key: string; p_former_price_attested: boolean; p_owner_dti_acknowledged: boolean }; Returns: string };
       deactivate_calendar_promotion: { Args: { p_package: BookingPackageCode; p_id: string }; Returns: undefined };

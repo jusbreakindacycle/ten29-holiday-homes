@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { deactivateOwnerPromotion, prepareItemizedQuote, publishOwnerPromotion, publishRateDraft, readOwnerPromotion, readOwnerRates,
-  readBookingPriceSnapshot, readPublicPromotionTeaser, revalidatePriceEstimate, saveOwnerPromotionDraft, saveRateDraft } from "@/services/pricing-service";
+  readBookingPriceSnapshot, readBookingPriceSnapshotForIntake, readPublicPromotionTeaser, revalidatePriceEstimate, saveOwnerPromotionDraft, saveRateDraft } from "@/services/pricing-service";
 import type { BookingDbClient } from "@/services/booking-service";
 const key = "00000000-0000-4000-8000-000000000051";
 const window = { package_code: "WHOLE_HOME_3BR" as const, check_in_date: "2033-01-01", check_out_date: "2033-01-02", overnight_guest_count: 2, folding_foams_requested: false };
@@ -35,6 +35,19 @@ describe("pricing service authorization and projection", () => {
     expect((await revalidatePriceEstimate(db, window, null)).acknowledgement_required).toBe(true);
     expect((await revalidatePriceEstimate(db, window, key)).changed).toBe(false);
     expect(rpc.mock.calls.every(([name]) => name === "read_booking_price_snapshot")).toBe(true);
+  });
+  it("preserves the exact database snapshot for the atomic intake comparison", async () => {
+    const { db, rpc } = fixture(false);
+    const snapshot = {
+      package_code: "WHOLE_HOME_3BR", bedrooms_opened: 3, private_whole_house: true,
+      check_in_date: window.check_in_date, check_out_date: window.check_out_date, overnight_guest_count: 2,
+      folding_foams_requested: false, version: key,
+      nights: [{ date: window.check_in_date, package_code: "WHOLE_HOME_3BR", amount_centavos: 10001, source: "DEFAULT", rate_revision_id: key, promotion_id: null }],
+      missing_rates: false, accommodation_subtotal_centavos: 10001, estimated_total_centavos: 10001,
+      estimate_kind: "ACCOMMODATION_ONLY", currency: "PHP", promotion: null,
+    };
+    rpc.mockResolvedValue({ data: snapshot, error: null });
+    await expect(readBookingPriceSnapshotForIntake(db, window)).resolves.toEqual(snapshot);
   });
   it("validates owner promotion drafts and requires explicit owner attestations before publishing", async () => {
     const { db, rpc } = fixture();

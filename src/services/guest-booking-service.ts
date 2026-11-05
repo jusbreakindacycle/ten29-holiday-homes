@@ -7,7 +7,7 @@ import type { Inquiry } from "@/types/inquiry";
 import type { BookingReceipt } from "@/types/guest-booking";
 import { formatPhp } from "@/types/pricing";
 import { operationalLog } from '@/lib/operational-log';
-import { readBookingPriceSnapshot, PricingError } from '@/services/pricing-service';
+import { readBookingPriceSnapshotForIntake, PricingError } from '@/services/pricing-service';
 import { OWNER_POLICY_VERSION } from "@/types/owner-policy";
 
 export class GuestBookingError extends Error {
@@ -20,8 +20,8 @@ export async function acceptGuestBooking(raw: GuestBookingInput, sessionHash: st
   if (parsed.data.website) throw new GuestBookingError("Request not saved. Leave the website field empty or contact TEN29 for help.");
   const { idempotency_key, website: _website, ...validated } = parsed.data;
   void _website;
-  let estimate:Awaited<ReturnType<typeof readBookingPriceSnapshot>>;
-  try { estimate = await readBookingPriceSnapshot(client, {
+  let estimate:Awaited<ReturnType<typeof readBookingPriceSnapshotForIntake>>;
+  try { estimate = await readBookingPriceSnapshotForIntake(client, {
     package_code: validated.package_code,
     check_in_date: validated.check_in_date,
     check_out_date: validated.check_out_date,
