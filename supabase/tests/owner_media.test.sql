@@ -19,10 +19,13 @@ insert into f select public.owner_media_action('RESERVE',null,null,'{"key":"0000
 select is((select m->>'state' from f),'UPLOADING','owner reserves private upload');
 select is((select (m->>'quota_bytes')::bigint from f),105906176::bigint,'pending scope reserves worst-case original and rendition capacity regardless of declared bytes');
 select is(public.read_public_media(),'[]'::jsonb,'upload not public');
-select throws_ok($$select public.owner_media_action('EDIT',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Media cannot be edited in this state','uploading media cannot be edited');
+update f set m=public.owner_media_action('EDIT',(m->>'id')::uuid,(m->>'version')::int,'{"title":"Private upload title","alt":"","caption":"","category":"Exterior","position":0,"rights":false}');
+select is((select m->>'state' from f),'UPLOADING','metadata edit leaves the upload private');
+select is((select m->>'title' from f),'Private upload title','owner can set the title before processing');
+select is((select m->>'rights_acknowledged' from f),'false','upload metadata edit does not acknowledge publication rights');
 select is((public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":128}')->>'id'),(select m->>'id' from f),'upload key idempotent');
 select throws_ok($$select public.owner_media_action('RESERVE',null,null,'{"key":"00000000-0000-4000-8000-000000000081","mime":"image/png","bytes":129}')$$,'P0001','Upload key conflict','changed idempotent payload rejected');
-select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,1,'{}') from f$$,'P0001','Media is not ready for publication','incomplete upload cannot publish');
+select throws_ok($$select public.owner_media_action('PUBLISH',(m->>'id')::uuid,(m->>'version')::int,'{}') from f$$,'P0001','Media is not ready for publication','incomplete upload cannot publish');
 select throws_ok($$update public.property_media set state='PUBLISHED'$$,'42501',null,'direct status writes denied');
 select throws_ok($$select public.media_worker_action((m->>'id')::uuid,'CLAIM',null,'{}') from f$$,'42501',null,'owner cannot forge worker readiness');
 select throws_ok($$select public.read_media_delivery((m->>'id')::uuid,true) from f$$,'42501',null,'raw private paths unavailable to owner RPC client');

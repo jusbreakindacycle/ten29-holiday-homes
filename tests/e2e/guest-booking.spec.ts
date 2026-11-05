@@ -30,7 +30,7 @@ test.describe("Guest booking against disposable Supabase", () => {
   }
   test("mobile guest persists linked pair, recovers lost response and owner can inspect it", async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 }); await choose(page);
-    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("complete quote");
+    await expect(page.getByRole("region", { name: "Owner quotation" })).toContainText("send you a quotation before asking for payment");
     await expect(page.getByText(`${dates[0]} to ${dates[2]}`, { exact: false }).first()).toBeVisible();
     await page.screenshot({ path: "test-results/guest-calendar-mobile.png", fullPage: true });
     let submitted: unknown;

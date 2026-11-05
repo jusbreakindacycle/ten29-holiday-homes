@@ -77,8 +77,9 @@ test.describe("OWNER rate management with isolated Supabase", () => {
   test("selected larger package uses its own price and quote preview separates private arrangements", async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await login(page);
-    await page.getByLabel("Bedroom package").selectOption("WHOLE_HOME_3BR");
-    await expect(page.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_3BR");
+    const rateEditor = page.getByRole("region", { name: "Calendar rate editor" });
+    await rateEditor.getByLabel("Bedroom package").selectOption("WHOLE_HOME_3BR");
+    await expect(rateEditor.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_3BR");
     await page.getByLabel("Apply price to").selectOption("DEFAULT");
     await page.getByLabel("Nightly price (PHP)").fill("400.04");
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
@@ -110,8 +111,8 @@ test.describe("OWNER rate management with isolated Supabase", () => {
     await page.getByRole("button", { name: "Apply to draft", exact: true }).click();
     await expect(editor.getByRole("alert")).toContainText("at most two decimal places");
     page.once("dialog", (dialog) => dialog.dismiss());
-    await page.getByLabel("Bedroom package").selectOption("WHOLE_HOME_2BR");
-    await expect(page.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_1BR");
+    await editor.getByLabel("Bedroom package").selectOption("WHOLE_HOME_2BR");
+    await expect(editor.getByLabel("Bedroom package")).toHaveValue("WHOLE_HOME_1BR");
     await page.getByLabel("Nightly price (PHP)").fill("");
     await page.getByLabel("Apply price to").selectOption("RANGE");
     await page.getByLabel("Start date", { exact: true }).fill("2034-01-10");

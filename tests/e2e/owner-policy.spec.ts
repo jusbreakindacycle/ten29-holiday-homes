@@ -8,12 +8,14 @@ test.describe('Slice 9 owner policy against disposable provider',()=>{
  for(const [rooms,guests,width] of [[3,7,390],[1,3,360],[2,5,768]] as const){
   test(`${rooms}BR requested extra guest plus free toddler remains owner controlled`,async({page,request})=>{
    await page.setViewportSize({width,height:844});const start=addDays(today,240+rooms*5),end=addDays(start,2);
+   const included=rooms*2;
    await page.goto('/book');await page.locator('#adults').fill(String(guests));await page.locator('#young_children').fill('1');await page.getByLabel('Bedroom package',{exact:true}).selectOption(`WHOLE_HOME_${rooms}BR`);
    await expect(page.getByLabel('Bedroom package',{exact:true})).toHaveValue(`WHOLE_HOME_${rooms}BR`);
-   await expect(page.getByText(`Additional guests needing OWNER approval: 1.`,{exact:false})).toBeVisible();
+   await expect(page.getByText(`Your package includes ${included} guests. Any additional guests need owner approval before the stay can be accepted.`)).toBeVisible();
    await page.locator('#check_in_date').fill(start);await page.locator('#check_out_date').fill(end);
-   await page.locator('#full_name').fill(`Synthetic Policy ${rooms}BR`);await page.locator('#mobile_number').fill(`+63917000900${rooms}`);await page.locator('#privacy_consent').check();
-   await expect(page.getByRole('region',{name:'Accommodation estimate'})).toContainText('No additional charges are automatically included');
+   await page.locator('#full_name').fill(`Synthetic Policy ${rooms}BR`);await page.locator('#mobile_number').fill(`0917000900${rooms}`);await page.locator('#privacy_consent').check();
+   await expect(page.getByRole('region',{name:'Owner quotation'})).toContainText('TEN29 does not display rates online');
+   await expect(page.getByText('PHP',{exact:false})).toHaveCount(0);
    await page.locator('#young_children').fill('2');await expect(page.getByRole('button',{name:/Send Enquiry/})).toBeEnabled();await page.locator('#young_children').fill('1');await expect(page.getByRole('button',{name:/Send Enquiry/})).toBeEnabled();
    await page.getByRole('button',{name:/Send Enquiry/}).click();await expect(page.getByRole('heading',{name:'Request received'})).toBeVisible();
    await login(page);await page.goto('/admin/requests');await page.getByLabel('Stay window start').fill(start);await page.getByLabel('Stay window end (exclusive)').fill(end);await page.getByLabel('Search guest or reference').fill(`Synthetic Policy ${rooms}BR`);await page.locator('article').filter({hasText:`Synthetic Policy ${rooms}BR`}).getByRole('link').click();await expect(page).toHaveURL(/\/admin\/requests\/[0-9a-f-]{36}$/);const id=page.url().split('/').at(-1)!;

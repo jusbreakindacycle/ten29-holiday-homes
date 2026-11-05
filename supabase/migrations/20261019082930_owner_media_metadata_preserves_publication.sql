@@ -28,7 +28,7 @@ begin
   if m.version<>p_version then raise exception 'Stale media revision'; end if;
   if p_action='EDIT' then
    if m.state='ARCHIVED' then raise exception 'Archived media cannot be edited'; end if;
-   if m.state not in ('PUBLISHED','READY_FOR_REVIEW','UNPUBLISHED') then raise exception 'Media cannot be edited in this state'; end if;
+   if m.state not in ('UPLOADING','PUBLISHED','READY_FOR_REVIEW','UNPUBLISHED') then raise exception 'Media cannot be edited in this state'; end if;
    if m.state='PUBLISHED' and p_data->>'rights' is distinct from 'true' then raise exception 'Unpublish before removing rights acknowledgement'; end if;
    if p_data->>'category' is null or p_data->>'category' not in ('Exterior','Entrance','Living Area','Kitchen & Dining','Room 1','Room 2','Room 3','Bathrooms','Lanai / Outdoor','Parking','Amenities','Property Tour Videos') then raise exception 'Category requires separate approval'; end if;
    update public.property_media set title=p_data->>'title',caption=p_data->>'caption',alt=p_data->>'alt',category=p_data->>'category',

@@ -29,7 +29,7 @@ test.describe('Owner booking operations against disposable Supabase',()=>{
  }
  test('guest website request reaches owner quotation, real independent verification and atomic confirmation',async({page,request})=>{
   await page.setViewportSize({width:390,height:844});await page.goto('/book');await page.locator('#adults').fill('2');await page.getByLabel('Bedroom package',{exact:true}).selectOption('WHOLE_HOME_3BR');await page.locator('#check_in_date').fill(start);await page.locator('#check_out_date').fill(end);
-  await page.locator('#full_name').fill('Synthetic Slice Seven Guest');await page.locator('#mobile_number').fill('+639170001234');await page.locator('#privacy_consent').check();
+  await page.locator('#full_name').fill('Synthetic Slice Seven Guest');await page.locator('#mobile_number').fill('09170001234');await page.locator('#privacy_consent').check();
   await page.getByRole('button',{name:/Send Enquiry/}).click();await expect(page.getByRole('heading',{name:'Request received'})).toBeVisible();
   await login(page);await page.goto('/admin/requests');await page.getByLabel('Search guest or reference').fill('Synthetic Slice Seven Guest');const detailLink=page.locator('article').getByRole('link');await expect(detailLink).toBeVisible();const href=(await detailLink.getAttribute('href'))!;expect(href).toMatch(/^\/admin\/requests\/[a-f0-9-]{36}$/);website=href.split('/').pop()!;await detailLink.click();await expect(page).toHaveURL(href);
   await quoteAndDeposit(page,website);await page.getByRole('button',{name:'Confirm Reservation',exact:true}).click();await expect(page.getByRole('heading',{name:'Reservation CONFIRMED',exact:true})).toBeVisible();
