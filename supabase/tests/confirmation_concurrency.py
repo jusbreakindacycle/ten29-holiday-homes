@@ -141,7 +141,7 @@ print("PASS: concurrent publication retries: lock observed, one publication even
 import json
 intake_from, intake_to = sql("select ((now() at time zone 'Asia/Manila')::date+60)::text || ',' || ((now() at time zone 'Asia/Manila')::date+62)::text;").stdout.strip().split(',')
 price = json.loads(sql(f"select public.read_booking_price_snapshot('WHOLE_HOME_3BR','{intake_from}','{intake_to}',2,false);").stdout)
-payload = dict(full_name='Concurrent Synthetic Guest', mobile_number='+639171234567', email='', adults=2, children=0, day_visitors=0, vehicles=0,
+payload = dict(full_name='Concurrent Synthetic Guest', mobile_number='+639171234567', email='', adults=2, children=0, young_children=0, day_visitors=0, vehicles=0,
     message='', purpose_of_stay='', privacy_consent=True, utm_source='', utm_medium='', utm_campaign='', package_code='WHOLE_HOME_3BR',
     folding_foams_requested=False, check_in_date=intake_from, check_out_date=intake_to,
     policy_version='TEN29-20261015-v1', reviewed_estimate=price)

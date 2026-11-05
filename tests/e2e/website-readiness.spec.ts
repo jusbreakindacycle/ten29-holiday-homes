@@ -65,7 +65,7 @@ test('synthetic calendar carries a requested stay without disclosing rates and r
   await page.locator('#check_in_date').fill(checkIn);
   await page.locator('#check_out_date').fill(checkOut);
   await expect(page.getByRole('region', { name: 'Owner quotation' })).toContainText('TEN29 does not display rates online');
-  await expect(page.getByRole('region', { name: 'Owner quotation' })).toContainText('send a complete quote');
+  await expect(page.getByRole('region', { name: 'Owner quotation' })).toContainText('send you a quotation before asking for payment');
   await expect(page.getByText('PHP', { exact: false })).toHaveCount(0);
   await expect(page.getByText('MISSING', { exact: false })).toHaveCount(0);
   const monthInput = page.getByLabel('Calendar month');

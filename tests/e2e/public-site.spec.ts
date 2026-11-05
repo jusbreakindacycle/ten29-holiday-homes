@@ -50,6 +50,12 @@ test.describe("Public site — critical path", () => {
 test.describe("Booking enquiry form", () => {
   test("requires the core fields before submission", async ({ page }) => {
     await page.goto("/book?check_in_date=malformed");
+    const checkIn = new Date();
+    checkIn.setDate(checkIn.getDate() + 20);
+    const checkOut = new Date();
+    checkOut.setDate(checkOut.getDate() + 22);
+    await page.locator("#check_in_date").fill(checkIn.toISOString().slice(0, 10));
+    await page.locator("#check_out_date").fill(checkOut.toISOString().slice(0, 10));
     const fullName = page.locator("#full_name");
     await expect(fullName).toHaveAttribute("required", "");
     await expect(page.locator("#mobile_number")).toHaveAttribute("required", "");
@@ -58,6 +64,12 @@ test.describe("Booking enquiry form", () => {
 
   test("submitting a complete form never claims the stay is confirmed", async ({ page }) => {
     await page.goto("/book");
+    const checkIn = new Date();
+    checkIn.setDate(checkIn.getDate() + 20);
+    const checkOut = new Date();
+    checkOut.setDate(checkOut.getDate() + 22);
+    await page.locator("#check_in_date").fill(checkIn.toISOString().slice(0, 10));
+    await page.locator("#check_out_date").fill(checkOut.toISOString().slice(0, 10));
 
     const fullName = page.locator("#full_name");
     const sessionError = page.getByText("Secure request session could not start. Retry or contact TEN29.", { exact: true });
@@ -75,13 +87,6 @@ test.describe("Booking enquiry form", () => {
 
     await fullName.fill("Playwright Test Guest");
     await page.locator("#mobile_number").fill("+639171234567");
-
-    const checkIn = new Date();
-    checkIn.setDate(checkIn.getDate() + 20);
-    const checkOut = new Date();
-    checkOut.setDate(checkOut.getDate() + 22);
-    await page.locator("#check_in_date").fill(checkIn.toISOString().slice(0, 10));
-    await page.locator("#check_out_date").fill(checkOut.toISOString().slice(0, 10));
 
     await page.locator("#adults").fill("2");
     await page.locator("#privacy_consent").check();
