@@ -204,9 +204,10 @@ print('PASS: simultaneous cancellation retries: PostgreSQL lock observed, one im
 def policy_ready(package, guests, start, end):
     request = str(uuid.uuid4())
     included = {'WHOLE_HOME_1BR':2,'WHOLE_HOME_2BR':4,'WHOLE_HOME_3BR':6}[package]
+    foams = str(package == 'WHOLE_HOME_3BR').lower()
     output = sql(rf"""begin; {AUTH}
 insert into public.booking_requests(id,source,package_code,check_in_date,check_out_date,overnight_guest_count,folding_foams_requested,policy_version,adults_count,older_children_count,exempt_children_count,countable_guest_count,extra_guests_requested,occupancy_owner_review)
-values('{request}','PHONE','{package}','{start}','{end}',{guests+1},true,'TEN29-20261015-v1',{guests},0,1,{guests},{guests-included},false);
+values('{request}','PHONE','{package}','{start}','{end}',{guests+1},{foams},'TEN29-20261015-v1',{guests},0,1,{guests},{guests-included},false);
 select public.perform_booking_policy_operation('{request}','{uuid.uuid4()}','{{"type":"EXTRA_APPROVE","count":{guests-included},"occupancy_reviewed":true}}');
 update public.booking_requests set status='REVIEWING' where id='{request}';
 select public.prepare_itemized_booking_quote('{request}',(select published_revision_id from public.calendar_rate_heads where package_code='{package}'),null,'[]','[{{"date":"{start}","amount_centavos":10000,"reason":"Synthetic concurrency"}}]',null,null,null,'{uuid.uuid4()}') as q \gset
